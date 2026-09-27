@@ -1,14 +1,14 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { validatePreflight } from '../src/domain/validation';
-import { isProject } from '../src/services/persistence';
+import { validatePreflight } from '../src/domain/validation.js';
+import { isProject } from '../src/services/persistence.js';
 import {
   buildGenerationPrompt, GENERATION_MODEL, GENERATION_QUALITY,
   GENERATION_SIZE, MAX_GENERATION_BODY_BYTES, MAX_GENERATION_IMAGES,
   MAX_GENERATION_IMAGE_BYTES, MAX_REFERENCE_IMAGES,
   MIN_GENERATION_ACCESS_CODE_LENGTH,
   type GenerationImage, type GenerationRequest,
-} from '../src/services/generationContract';
+} from '../src/services/generationContract.js';
 
 /** Image edits can take longer than ordinary JSON functions. */
 export const maxDuration = 180;

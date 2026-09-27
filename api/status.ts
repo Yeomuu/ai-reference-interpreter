@@ -3,7 +3,7 @@ import {
   GENERATION_MODEL, GENERATION_OUTPUT_PRICE_USD, GENERATION_PRICING_NOTE,
   GENERATION_QUALITY, GENERATION_SIZE, type GenerationStatus,
   MIN_GENERATION_ACCESS_CODE_LENGTH,
-} from '../src/services/generationContract';
+} from '../src/services/generationContract.js';
 
 export default function handler(request: IncomingMessage, response: ServerResponse): void {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
