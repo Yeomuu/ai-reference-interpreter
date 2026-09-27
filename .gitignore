@@ -7,3 +7,6 @@ Paperlogy/
 !.env.example
 .vercel/
 qa-screens/
+
+.vercel
+.env*
