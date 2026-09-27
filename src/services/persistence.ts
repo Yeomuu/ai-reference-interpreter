@@ -114,6 +114,7 @@ function isPlacementTarget(value: unknown): boolean {
 
 function isElement(value: unknown): boolean {
   return isRecord(value) && typeof value.id === 'string' && typeof value.sourceReferenceId === 'string' &&
+    (value.sourceRegion === undefined || isRect(value.sourceRegion)) &&
     typeof value.label === 'string' &&
     ['freestanding-fixture', 'furniture', 'photozone', 'wall-graphic', 'wall-mounted-product',
       'ceiling-light', 'hanging-display', 'wall-light', 'standing-light', 'ambient-light',
@@ -134,9 +135,12 @@ function isCamera(value: unknown): boolean {
 
 function isConditionsSnapshot(value: unknown): boolean {
   if (!isRecord(value) || !isStringArray(value.keepIds) || !isStringArray(value.appliedElementIds) ||
-      !isStringArray(value.excludedElementIds) || !isRecord(value.camera) ||
+      !isStringArray(value.excludedElementIds) ||
+      (value.existingPhotoId !== undefined && typeof value.existingPhotoId !== 'string') ||
+      !isRecord(value.camera) ||
       typeof value.camera.id !== 'string' || !isFraction(value.camera.x) || !isFraction(value.camera.y) ||
-      typeof value.camera.directionDegrees !== 'number' || !Number.isFinite(value.camera.directionDegrees)) return false;
+      typeof value.camera.directionDegrees !== 'number' || !Number.isFinite(value.camera.directionDegrees) ||
+      (value.camera.fovPreset !== undefined && !['narrow', 'standard', 'wide'].includes(String(value.camera.fovPreset)))) return false;
   if (value.common === undefined) return true;
   const common = value.common;
   return isRecord(common) && typeof common.concept === 'string' &&

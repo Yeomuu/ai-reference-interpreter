@@ -117,6 +117,8 @@ export type PlacementTarget =
 export interface DesignElement {
   id: string;
   sourceReferenceId: string;
+  /** Optional normalized region of the reference image. Omitted means the whole image. */
+  sourceRegion?: Rect;
   label: string;
   kind: ElementKind;
   status: 'apply' | 'exclude';
@@ -137,7 +139,10 @@ export interface ConditionsSnapshot {
   keepIds: string[];
   appliedElementIds: string[];
   excludedElementIds: string[];
-  camera: Pick<Camera, 'id' | 'x' | 'y' | 'directionDegrees'>;
+  /** Existing-space photograph selected for AI input; absent on older results. */
+  existingPhotoId?: string;
+  /** Older saved results may omit fovPreset; that means the standard view. */
+  camera: Pick<Camera, 'id' | 'x' | 'y' | 'directionDegrees' | 'fovPreset'>;
   /** Full values preserve the original review state after later partial revisions. */
   common?: {
     concept: string;

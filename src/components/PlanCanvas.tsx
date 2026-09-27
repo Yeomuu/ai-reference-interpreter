@@ -10,6 +10,8 @@ export interface PlanCanvasProps {
   selectedStructureId?: string;
   selectedCameraId?: string;
   mode: 'view' | 'keep' | 'place' | 'camera';
+  drawTool?: 'point' | 'segment' | 'rect';
+  onDraw?: (start: Point, end: Point) => void;
   onStructureSelect?: (id: string) => void;
   onStructureMove?: (id: string, start: Point, end: Point) => void;
   onPlacePoint?: (x: number, y: number) => void;
@@ -56,6 +58,7 @@ type Preview = {
   wall?: { wallId: string; start: number; end: number };
   structure?: { start: Point; end: Point };
 };
+type DrawDraft = { pointerId: number; start: Point; end: Point };
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
@@ -108,6 +111,8 @@ export default function PlanCanvas({
   selectedStructureId,
   selectedCameraId,
   mode,
+  drawTool,
+  onDraw,
   onStructureSelect,
   onStructureMove,
   onPlacePoint,
@@ -124,10 +129,12 @@ export default function PlanCanvas({
   const contentRef = useRef<SVGGElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const previewRef = useRef<Preview | null>(null);
+  const drawRef = useRef<DrawDraft | null>(null);
   const suppressClickRef = useRef(false);
   const instructionId = useId();
   const [zoom, setZoom] = useState(1);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [drawDraft, setDrawDraft] = useState<DrawDraft | null>(null);
   const [layers, setLayers] = useState({ structures: true, elements: true, cameras: true });
   const [imageState, setImageState] = useState<{ sourceUri: string; url?: string; error?: string } | null>(null);
   const [canvasDisplay, setCanvasDisplay] = useState({ scale: 1, narrow: false });
@@ -188,7 +195,13 @@ export default function PlanCanvas({
   const imageError = sourceUri && imageState?.sourceUri === sourceUri ? imageState.error : undefined;
   const keepNumbers = new Map(project.keeps.map((keep, index) => [keep.structureId, index + 1]));
   const activeElements = project.elements.filter((element) => element.status === 'apply' && element.target);
-  const modeInstruction = mode === 'place'
+  const modeInstruction = drawTool === 'point'
+    ? '도면을 눌러 선택한 구조의 위치를 표시하세요. 표시 위치는 실측 좌표가 아닙니다.'
+    : drawTool === 'segment'
+      ? '도면에서 시작점부터 끝점까지 끌어 선을 그리세요. 창·문·출입구는 연결 벽을 먼저 선택하고 그 벽 위를 따라 그립니다.'
+      : drawTool === 'rect'
+        ? '도면에서 시작점부터 끝점까지 끌어 영역을 표시하세요. 바닥과 통행 동선을 직접 구분해 주세요.'
+        : mode === 'place'
     ? '바닥 요소는 끌어서 이동하거나 회전 손잡이를 쓰세요. 벽 요소의 번호는 벽을 따라 끌 수 있습니다. 빈 바닥 클릭은 선택한 요소를 배치합니다. 기존 벽·기둥은 고정 구조입니다.'
     : mode === 'camera'
       ? '카메라 본체를 끌면 위치가 이동합니다. 본체와 떨어진 회전 손잡이를 끌면 시선 각도만 바뀝니다. 빈 바닥을 눌러도 카메라는 이동하지 않습니다.'
@@ -197,6 +210,7 @@ export default function PlanCanvas({
         : '도면의 구조와 Keep을 확인하세요. 사진을 분석해 만든 도면이나 자동 측정 결과가 아닙니다. 추가 가벽은 끌어서 이동할 수 있습니다.';
   const showElements = mode === 'place' || mode === 'camera';
   const showCameras = mode === 'camera';
+  const showStructureLayer = Boolean(drawTool) || layers.structures;
   const contentPixelScale = Math.max(0.01, canvasDisplay.scale * zoom);
 
   function svgPosition(event: { clientX: number; clientY: number }): Point | null {
@@ -207,6 +221,7 @@ export default function PlanCanvas({
   }
 
   function handleCanvasClick(event: MouseEvent<SVGSVGElement>) {
+    if (drawTool) return;
     if (mode !== 'place') return;
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -221,6 +236,42 @@ export default function PlanCanvas({
     const point = svgPosition(event);
     if (!point || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) return;
     onPlacePoint?.(point.x, point.y);
+  }
+
+  function handleDrawStart(event: PointerEvent<SVGSVGElement>) {
+    if (!drawTool || !onDraw || event.button !== 0) return;
+    const position = svgPosition(event);
+    if (!position || position.x < 0 || position.x > 1 || position.y < 0 || position.y > 1) return;
+    const draft = { pointerId: event.pointerId, start: position, end: position };
+    drawRef.current = draft;
+    setDrawDraft(draft);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handleDrawMove(event: PointerEvent<SVGSVGElement>) {
+    const draft = drawRef.current;
+    if (!drawTool || !draft || draft.pointerId !== event.pointerId) return false;
+    const position = svgPosition(event);
+    if (!position) return true;
+    const next = { ...draft, end: { x: clamp(position.x, 0, 1), y: clamp(position.y, 0, 1) } };
+    drawRef.current = next;
+    setDrawDraft(next);
+    return true;
+  }
+
+  function handleDrawEnd(event: PointerEvent<SVGSVGElement>) {
+    const draft = drawRef.current;
+    if (!drawTool || !draft || draft.pointerId !== event.pointerId) return false;
+    drawRef.current = null;
+    setDrawDraft(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (event.type !== 'pointercancel') {
+      const position = svgPosition(event);
+      const end = position ? { x: clamp(position.x, 0, 1), y: clamp(position.y, 0, 1) } : draft.end;
+      onDraw?.(draft.start, end);
+    }
+    return true;
   }
 
   function handleStructureSelect(structure: Structure) {
@@ -281,6 +332,7 @@ export default function PlanCanvas({
   }
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
+    if (handleDrawMove(event)) return;
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 3) return;
@@ -320,6 +372,7 @@ export default function PlanCanvas({
   }
 
   function handlePointerEnd(event: PointerEvent<SVGSVGElement>) {
+    if (handleDrawEnd(event)) return;
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
@@ -421,11 +474,11 @@ export default function PlanCanvas({
       ? { kind: 'segment' as const, start: structurePreview.start, end: structurePreview.end }
       : structure.geometry;
     const center = structureCenter({ ...structure, geometry });
-    const movable = structure.kind === 'wall' && geometry.kind === 'segment' && structure.immutable === false && !kept
+    const movable = !drawTool && structure.kind === 'wall' && geometry.kind === 'segment' && structure.immutable === false && !kept
       && Boolean(onStructureMove) && (mode === 'view' || mode === 'keep');
-    const selectable = movable || (mode === 'place' && structure.kind === 'wall'
+    const selectable = !drawTool && (movable || (mode === 'place' && structure.kind === 'wall'
       ? Boolean(onWallSelect)
-      : Boolean(onStructureSelect));
+      : Boolean(onStructureSelect)));
     const isOpening = structure.kind === 'window' || structure.kind === 'door' || structure.kind === 'entrance';
     const classes = [
       'plan-structure',
@@ -654,7 +707,7 @@ export default function PlanCanvas({
       </div>
       <div className="plan-canvas__layer-controls" aria-label="표시 레이어">
         <span>레이어</span>
-        <button type="button" aria-pressed={layers.structures} onClick={() => setLayers((current) => ({ ...current, structures: !current.structures }))}>구조 {layers.structures ? '표시' : '숨김'}</button>
+        <button type="button" aria-pressed={showStructureLayer} disabled={Boolean(drawTool)} onClick={() => setLayers((current) => ({ ...current, structures: !current.structures }))}>구조 {showStructureLayer ? '표시' : '숨김'}</button>
         {showElements && <button type="button" aria-pressed={layers.elements} onClick={() => setLayers((current) => ({ ...current, elements: !current.elements }))}>요소 {layers.elements ? '표시' : '숨김'}</button>}
         {showCameras && <button type="button" aria-pressed={layers.cameras} onClick={() => setLayers((current) => ({ ...current, cameras: !current.cameras }))}>카메라 {layers.cameras ? '표시' : '숨김'}</button>}
       </div>
@@ -663,7 +716,7 @@ export default function PlanCanvas({
     <div className="plan-canvas__surface">
       <svg
         ref={svgRef}
-        className={`plan-canvas__svg plan-canvas__svg--${mode}`}
+        className={`plan-canvas__svg plan-canvas__svg--${mode}${drawTool ? ` plan-canvas__svg--draw-${drawTool}` : ''}`}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role="group"
@@ -671,6 +724,7 @@ export default function PlanCanvas({
         aria-describedby={instructionId}
         tabIndex={0}
         onClick={handleCanvasClick}
+        onPointerDown={handleDrawStart}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
@@ -679,12 +733,21 @@ export default function PlanCanvas({
           <rect className="plan-canvas__backdrop" width={width} height={height} />
           {imageUri && <image className="plan-canvas__image" href={imageUri} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid meet" />}
           {floorAreas.map((area) => <rect key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />)}
-          {layers.structures && <g className="plan-canvas__layer plan-canvas__layer--structures" aria-label="기존 구조 레이어">
+          {mode === 'view' && plan.areas.filter((area) => area.kind !== 'floor').map((area) => <g key={area.id} className={`plan-canvas__area plan-canvas__area--${area.kind}`} aria-label={`${area.name} 영역`}>
+            <rect x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />
+            <text x={area.bounds.x * width + 10} y={area.bounds.y * height + 22}>{area.name}</text>
+          </g>)}
+          {showStructureLayer && <g className="plan-canvas__layer plan-canvas__layer--structures" aria-label="기존 구조 레이어">
             {mode === 'place' && plan.structures.filter((structure) => structure.clearance).map((structure) => <rect key={`${structure.id}-clearance`} className="plan-canvas__clearance" x={structure.clearance!.x * width} y={structure.clearance!.y * height} width={structure.clearance!.width * width} height={structure.clearance!.height * height} />)}
             {plan.structures.map(renderStructure)}
           </g>}
           {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.map(renderElement)}</g>}
           {showCameras && layers.cameras && <g className="plan-canvas__layer plan-canvas__layer--cameras" aria-label="카메라 레이어">{project.cameras.map(renderCamera)}</g>}
+          {drawDraft && <g className="plan-canvas__draw-preview" aria-hidden="true">
+            {drawTool === 'point' && <circle cx={drawDraft.start.x * width} cy={drawDraft.start.y * height} r={15} />}
+            {drawTool === 'segment' && <line x1={drawDraft.start.x * width} y1={drawDraft.start.y * height} x2={drawDraft.end.x * width} y2={drawDraft.end.y * height} />}
+            {drawTool === 'rect' && <rect x={Math.min(drawDraft.start.x, drawDraft.end.x) * width} y={Math.min(drawDraft.start.y, drawDraft.end.y) * height} width={Math.abs(drawDraft.end.x - drawDraft.start.x) * width} height={Math.abs(drawDraft.end.y - drawDraft.start.y) * height} />}
+          </g>}
         </g>
       </svg>
     </div>

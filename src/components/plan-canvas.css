@@ -138,6 +138,13 @@
   touch-action: pan-y;
 }
 
+.plan-canvas__svg--draw-point { cursor: pointer; }
+.plan-canvas__svg--draw-segment,
+.plan-canvas__svg--draw-rect { cursor: crosshair; }
+.plan-canvas__svg--draw-point,
+.plan-canvas__svg--draw-segment,
+.plan-canvas__svg--draw-rect { touch-action: none; }
+
 .plan-structure--movable,
 .plan-element--editable,
 .plan-element__wall-drag,
@@ -158,6 +165,34 @@
 
 .plan-canvas__floor--uploaded {
   fill: transparent;
+}
+
+.plan-canvas__area { pointer-events: none; }
+.plan-canvas__area rect {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+}
+.plan-canvas__area--passage rect {
+  stroke: var(--state-info-fg);
+  stroke-dasharray: 12 5;
+}
+.plan-canvas__area text {
+  fill: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+.plan-canvas__draw-preview { pointer-events: none; }
+.plan-canvas__draw-preview line,
+.plan-canvas__draw-preview rect,
+.plan-canvas__draw-preview circle {
+  fill: var(--surface-selected);
+  fill-opacity: .28;
+  stroke: var(--canvas-selection);
+  stroke-width: 3;
+  stroke-dasharray: 7 5;
 }
 
 .plan-canvas__svg--place .plan-canvas__floor {

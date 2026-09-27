@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSampleProject } from '../data/sample';
 import { validateImageFile } from './assets';
 import { OFFLINE_DEMO_NOTICE, offlineDemoProvider } from './imageProvider';
-import { getProject, loadProjects, removeProject, saveProject } from './persistence';
+import { getProject, isProject, loadProjects, removeProject, saveProject } from './persistence';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -32,8 +32,22 @@ describe('offline result provenance', () => {
       cameraId: 'camera-entrance',
     });
     expect(result.conditionsSnapshot.appliedElementIds).toContain('element-display');
+    expect(result.conditionsSnapshot.camera.fovPreset).toBe('standard');
     expect(OFFLINE_DEMO_NOTICE).toContain('현재 조건이나 카메라 설정을 반영해 생성한 결과가 아닙니다');
     expect(project).toEqual(before);
+  });
+
+  it('accepts an older result snapshot without a field of view', async () => {
+    const project = createSampleProject();
+    const existingPhotoId = project.sourceImages.find((image) => image.role === 'existing-space')!.id;
+    const result = await offlineDemoProvider.createResult(project, 'camera-entrance', existingPhotoId);
+    expect(result.conditionsSnapshot.existingPhotoId).toBe(existingPhotoId);
+    delete result.conditionsSnapshot.camera.fovPreset;
+    delete result.conditionsSnapshot.existingPhotoId;
+    project.results.push(result);
+    expect(isProject(project)).toBe(true);
+    result.conditionsSnapshot.camera.fovPreset = 'wide';
+    expect(isProject(project)).toBe(true);
   });
 
   it('rejects an invalid selected extra camera before returning a sample result', async () => {

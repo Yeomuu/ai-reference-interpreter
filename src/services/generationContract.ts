@@ -1,4 +1,4 @@
-import type { DesignElement, PlacementTarget, Project, StructureGeometry } from '../domain/types';
+import type { DesignElement, PlacementTarget, Project, Rect, StructureGeometry } from '../domain/types';
 
 /** One low-quality draft, with no automatic variants or hidden model calls. */
 export const GENERATION_MODEL = 'gpt-image-1-mini' as const;
@@ -6,6 +6,7 @@ export const GENERATION_QUALITY = 'low' as const;
 export const GENERATION_SIZE = '1536x1024' as const;
 export const GENERATION_OUTPUT_PRICE_USD = 0.006;
 export const MAX_REFERENCE_IMAGES = 3;
+export const MAX_REFERENCE_REGIONS_PER_IMAGE = 4;
 export const MAX_GENERATION_IMAGES = 5;
 export const MAX_GENERATION_IMAGE_BYTES = 550_000;
 export const MAX_GENERATION_BODY_BYTES = 4_000_000;
@@ -18,6 +19,14 @@ export interface GenerationImage {
   role: GenerationImageRole;
   sourceId: string;
   dataUrl: string;
+  /** The pixels in dataUrl were prepared from these user-selected source regions. */
+  referencePreparation?: ReferencePreparation;
+}
+
+export interface ReferencePreparation {
+  mode: 'crop' | 'grid';
+  /** One crop, or 2–4 crops in reading order: upper-left, upper-right, lower-left, lower-right. */
+  regions: Rect[];
 }
 
 export interface GenerationRequest {
@@ -47,6 +56,43 @@ function boundedText(value: string, length = 240): string {
 
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function sameRegion(left: Rect, right: Rect): boolean {
+  return left.x === right.x && left.y === right.y &&
+    left.width === right.width && left.height === right.height;
+}
+
+/** One reference source remains one transmitted image, even when several elements use it. */
+export function referencePreparationFor(project: Project, sourceId: string): ReferencePreparation | undefined {
+  const elements = project.elements.filter((element) => element.status === 'apply' &&
+    project.references.some((reference) => reference.id === element.sourceReferenceId && reference.imageId === sourceId));
+  // A whole-image element needs the original pixels; other elements can still use normalized source coordinates.
+  if (elements.some((element) => !element.sourceRegion)) return undefined;
+  const regions: Rect[] = [];
+  for (const element of elements) {
+    const region = element.sourceRegion;
+    if (region && !regions.some((saved) => sameRegion(saved, region))) regions.push(region);
+  }
+  if (!regions.length) return undefined;
+  if (regions.length > MAX_REFERENCE_REGIONS_PER_IMAGE) {
+    throw new Error(`같은 레퍼런스 이미지에서 서로 다른 선택 영역은 한 번에 최대 ${MAX_REFERENCE_REGIONS_PER_IMAGE}개까지 생성에 사용할 수 있습니다. 적용 요소의 영역을 정리해 주세요.`);
+  }
+  return { mode: regions.length === 1 ? 'crop' : 'grid', regions };
+}
+
+/** Reject client/server disagreements about which source pixels a reference image represents. */
+export function matchesReferencePreparation(expected: ReferencePreparation | undefined, actual: unknown): boolean {
+  if (!expected) return actual === undefined;
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return false;
+  const value = actual as Record<string, unknown>;
+  if (Object.keys(value).length !== 2 || value.mode !== expected.mode || !Array.isArray(value.regions) ||
+      value.regions.length !== expected.regions.length) return false;
+  return value.regions.every((region, index) => {
+    if (!region || typeof region !== 'object' || Array.isArray(region)) return false;
+    const rect = region as Record<string, unknown>;
+    return Object.keys(rect).length === 4 && sameRegion(rect as unknown as Rect, expected.regions[index]);
+  });
 }
 
 function geometryText(geometry: StructureGeometry): string {
@@ -80,7 +126,22 @@ function targetText(project: Project, target: PlacementTarget | null): string {
 function elementText(project: Project, element: DesignElement, images: GenerationImage[]): string {
   const reference = project.references.find((item) => item.id === element.sourceReferenceId);
   const imageNumber = images.findIndex((image) => image.sourceId === reference?.imageId) + 1;
+  const preparation = images.find((image) => image.sourceId === reference?.imageId)?.referencePreparation;
+  let sourceScope: string;
+  if (element.sourceRegion && preparation?.mode === 'crop') {
+    sourceScope = 'The entire transmitted reference image is the user-selected crop for this element. ';
+  } else if (element.sourceRegion && preparation?.mode === 'grid') {
+    const slot = preparation.regions.findIndex((region) => sameRegion(region, element.sourceRegion!));
+    const positions = ['upper-left', 'upper-right', 'lower-left', 'lower-right'];
+    if (slot < 0) throw new Error('선택한 이미지 영역과 생성 입력이 일치하지 않습니다.');
+    sourceScope = `Use only the ${positions[slot]} panel of this transmitted reference image for this element. `;
+  } else if (element.sourceRegion) {
+    sourceScope = `Use only its normalized region x ${percent(element.sourceRegion.x)} to ${percent(element.sourceRegion.x + element.sourceRegion.width)}, y ${percent(element.sourceRegion.y)} to ${percent(element.sourceRegion.y + element.sourceRegion.height)} as the visual reference for this element. `;
+  } else {
+    sourceScope = 'Use the whole reference image for this element. ';
+  }
   return `${boundedText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` +
+    sourceScope +
     `Appearance: ${boundedText(element.appearance ?? 'not specified')}. ` +
     `Conditions: ${boundedText(element.conditions ?? 'none')}.`;
 }
@@ -90,10 +151,18 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const camera = project.cameras.find((entry) => entry.id === cameraId);
   if (!camera || !project.floorPlan) throw new Error('카메라와 도면을 확인해 주세요.');
   const plan = project.floorPlan;
+  for (const image of images) {
+    if (image.role !== 'product' && image.role !== 'inspiration') continue;
+    if (!matchesReferencePreparation(referencePreparationFor(project, image.sourceId), image.referencePreparation)) {
+      throw new Error('선택한 이미지 영역과 생성 입력이 일치하지 않습니다.');
+    }
+  }
   const imageLines = images.map((image, index) => {
     const source = project.sourceImages.find((entry) => entry.id === image.sourceId);
     const label = image.role === 'floor-plan' ? 'uploaded floor plan' : boundedText(source?.name ?? image.role);
-    return `${index + 1}. ${image.role}: ${label}`;
+    const prepared = image.referencePreparation?.mode === 'crop' ? ' (user-selected crop)' :
+      image.referencePreparation?.mode === 'grid' ? ` (${image.referencePreparation.regions.length} user-selected crops in reading-order grid panels)` : '';
+    return `${index + 1}. ${image.role}: ${label}${prepared}`;
   });
   const fixed = plan.structures.filter((item) => item.immutable || item.protected);
   const applied = project.elements.filter((item) => item.status === 'apply');

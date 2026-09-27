@@ -3,6 +3,8 @@ import { createSampleProject } from '../data/sample';
 import {
   addCamera,
   allowedTargetKinds,
+  cameraConditionsChanged,
+  createConditionsSnapshot,
   placeElement,
   removeKeep,
   setKeeps,
@@ -232,6 +234,24 @@ describe('revision scope', () => {
     expect(next.results.find((result) => result.id === 'result-sample-entrance')?.stale).toBe(false);
     expect(next.elements).toBe(withSecond.elements);
     expect(next.cameras.find((camera) => camera.id === 'camera-entrance')?.primary).toBe(true);
+  });
+
+  it('marks an in-flight result stale when the camera field of view changes', () => {
+    const project = createSampleProject();
+    const existingPhotoId = project.sourceImages.find((image) => image.role === 'existing-space')!.id;
+    const saved = createConditionsSnapshot(project, 'camera-entrance', existingPhotoId)!;
+    const current = project.cameras.find((camera) => camera.id === 'camera-entrance')!;
+    expect(saved.existingPhotoId).toBe(existingPhotoId);
+    expect(saved.camera.fovPreset).toBe(current.fovPreset ?? 'standard');
+    expect(cameraConditionsChanged(current, saved.camera)).toBe(false);
+
+    const edited = updateCamera(project, current.id, { fovPreset: 'wide' });
+    expect(cameraConditionsChanged(edited.cameras.find((camera) => camera.id === current.id), saved.camera)).toBe(true);
+    expect(edited.results.find((result) => result.cameraId === current.id)?.stale).toBe(true);
+
+    const legacySnapshot = { ...saved.camera, fovPreset: undefined };
+    expect(cameraConditionsChanged({ ...current, fovPreset: 'standard' }, legacySnapshot)).toBe(false);
+    expect(cameraConditionsChanged({ ...current, fovPreset: 'wide' }, legacySnapshot)).toBe(true);
   });
 
   it('stales results when Keep permissions change', () => {

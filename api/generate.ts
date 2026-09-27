@@ -6,6 +6,7 @@ import {
   buildGenerationPrompt, GENERATION_MODEL, GENERATION_QUALITY,
   GENERATION_SIZE, MAX_GENERATION_BODY_BYTES, MAX_GENERATION_IMAGES,
   MAX_GENERATION_IMAGE_BYTES, MAX_REFERENCE_IMAGES,
+  matchesReferencePreparation, referencePreparationFor,
   MIN_GENERATION_ACCESS_CODE_LENGTH,
   type GenerationImage, type GenerationRequest,
 } from '../src/services/generationContract.js';
@@ -114,6 +115,7 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
     if (seen.has(image.sourceId)) throw new RequestError('같은 이미지를 여러 번 보낼 수 없습니다.', 400);
     seen.add(image.sourceId);
     if (image.role === 'floor-plan') {
+      if (image.referencePreparation !== undefined) throw new RequestError('도면에는 레퍼런스 선택 영역을 지정할 수 없습니다.', 400);
       if (image.sourceId !== 'floor-plan' || project.floorPlan?.kind !== 'uploaded' || !project.floorPlan.imageUri) {
         throw new RequestError('등록된 업로드 도면만 입력할 수 있습니다.', 400);
       }
@@ -121,6 +123,16 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
       const source = project.sourceImages.find((entry) => entry.id === image.sourceId && entry.role === image.role);
       if (!source || (image.role !== 'existing-space' && !appliedImageIds.has(source.id))) {
         throw new RequestError('프로젝트에 적용된 이미지인지 확인해 주세요.', 400);
+      }
+      if (image.role === 'existing-space') {
+        if (image.referencePreparation !== undefined) throw new RequestError('기존 공간 사진에는 레퍼런스 선택 영역을 지정할 수 없습니다.', 400);
+      } else {
+        let expected;
+        try { expected = referencePreparationFor(project, image.sourceId); }
+        catch (error) { throw new RequestError(error instanceof Error ? error.message : '레퍼런스 영역을 확인해 주세요.', 400); }
+        if (!matchesReferencePreparation(expected, image.referencePreparation)) {
+          throw new RequestError('레퍼런스 선택 영역과 전송 이미지 정보가 일치하지 않습니다.', 400);
+        }
       }
       if (image.role === 'inspiration' || image.role === 'product') referenceCount += 1;
     }

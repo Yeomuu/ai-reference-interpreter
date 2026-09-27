@@ -158,14 +158,22 @@ export function addCamera(project: Project, camera: Camera): Project {
   };
 }
 
-export function createConditionsSnapshot(project: Project, cameraId: string): ConditionsSnapshot | null {
+/** Compare the view used for a finished request with its current settings. */
+export function cameraConditionsChanged(current: Camera | undefined, saved: ConditionsSnapshot['camera']): boolean {
+  return !current || current.x !== saved.x || current.y !== saved.y ||
+    current.directionDegrees !== saved.directionDegrees ||
+    (current.fovPreset ?? 'standard') !== (saved.fovPreset ?? 'standard');
+}
+
+export function createConditionsSnapshot(project: Project, cameraId: string, existingPhotoId?: string): ConditionsSnapshot | null {
   const camera = project.cameras.find((entry) => entry.id === cameraId);
   if (!camera) return null;
   return {
     keepIds: project.keeps.map((keep) => keep.id),
     appliedElementIds: project.elements.filter((element) => element.status === 'apply').map((element) => element.id),
     excludedElementIds: project.elements.filter((element) => element.status === 'exclude').map((element) => element.id),
-    camera: { id: camera.id, x: camera.x, y: camera.y, directionDegrees: camera.directionDegrees },
+    ...(existingPhotoId ? { existingPhotoId } : {}),
+    camera: { id: camera.id, x: camera.x, y: camera.y, directionDegrees: camera.directionDegrees, fovPreset: camera.fovPreset ?? 'standard' },
     common: structuredClone({
       concept: project.concept,
       floorPlan: project.floorPlan,

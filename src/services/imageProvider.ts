@@ -7,7 +7,9 @@ import {
   GENERATION_QUALITY, GENERATION_SIZE, MAX_GENERATION_BODY_BYTES,
   MAX_GENERATION_IMAGE_BYTES,
   MAX_REFERENCE_IMAGES,
+  referencePreparationFor,
   type GenerationImage, type GenerationImageRole, type GenerationRequest,
+  type ReferencePreparation,
   type GenerationStatus,
 } from './generationContract';
 
@@ -16,22 +18,30 @@ export type { GenerationStatus } from './generationContract';
 export const OFFLINE_DEMO_NOTICE =
   '사전 제공된 AURA POP-UP 샘플 이미지입니다. 현재 조건이나 카메라 설정을 반영해 생성한 결과가 아닙니다.';
 
+/** The request may already have reached the paid provider; the caller must not offer an immediate retry. */
+export class GenerationOutcomeUnknownError extends Error {
+  readonly name = 'GenerationOutcomeUnknownError';
+}
+
+const UNKNOWN_GENERATION_OUTCOME =
+  '이미지 생성 요청의 결과를 확인하지 못했습니다. 비용이 발생했을 수 있습니다. 결과 이력과 OpenAI 사용량을 확인하기 전에는 즉시 다시 요청하지 마세요.';
+
 export interface ImageProvider {
   mode: 'offline-demo' | 'api';
   provenance: string;
-  createResult(project: Project, cameraId: string): Promise<Result>;
+  createResult(project: Project, cameraId: string, existingPhotoId?: string): Promise<Result>;
 }
 
 /** Fixed local sample. It does not generate pixels or imply spatial consistency. */
 export const offlineDemoProvider: ImageProvider = {
   mode: 'offline-demo',
   provenance: OFFLINE_DEMO_NOTICE,
-  async createResult(project, cameraId) {
+  async createResult(project, cameraId, existingPhotoId) {
     const preflight = validatePreflight(project, cameraId);
     const firstError = preflight.issues.find((issue) => issue.severity === 'error');
     if (firstError) throw new Error(firstError.message);
 
-    const conditionsSnapshot = createConditionsSnapshot(project, cameraId);
+    const conditionsSnapshot = createConditionsSnapshot(project, cameraId, existingPhotoId);
     if (!conditionsSnapshot) throw new Error('카메라를 찾을 수 없습니다.');
 
     return {
@@ -109,8 +119,8 @@ function blobDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Resize before upload to bound request size and image-input token use. */
-async function compactImage(uri: string): Promise<string> {
+/** Resize, and when selected, crop or tile source pixels before upload. */
+export async function compactImage(uri: string, preparation?: ReferencePreparation): Promise<string> {
   const input = await localImageBlob(uri);
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(input.type)) {
     throw new Error('PNG, JPG 또는 WebP 이미지만 이미지 생성에 사용할 수 있습니다.');
@@ -120,15 +130,49 @@ async function compactImage(uri: string): Promise<string> {
   catch { throw new Error('입력 이미지를 열 수 없습니다. 파일을 다시 등록해 주세요.'); }
   try {
     for (const [maxEdge, quality] of [[1024, 0.76], [896, 0.69], [768, 0.62]] as const) {
-      const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
       const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      if (preparation?.mode === 'grid') {
+        const edge = Math.min(maxEdge, Math.max(bitmap.width, bitmap.height));
+        canvas.width = Math.max(1, Math.round(edge));
+        canvas.height = Math.max(1, Math.round(edge * (preparation.regions.length === 2 ? 0.5 : 1)));
+      } else {
+        const region = preparation?.regions[0];
+        const width = bitmap.width * (region?.width ?? 1);
+        const height = bitmap.height * (region?.height ?? 1);
+        const scale = Math.min(1, maxEdge / Math.max(width, height));
+        canvas.width = Math.max(1, Math.round(width * scale));
+        canvas.height = Math.max(1, Math.round(height * scale));
+      }
       const context = canvas.getContext('2d');
       if (!context) throw new Error('이 브라우저에서 이미지 준비 기능을 사용할 수 없습니다.');
       context.fillStyle = '#fff';
       context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (preparation?.mode === 'grid') {
+        const gutter = Math.max(4, Math.round(canvas.width * 0.012));
+        const cellWidth = (canvas.width - gutter * 3) / 2;
+        const cellHeight = (canvas.height - gutter * (preparation.regions.length === 2 ? 2 : 3)) /
+          (preparation.regions.length === 2 ? 1 : 2);
+        preparation.regions.forEach((region, index) => {
+          const sourceWidth = bitmap.width * region.width;
+          const sourceHeight = bitmap.height * region.height;
+          const fit = Math.min(cellWidth / sourceWidth, cellHeight / sourceHeight);
+          const targetWidth = sourceWidth * fit;
+          const targetHeight = sourceHeight * fit;
+          const column = index % 2;
+          const row = Math.floor(index / 2);
+          const left = gutter + column * (cellWidth + gutter) + (cellWidth - targetWidth) / 2;
+          const top = gutter + row * (cellHeight + gutter) + (cellHeight - targetHeight) / 2;
+          context.drawImage(bitmap, bitmap.width * region.x, bitmap.height * region.y,
+            sourceWidth, sourceHeight, left, top, targetWidth, targetHeight);
+        });
+      } else if (preparation?.mode === 'crop') {
+        const region = preparation.regions[0];
+        context.drawImage(bitmap, bitmap.width * region.x, bitmap.height * region.y,
+          bitmap.width * region.width, bitmap.height * region.height,
+          0, 0, canvas.width, canvas.height);
+      } else {
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      }
       const output = await jpegBlob(canvas, quality);
       if (output.size <= MAX_GENERATION_IMAGE_BYTES) return blobDataUrl(output);
     }
@@ -138,37 +182,53 @@ async function compactImage(uri: string): Promise<string> {
   throw new Error('이미지 용량을 줄일 수 없습니다. 더 작은 이미지를 등록해 주세요.');
 }
 
-async function requestImage(project: Project, cameraId: string, accessCode: string): Promise<string> {
-  const existing = project.sourceImages.find((image) => image.role === 'existing-space');
-  if (!existing) throw new Error('기존 공간 사진을 먼저 등록해 주세요.');
+async function requestImage(project: Project, cameraId: string, accessCode: string, existingPhotoId?: string): Promise<string> {
+  const existing = project.sourceImages.find((image) => image.role === 'existing-space' &&
+    (!existingPhotoId || image.id === existingPhotoId));
+  if (!existing) throw new Error(existingPhotoId
+    ? '선택한 기존 공간 사진을 찾지 못했습니다. 공간 자료에서 사진을 다시 선택해 주세요.'
+    : '기존 공간 사진을 먼저 등록해 주세요.');
   const references = appliedReferenceImages(project);
   if (references.length > MAX_REFERENCE_IMAGES) {
     throw new Error(`한 번의 생성에는 적용된 레퍼런스 이미지 최대 ${MAX_REFERENCE_IMAGES}장을 사용할 수 있습니다. 적용 대상을 줄이거나 나누어 시도해 주세요.`);
   }
-  const sources: { role: GenerationImageRole; sourceId: string; uri: string }[] = [
+  const sources: { role: GenerationImageRole; sourceId: string; uri: string; referencePreparation?: ReferencePreparation }[] = [
     { role: 'existing-space', sourceId: existing.id, uri: existing.uri },
   ];
   if (project.floorPlan?.kind === 'uploaded' && project.floorPlan.imageUri) {
     sources.push({ role: 'floor-plan', sourceId: 'floor-plan', uri: project.floorPlan.imageUri });
   }
-  sources.push(...references.map((image) => ({ role: image.role, sourceId: image.id, uri: image.uri })));
+  sources.push(...references.map((image) => ({ role: image.role, sourceId: image.id, uri: image.uri,
+    referencePreparation: referencePreparationFor(project, image.id) })));
   const images: GenerationImage[] = [];
   for (const source of sources) {
-    images.push({ role: source.role, sourceId: source.sourceId, dataUrl: await compactImage(source.uri) });
+    images.push({ role: source.role, sourceId: source.sourceId,
+      dataUrl: await compactImage(source.uri, source.referencePreparation),
+      ...(source.referencePreparation ? { referencePreparation: source.referencePreparation } : {}) });
   }
   const body: GenerationRequest = { project: { ...project, results: [] }, cameraId, images };
   const serialized = JSON.stringify(body);
   if (new TextEncoder().encode(serialized).length > MAX_GENERATION_BODY_BYTES) {
     throw new Error('입력 이미지가 너무 커서 보낼 수 없습니다. 더 작은 사진을 등록해 주세요.');
   }
-  const response = await fetch('/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Generation-Access-Code': accessCode },
-    body: serialized,
-    credentials: 'omit',
-    cache: 'no-store',
-  });
-  const payload: unknown = await response.json().catch(() => null);
+  let response: Response;
+  try {
+    response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Generation-Access-Code': accessCode },
+      body: serialized,
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+  } catch {
+    throw new GenerationOutcomeUnknownError(UNKNOWN_GENERATION_OUTCOME);
+  }
+  let payload: unknown;
+  try { payload = await response.json(); }
+  catch {
+    if (response.ok) throw new GenerationOutcomeUnknownError(UNKNOWN_GENERATION_OUTCOME);
+    payload = null;
+  }
   if (!response.ok) {
     const message = payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
       ? payload.error : '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
@@ -176,7 +236,7 @@ async function requestImage(project: Project, cameraId: string, accessCode: stri
   }
   if (!payload || typeof payload !== 'object' || !('imageDataUrl' in payload) ||
       typeof payload.imageDataUrl !== 'string' || !payload.imageDataUrl.startsWith('data:image/jpeg;base64,')) {
-    throw new Error('이미지 생성 서버의 응답을 확인할 수 없습니다. 다시 시도하기 전에 결과 이력을 확인해 주세요.');
+    throw new GenerationOutcomeUnknownError(UNKNOWN_GENERATION_OUTCOME);
   }
   return payload.imageDataUrl;
 }
@@ -186,21 +246,22 @@ export function createApiImageProvider(accessCode: string): ImageProvider {
   return {
     mode: 'api',
     provenance: 'OpenAI 이미지 API로 생성한 시안입니다. 구조와 배치가 정확히 반영되었는지 결과를 직접 확인해 주세요.',
-    async createResult(project, cameraId) {
+    async createResult(project, cameraId, existingPhotoId) {
       const preflight = validatePreflight(project, cameraId);
       const firstError = preflight.issues.find((issue) => issue.severity === 'error');
       if (firstError) throw new Error(firstError.message);
       if (!accessCode.trim()) throw new Error('이미지 생성 접근 코드를 입력해 주세요.');
-      const conditionsSnapshot = createConditionsSnapshot(project, cameraId);
+      const conditionsSnapshot = createConditionsSnapshot(project, cameraId, existingPhotoId);
       if (!conditionsSnapshot) throw new Error('카메라를 찾을 수 없습니다.');
-      const dataUrl = await requestImage(project, cameraId, accessCode.trim());
+      const dataUrl = await requestImage(project, cameraId, accessCode.trim(), existingPhotoId);
       let imageUri: string;
       try {
         const blob = await (await fetch(dataUrl)).blob();
         const file = new File([blob], `시안-${Date.now()}.jpg`, { type: 'image/jpeg' });
         imageUri = (await putImageAsset(file, 'photo')).uri;
       } catch {
-        throw new Error('이미지는 생성되었지만 이 브라우저에 저장하지 못했습니다. 비용이 발생했을 수 있습니다. 저장 공간을 확인한 뒤 다시 시도해 주세요.');
+        throw new GenerationOutcomeUnknownError(
+          'AI 이미지는 생성됐지만 이 브라우저에 저장하지 못했습니다. 비용이 발생했을 수 있습니다. 저장 공간과 OpenAI 사용량을 확인하기 전에는 다시 생성하지 마세요.');
       }
       return {
         id: crypto.randomUUID(), cameraId, commonRevision: project.commonRevision,
