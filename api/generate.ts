@@ -6,6 +6,7 @@ import {
   buildGenerationPrompt, GENERATION_MODEL, GENERATION_QUALITY,
   GENERATION_SIZE, MAX_GENERATION_BODY_BYTES, MAX_GENERATION_IMAGES,
   MAX_GENERATION_IMAGE_BYTES, MAX_REFERENCE_IMAGES,
+  MIN_GENERATION_ACCESS_CODE_LENGTH,
   type GenerationImage, type GenerationRequest,
 } from '../src/services/generationContract';
 
@@ -146,11 +147,13 @@ function upstreamError(status: number, code?: string): RequestError {
 export default async function handler(request: BodyRequest, response: ServerResponse): Promise<void> {
   if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); send(response, 405, { error: '지원하지 않는 요청입니다.' }); return; }
   if (!sameOrigin(request)) { send(response, 403, { error: '다른 사이트에서 이미지 생성을 요청할 수 없습니다.' }); return; }
-  if (!process.env.OPENAI_API_KEY || !process.env.GENERATION_ACCESS_CODE) {
+  const configuredCode = process.env.GENERATION_ACCESS_CODE;
+  if (!process.env.OPENAI_API_KEY || !configuredCode ||
+      configuredCode.length < MIN_GENERATION_ACCESS_CODE_LENGTH) {
     send(response, 503, { error: '이미지 생성 기능이 아직 설정되지 않았습니다. 데모 샘플을 이용해 주세요.' }); return;
   }
   const accessCode = request.headers['x-generation-access-code'];
-  if (typeof accessCode !== 'string' || !constantTimeCodeMatch(accessCode, process.env.GENERATION_ACCESS_CODE)) {
+  if (typeof accessCode !== 'string' || !constantTimeCodeMatch(accessCode, configuredCode)) {
     send(response, 401, { error: '이미지 생성 접근 코드를 확인해 주세요.' }); return;
   }
   if (!request.headers['content-type']?.startsWith('application/json')) {

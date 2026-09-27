@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   GENERATION_MODEL, GENERATION_OUTPUT_PRICE_USD, GENERATION_PRICING_NOTE,
   GENERATION_QUALITY, GENERATION_SIZE, type GenerationStatus,
+  MIN_GENERATION_ACCESS_CODE_LENGTH,
 } from '../src/services/generationContract';
 
 export default function handler(request: IncomingMessage, response: ServerResponse): void {
@@ -14,7 +15,8 @@ export default function handler(request: IncomingMessage, response: ServerRespon
     response.end(JSON.stringify({ error: '지원하지 않는 요청입니다.' }));
     return;
   }
-  const available = Boolean(process.env.OPENAI_API_KEY && process.env.GENERATION_ACCESS_CODE);
+  const available = Boolean(process.env.OPENAI_API_KEY &&
+    (process.env.GENERATION_ACCESS_CODE?.length ?? 0) >= MIN_GENERATION_ACCESS_CODE_LENGTH);
   const status: GenerationStatus = {
     available,
     requiresAccessCode: true,

@@ -9,6 +9,8 @@ export const MAX_REFERENCE_IMAGES = 3;
 export const MAX_GENERATION_IMAGES = 5;
 export const MAX_GENERATION_IMAGE_BYTES = 550_000;
 export const MAX_GENERATION_BODY_BYTES = 4_000_000;
+/** A shorter legacy code is treated as unconfigured after credential rotation. */
+export const MIN_GENERATION_ACCESS_CODE_LENGTH = 48;
 
 export type GenerationImageRole = 'existing-space' | 'floor-plan' | 'inspiration' | 'product';
 

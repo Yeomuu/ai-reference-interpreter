@@ -3,10 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import generate from '../api/generate';
 import status from '../api/status';
 import { createSampleProject } from '../src/data/sample';
-import { buildGenerationPrompt, type GenerationImage, type GenerationRequest } from '../src/services/generationContract';
+import { buildGenerationPrompt, MIN_GENERATION_ACCESS_CODE_LENGTH, type GenerationImage, type GenerationRequest } from '../src/services/generationContract';
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0xff, 0xd9]).toString('base64');
 const dataUrl = `data:image/jpeg;base64,${jpeg}`;
+const testAccessCode = 'a'.repeat(MIN_GENERATION_ACCESS_CODE_LENGTH);
 
 function responseStub() {
   const values: { statusCode: number; body: string; headers: Record<string, string> } = {
@@ -21,7 +22,7 @@ function responseStub() {
   return { response, values };
 }
 
-function requestStub(body: unknown, code = 'test-access-code'): IncomingMessage & { body: unknown } {
+function requestStub(body: unknown, code = testAccessCode): IncomingMessage & { body: unknown } {
   return {
     method: 'POST',
     headers: {
@@ -52,7 +53,7 @@ afterEach(() => {
 describe('image generation API boundary', () => {
   it('reports availability without calling a model', () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', 'test-access-code');
+    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
     const { response, values } = responseStub();
     status({ method: 'GET' } as IncomingMessage, response);
     expect(values.statusCode).toBe(200);
@@ -62,9 +63,22 @@ describe('image generation API boundary', () => {
     });
   });
 
+  it('disables a short legacy access code without a paid call', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+    vi.stubEnv('GENERATION_ACCESS_CODE', 'short-legacy-code');
+    const call = vi.fn();
+    vi.stubGlobal('fetch', call);
+    const { response, values } = responseStub();
+    status({ method: 'GET' } as IncomingMessage, response);
+    expect(JSON.parse(values.body).available).toBe(false);
+    await generate(requestStub(sampleRequest(), 'short-legacy-code'), response);
+    expect(values.statusCode).toBe(503);
+    expect(call).not.toHaveBeenCalled();
+  });
+
   it('blocks a wrong access code before parsing images or calling OpenAI', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', 'test-access-code');
+    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
     const call = vi.fn();
     vi.stubGlobal('fetch', call);
     const { response, values } = responseStub();
@@ -75,7 +89,7 @@ describe('image generation API boundary', () => {
 
   it('rejects omitted applied references without a paid call', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', 'test-access-code');
+    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
     const call = vi.fn();
     vi.stubGlobal('fetch', call);
     const input = sampleRequest();
@@ -89,7 +103,7 @@ describe('image generation API boundary', () => {
 
   it('sends exactly one low-cost image edit only after valid preflight', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', 'test-access-code');
+    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
     const call = vi.fn(async (_url: string, options: RequestInit) => {
       const form = options.body as FormData;
       expect(form.get('model')).toBe('gpt-image-1-mini');

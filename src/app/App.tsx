@@ -238,6 +238,7 @@ export default function App() {
   const [pendingPlacement, setPendingPlacement] = useState<{ elementId: string, target: PlacementTarget, warnings: string[] } | null>(null)
   const pageTitleRef = useRef<HTMLHeadingElement>(null)
   const stepNavRef = useRef<HTMLElement>(null)
+  const generationInFlightRef = useRef(false)
 
   const selectedElement = project.elements.find((item) => item.id === selectedElementId)
   const selectedStructure = project.floorPlan?.structures.find((item) => item.id === selectedStructureId)
@@ -721,12 +722,14 @@ export default function App() {
     finally { setBusy(false) }
   }
   async function generateImage() {
+    if (generationInFlightRef.current) return
     if (!preflight.valid) { setError('먼저 아래 필수 조건을 해결해 주세요.'); return }
     if (!generationStatus?.available) { setError('AI 생성 서버가 준비되지 않았습니다. 데모 샘플은 계속 사용할 수 있습니다.'); return }
     if (generationStatus.requiresAccessCode && !generationAccessCode.trim()) { setError('AI 생성 접근 코드를 입력해 주세요.'); return }
     const cameraId = project.cameras.find((item) => item.id === selectedCameraId)?.id ?? project.cameras.find((item) => item.primary)?.id
     if (!cameraId) { setError('대표 시점을 선택해 주세요.'); return }
     const sourceProject = project
+    generationInFlightRef.current = true
     setBusy(true); setError(''); setNotice('')
     try {
       const result = await createApiImageProvider(generationAccessCode.trim()).createResult(sourceProject, cameraId)
@@ -747,7 +750,7 @@ export default function App() {
       }
       showNotice(savedResult.stale ? 'AI 이미지 1장을 저장했습니다. 생성 중 조건이 바뀌어 이전 조건으로 표시합니다.' : 'AI 이미지 1장을 저장했습니다. 구조와 조건을 직접 대조해 주세요.')
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'AI 이미지를 생성하지 못했습니다. 이전 결과는 그대로 보관됩니다.') }
-    finally { setBusy(false) }
+    finally { generationInFlightRef.current = false; setBusy(false) }
   }
   function renderReview() {
     const applied = project.elements.filter((item) => item.status === 'apply')
