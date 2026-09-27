@@ -1,0 +1,530 @@
+.plan-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.plan-canvas--empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-12);
+  padding: var(--space-24);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.plan-canvas__toolbar,
+.plan-canvas__controls,
+.plan-canvas__status,
+.plan-canvas__layer-controls,
+.plan-canvas__legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.plan-canvas__toolbar {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.plan-canvas__status {
+  flex-wrap: wrap;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.plan-canvas__status span {
+  color: var(--text-secondary);
+}
+
+.plan-canvas__controls,
+.plan-canvas__layer-controls {
+  flex-wrap: wrap;
+}
+
+.plan-canvas__controls button,
+.plan-canvas__layer-controls button {
+  min-height: var(--control-height-32);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-8);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  padding: var(--space-4) var(--space-12);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.plan-canvas__controls button:hover:not(:disabled),
+.plan-canvas__layer-controls button:hover:not(:disabled),
+.plan-canvas__layer-controls button[aria-pressed="true"] {
+  border-color: var(--border-selected);
+  background: var(--surface-selected);
+  color: var(--action-selected);
+}
+
+.plan-canvas__controls button:disabled {
+  color: var(--neutral-400);
+  cursor: not-allowed;
+}
+
+.plan-canvas__controls button:focus-visible,
+.plan-canvas__layer-controls button:focus-visible,
+.plan-canvas__svg:focus-visible {
+  outline: 2px solid var(--action-selected);
+  outline-offset: 2px;
+}
+
+.plan-canvas__controls span {
+  min-width: 44px;
+  text-align: center;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-canvas__layer-controls {
+  gap: var(--space-8);
+}
+
+.plan-canvas__layer-controls > span {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.plan-canvas__layer-controls button[aria-pressed="false"] {
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+}
+
+.plan-canvas__instruction {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.plan-canvas__image-status {
+  margin: 0;
+  border-radius: var(--radius-8);
+  background: var(--state-error-bg);
+  color: var(--state-error-fg);
+  padding: var(--space-8) var(--space-12);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.plan-canvas__surface {
+  position: relative;
+  width: 100%;
+  height: 340px;
+  min-height: 340px;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-12);
+  background: var(--surface-workspace);
+}
+
+.plan-canvas__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+  touch-action: pan-y;
+}
+
+.plan-structure--movable,
+.plan-element--editable,
+.plan-element__wall-drag,
+.plan-camera__drag,
+.plan-rotation-handle {
+  touch-action: none;
+}
+
+.plan-canvas__backdrop {
+  fill: var(--surface-workspace);
+}
+
+.plan-canvas__floor {
+  fill: var(--surface-base);
+  stroke: var(--border-default);
+  stroke-width: 2;
+}
+
+.plan-canvas__floor--uploaded {
+  fill: transparent;
+}
+
+.plan-canvas__svg--place .plan-canvas__floor {
+  cursor: pointer;
+}
+
+.plan-canvas__clearance {
+  fill: var(--state-info-bg);
+  fill-opacity: .48;
+  stroke: var(--state-info-fg);
+  stroke-dasharray: 7 6;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.plan-structure {
+  cursor: default;
+}
+
+.plan-canvas__svg--place .plan-structure--wall,
+.plan-canvas__svg--keep .plan-structure {
+  cursor: pointer;
+}
+
+.plan-canvas__svg--view .plan-structure--movable,
+.plan-canvas__svg--keep .plan-structure--movable {
+  cursor: grab;
+}
+
+.plan-structure--movable:active {
+  cursor: grabbing;
+}
+
+.plan-structure__shape {
+  fill: var(--surface-base);
+  stroke: var(--canvas-structure);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.plan-structure--wall .plan-structure__shape {
+  stroke-width: 8;
+}
+
+.plan-structure--window .plan-structure__shape {
+  stroke: var(--state-info-fg);
+  stroke-width: 8;
+}
+
+.plan-structure--door .plan-structure__shape,
+.plan-structure--entrance .plan-structure__shape {
+  stroke: var(--state-info-fg);
+  stroke-width: 4;
+  stroke-dasharray: 8 5;
+}
+
+.plan-structure--pillar .plan-structure__shape {
+  fill: var(--neutral-100);
+}
+
+.plan-structure--existing-light .plan-structure__shape {
+  fill: var(--state-info-bg);
+  stroke: var(--state-info-fg);
+}
+
+.plan-structure__light-label {
+  fill: var(--state-info-fg);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.plan-structure__move-label {
+  fill: var(--action-selected);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.plan-structure__opening-gap {
+  stroke: var(--surface-base);
+  stroke-width: 15;
+}
+
+.plan-structure__keep-halo {
+  fill: var(--state-keep-bg);
+  stroke: var(--state-keep-fg);
+  stroke-width: 15;
+  stroke-opacity: .34;
+}
+
+.plan-structure--selected .plan-structure__shape,
+.plan-structure:focus-visible .plan-structure__shape {
+  stroke: var(--canvas-selection);
+  stroke-width: 6;
+  stroke-dasharray: 5 4;
+}
+
+.plan-structure__hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 26;
+}
+
+.plan-keep-label {
+  pointer-events: none;
+}
+
+.plan-keep-label rect {
+  fill: var(--state-keep-bg);
+  stroke: var(--state-keep-fg);
+  stroke-width: 1;
+}
+
+.plan-keep-label text {
+  fill: var(--state-keep-fg);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.plan-element,
+.plan-camera {
+  pointer-events: none;
+}
+
+.plan-element--editable {
+  pointer-events: visiblePainted;
+  cursor: grab;
+}
+
+.plan-element--wall-editable .plan-element__wall-drag {
+  pointer-events: visiblePainted;
+  cursor: grab;
+}
+
+.plan-element--editable:active,
+.plan-element__wall-drag:active,
+.plan-camera__drag:active,
+.plan-rotation-handle:active {
+  cursor: grabbing;
+}
+
+.plan-element--editable:focus-visible .plan-element__footprint,
+.plan-element__wall-drag:focus-visible .plan-element__number-bg,
+.plan-camera__drag:focus-visible .plan-camera__body,
+.plan-rotation-handle:focus-visible rect {
+  outline: 2px solid var(--action-selected);
+  outline-offset: 2px;
+}
+
+.plan-element__footprint,
+.plan-element__area {
+  fill: var(--surface-subtle);
+  fill-opacity: .72;
+  stroke: var(--canvas-structure);
+  stroke-width: 2;
+}
+
+.plan-element__area {
+  fill: none;
+  stroke-dasharray: 9 7;
+}
+
+.plan-element__wall {
+  stroke: var(--canvas-structure);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.plan-element__wall-hint {
+  fill: var(--action-selected);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.plan-element__number-bg {
+  fill: var(--surface-base);
+  stroke: var(--canvas-structure);
+  stroke-width: 2;
+}
+
+.plan-element__number {
+  fill: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.plan-element--selected .plan-element__footprint,
+.plan-element--selected .plan-element__area {
+  fill: var(--surface-selected);
+  stroke: var(--canvas-selection);
+  stroke-width: 4;
+}
+
+.plan-element--selected .plan-element__wall {
+  stroke: var(--canvas-selection);
+}
+
+.plan-element--selected .plan-element__number-bg {
+  fill: var(--action-selected);
+}
+
+.plan-element--selected .plan-element__number {
+  fill: var(--text-inverse);
+}
+
+.plan-camera__cone {
+  fill: var(--state-info-bg);
+  fill-opacity: .55;
+  stroke: var(--state-info-fg);
+  stroke-width: 2;
+}
+
+.plan-camera__direction {
+  stroke: var(--text-primary);
+  stroke-width: 3;
+}
+
+.plan-camera__body {
+  fill: var(--surface-base);
+  stroke: var(--text-primary);
+  stroke-width: 2;
+}
+
+.plan-camera__hit {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+}
+
+.plan-camera--selected .plan-camera__body {
+  fill: var(--surface-selected);
+  stroke: var(--canvas-selection);
+  stroke-width: 3;
+}
+
+.plan-camera__icon,
+.plan-rotation-handle__icon {
+  pointer-events: none;
+}
+
+.plan-camera__label {
+  fill: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.plan-camera__drag {
+  pointer-events: none;
+}
+
+.plan-camera--editable .plan-camera__drag {
+  pointer-events: visiblePainted;
+  cursor: grab;
+}
+
+.plan-rotation-handle {
+  pointer-events: visiblePainted;
+  cursor: grab;
+}
+
+.plan-rotation-handle line {
+  stroke: var(--canvas-selection);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.plan-rotation-handle rect {
+  fill: var(--surface-base);
+  stroke: var(--canvas-selection);
+  stroke-width: 2;
+}
+
+.plan-rotation-handle rect.plan-rotation-handle__hit {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+}
+
+.plan-rotation-handle text {
+  fill: var(--action-selected);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.plan-rotation-handle__track {
+  fill: none;
+  stroke: var(--canvas-selection);
+  stroke-opacity: .42;
+  stroke-dasharray: 4 7;
+  pointer-events: none;
+}
+
+.plan-rotation-handle__track-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+}
+
+.plan-rotation-handle--camera {
+  cursor: grab;
+}
+
+.plan-camera--selected .plan-camera__cone {
+  stroke: var(--canvas-selection);
+}
+
+.plan-canvas__legend {
+  flex-wrap: wrap;
+  gap: var(--space-16);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.plan-canvas__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.plan-canvas__legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid;
+  border-radius: 50%;
+}
+
+.plan-canvas__legend-keep {
+  border-color: var(--state-keep-fg);
+  background: var(--state-keep-bg);
+}
+
+.plan-canvas__legend-element {
+  border-color: var(--canvas-structure);
+  background: var(--surface-subtle);
+}
+
+@media (max-width: 767px) {
+  .plan-canvas__controls button,
+  .plan-canvas__layer-controls button {
+    min-height: var(--control-height-40);
+  }
+  .plan-canvas__surface {
+    height: 300px;
+    min-height: 0;
+  }
+
+  .plan-canvas__toolbar {
+    align-items: flex-start;
+  }
+
+  .plan-canvas__controls {
+    width: 100%;
+  }
+}

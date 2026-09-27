@@ -1,0 +1,9 @@
+node_modules/
+dist/
+Paperlogy/
+.npm-cache/
+*.tsbuildinfo
+.env*
+!.env.example
+.vercel/
+qa-screens/
