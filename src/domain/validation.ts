@@ -13,6 +13,10 @@ import type {
 
 export type TargetKind = PlacementTarget['kind'];
 
+function isPartition(structure: Structure): boolean {
+  return structure.role === 'partition' || (!structure.role && structure.kind === 'wall' && structure.immutable === false);
+}
+
 const TARGETS: Record<ElementKind, readonly TargetKind[]> = {
   'freestanding-fixture': ['floor-point', 'floor-area'],
   furniture: ['floor-point', 'floor-area'],
@@ -375,7 +379,7 @@ export function validateStructureDrawing(project: Project, candidate: Structure,
     // Original structure may be marked before a usable floor is registered. Its
     // geometry still cannot silently intersect already placed elements/cameras.
     const placementIssues = validatePartitionPlacement(project, geometry.start, geometry.end, ignoredStructureId).issues;
-    return result(placementIssues.filter((issue) => candidate.immutable === false || issue.code !== 'outside-floor').map((issue) => ({
+    return result(placementIssues.filter((issue) => isPartition(candidate) || issue.code !== 'outside-floor').map((issue) => ({
       ...issue, message: issue.message.replace(/^가벽이 /, `${candidate.name}이(가) `),
     })));
   }
@@ -386,6 +390,12 @@ export function validateStructureDrawing(project: Project, candidate: Structure,
       if (occupied && geometryIntersectsRect(project, geometry, occupied)) issues.push(error('element-overlap', `${element.label}이(가) 사용 중인 위치입니다. 요소를 먼저 옮기거나 다른 위치를 선택해 주세요.`, element.id));
     }
     if (candidate.kind === 'pillar') {
+      for (const wall of plan.structures) {
+        if (wall.kind !== 'wall' || wall.geometry.kind !== 'segment') continue;
+        const overlap = geometry.kind === 'rect' ? segmentIntersectsRectInterior(wall.geometry.start, wall.geometry.end, geometry.bounds)
+          : geometry.kind === 'circle' && segmentIntersectsCircle(wall.geometry.start, wall.geometry.end, geometry, plan.width, plan.height);
+        if (overlap) issues.push(error('structure-overlap', `${wall.name}의 벽 선을 가로질러 기둥을 놓을 수 없습니다. 벽과 겹치지 않는 위치를 선택해 주세요.`, undefined, wall.id));
+      }
       for (const area of plan.areas) {
         if (area.kind === 'passage' && geometryIntersectsRect(project, geometry, area.bounds)) issues.push(error('passage-blocked', `${area.name} 동선에 기둥을 겹쳐 그릴 수 없습니다. 동선 표시를 먼저 수정해 주세요.`));
       }
@@ -415,7 +425,7 @@ export function validateAreaDrawing(project: Project, candidate: Area, ignoredAr
     for (const structure of plan.structures) {
       if (structure.kind === 'pillar' && geometryIntersectsRect(project, structure.geometry, candidate.bounds)) issues.push(error('pillar-collision', `${structure.name}이(가) 있는 곳은 통행 동선으로 표시할 수 없습니다. 기둥을 피해 그려 주세요.`, undefined, structure.id));
       if (structure.kind === 'wall' && structure.geometry.kind === 'segment' && segmentIntersectsRectInterior(structure.geometry.start, structure.geometry.end, candidate.bounds)) {
-        issues.push(error(structure.immutable === false ? 'partition-conflict' : 'structure-overlap', `${structure.name} 벽을 가로질러 동선을 표시할 수 없습니다. 벽의 안쪽 바닥에 그려 주세요.`, undefined, structure.id));
+        issues.push(error(isPartition(structure) ? 'partition-conflict' : 'structure-overlap', `${structure.name} 벽을 가로질러 동선을 표시할 수 없습니다. 벽의 안쪽 바닥에 그려 주세요.`, undefined, structure.id));
       }
     }
     for (const element of project.elements) {
@@ -447,7 +457,7 @@ function validateFloorPoint(project: Project, elementId: string, target: Extract
   for (const structure of project.floorPlan!.structures) {
     if (structure.kind === 'wall' && structure.geometry.kind === 'segment' &&
         segmentIntersectsRect(structure.geometry.start, structure.geometry.end, footprintRect)) {
-      issues.push(error(structure.immutable === false ? 'partition-conflict' : 'structure-overlap', `${structure.name} ${structure.immutable === false ? '가벽' : '벽'}과 겹칩니다. 다른 바닥 위치를 선택해 주세요.`, elementId, structure.id));
+      issues.push(error(isPartition(structure) ? 'partition-conflict' : 'structure-overlap', `${structure.name} ${isPartition(structure) ? '가벽' : '벽'}과 겹칩니다. 다른 바닥 위치를 선택해 주세요.`, elementId, structure.id));
     }
     if (structure.kind === 'pillar') {
       const collides = structure.geometry.kind === 'rect'
@@ -535,7 +545,7 @@ export function validatePlacement(project: Project, elementId: string, target: P
       for (const structure of project.floorPlan.structures) {
         if (structure.kind === 'wall' && structure.geometry.kind === 'segment' &&
             segmentIntersectsRect(structure.geometry.start, structure.geometry.end, area.bounds)) {
-          conflicts.push(error(structure.immutable === false ? 'partition-conflict' : 'structure-overlap', `${area.name}이(가) ${structure.name} 벽과 겹칩니다. 더 작은 바닥 영역을 지정해 주세요.`, elementId, structure.id));
+          conflicts.push(error(isPartition(structure) ? 'partition-conflict' : 'structure-overlap', `${area.name}이(가) ${structure.name} 벽과 겹칩니다. 더 작은 바닥 영역을 지정해 주세요.`, elementId, structure.id));
         }
         if (structure.kind === 'pillar' && (
           structure.geometry.kind === 'rect' && intersects(area.bounds, structure.geometry.bounds) ||
@@ -598,7 +608,7 @@ export function validateStructureOperation(
   if (structure.immutable) {
     const keep = project.keeps.find((entry) => entry.structureId === structureId);
     if (operation === 'surface-treatment' && keep?.allowedSurfaceTreatment) return result([]);
-    return result([error('keep-conflict', `${structure.name}은(는) 필수 보존 기본 구조입니다. 제거·이동·교체할 수 없습니다.`, undefined, structureId)]);
+    return result([error('keep-conflict', `${structure.name}의 필수 보존이 켜져 있어 위치가 고정됩니다. Keep에서 끈 뒤 수정해 주세요.`, undefined, structureId)]);
   }
   if (!isPreserved(project, structure)) return result([]);
   const keep = project.keeps.find((entry) => entry.structureId === structureId);
@@ -664,7 +674,7 @@ export function validatePreflight(project: Project, previewCameraId?: string): V
     }
   }
   for (const structure of project.floorPlan?.structures ?? []) {
-    if (structure.kind === 'wall' && structure.immutable === false && structure.geometry.kind === 'segment') {
+    if (structure.kind === 'wall' && isPartition(structure) && structure.geometry.kind === 'segment') {
       issues.push(...validatePartitionPlacement(project, structure.geometry.start, structure.geometry.end, structure.id).issues);
     }
   }

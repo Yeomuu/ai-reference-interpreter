@@ -36,7 +36,7 @@ describe('drawing affordances', () => {
   });
   it('does not promise partition movement when the plan only has fixed structures', () => {
     const html = renderToStaticMarkup(createElement(PlanCanvas, { project: createSampleProject(), mode: 'view' }));
-    expect(html).toContain('현재 이동 가능한 가벽이 없습니다');
+    expect(html).toContain('현재 이동 가능한 구조가 없습니다');
     expect(html).not.toContain('plan-structure__move-label');
   });
   it('labels movable partitions before selection, while a protected partition stays fixed', () => {

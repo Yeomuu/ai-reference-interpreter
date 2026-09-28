@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Area, Camera, DesignElement, ElementKind, FloorPlan, PlacementTarget, Project, Rect, Reference, Result, SourceImage, Structure, ValidationIssue } from '../domain'
-import { addCamera, allowedTargetKinds, appendResult, cameraConditionsChanged, createEmptyProject, placeElement, removeKeep, setResultApproved, targetLabel, updateCamera, updateCommon, updateElement, updateKeep, updatePhotoAnchor, upsertKeep, validateAreaDrawing, validateCamera, validatePartitionPlacement, validatePreflight, validateStructureDrawing, validateStructureOperation } from '../domain'
+import type { Area, Camera, CommonPatch, DesignElement, ElementKind, FloorPlan, PlacementTarget, Point, Project, Rect, Reference, Result, SourceImage, Structure, ValidationIssue } from '../domain'
+import { addCamera, allowedTargetKinds, appendResult, cameraConditionsChanged, createEmptyProject, isStructureLocked, moveStructure, placeElement, removeDesignElement, removeReference, setResultApproved, setStructurePreservation, structureMovementReason, structurePosition, targetLabel, updateCamera, updateCommon, updateElement, updateKeep, updatePhotoAnchor, validateAreaDrawing, validateCamera, validatePreflight, validateStructureDrawing, validateStructureOperation } from '../domain'
 import { createSampleProject } from '../data/sample'
 import { loadProjects, saveProject } from '../services/persistence'
 import { deleteImageAsset, putImageAsset, resolveImageUri, revokeImageUrl, validateImageFile } from '../services/assets'
@@ -103,10 +103,10 @@ function newPlan(kind: FloorPlan['kind'], imageUri?: string): FloorPlan {
   return {
     kind, imageUri, width: 1000, height: 700, units: 'unknown', geometryConfidence: 'schematic',
     structures: kind === 'schematic' ? [
-      { id: makeId('wall'), kind: 'wall', name: '윗벽', geometry: { kind: 'segment', start: { x: .08, y: .10 }, end: { x: .92, y: .10 } }, immutable: true, protected: true },
-      { id: makeId('wall'), kind: 'wall', name: '오른쪽 벽', geometry: { kind: 'segment', start: { x: .92, y: .10 }, end: { x: .92, y: .90 } }, immutable: true, protected: true },
-      { id: makeId('wall'), kind: 'wall', name: '아랫벽', geometry: { kind: 'segment', start: { x: .92, y: .90 }, end: { x: .08, y: .90 } }, immutable: true, protected: true },
-      { id: makeId('wall'), kind: 'wall', name: '왼쪽 벽', geometry: { kind: 'segment', start: { x: .08, y: .90 }, end: { x: .08, y: .10 } }, immutable: true, protected: true },
+      { id: makeId('wall'), kind: 'wall', name: '윗벽', geometry: { kind: 'segment', start: { x: .08, y: .10 }, end: { x: .92, y: .10 } }, role: 'base', immutable: true, protected: true },
+      { id: makeId('wall'), kind: 'wall', name: '오른쪽 벽', geometry: { kind: 'segment', start: { x: .92, y: .10 }, end: { x: .92, y: .90 } }, role: 'base', immutable: true, protected: true },
+      { id: makeId('wall'), kind: 'wall', name: '아랫벽', geometry: { kind: 'segment', start: { x: .92, y: .90 }, end: { x: .08, y: .90 } }, role: 'base', immutable: true, protected: true },
+      { id: makeId('wall'), kind: 'wall', name: '왼쪽 벽', geometry: { kind: 'segment', start: { x: .08, y: .90 }, end: { x: .08, y: .10 } }, role: 'base', immutable: true, protected: true },
     ] : [],
     areas: kind === 'schematic' ? [
       { id: makeId('floor'), name: '사용 바닥', kind: 'floor', bounds: { x: .08, y: .10, width: .84, height: .80 } },
@@ -136,13 +136,14 @@ function restoreSampleAnnotations(project: Project): Project {
   const structures = project.floorPlan.structures.map((item) => {
     const standard = baseline.get(item.id)
     if (!standard) return item
-    const next = { ...item, photoAnchor: item.photoAnchor ?? standard.photoAnchor, immutable: true, protected: true }
+    const next = { ...item, photoAnchor: item.photoAnchor ?? standard.photoAnchor, role: 'base' as const,
+      immutable: item.immutable ?? true, protected: item.immutable === false ? item.protected : true }
     if (JSON.stringify(next) !== JSON.stringify(item)) changed = true
     return next
   })
   const keeps = [...project.keeps]
   for (const keep of template.keeps) {
-    if (!keeps.some((item) => item.structureId === keep.structureId)) { keeps.push(keep); changed = true }
+    if (structures.some((item) => item.id === keep.structureId && item.immutable) && !keeps.some((item) => item.structureId === keep.structureId)) { keeps.push(keep); changed = true }
   }
   const elements = project.elements.map((item) => {
     if (item.id !== 'element-warm-light' || item.label !== '따뜻한 간접 조명') return item
@@ -167,7 +168,7 @@ function restoreDefaultSchematicWalls(project: Project): Project {
     const { start, end } = structure.geometry
     if (!boundaries.has(`${structure.name}|${start.x},${start.y}|${end.x},${end.y}`)) return structure
     changed = true
-    return { ...structure, immutable: true, protected: true }
+    return { ...structure, role: 'base' as const, immutable: true, protected: true }
   })
   if (!changed) return project
   const keeps = [...project.keeps]
@@ -187,10 +188,10 @@ function Button({ children, onClick, tone = 'secondary', disabled, type = 'butto
 }) {
   return <button type={type} className={`button button-${tone} ${className}`} onClick={onClick} disabled={disabled}>{icon && !iconAfter && <NucleoIcon name={icon} />}{children}{icon && iconAfter && <NucleoIcon name={icon} />}</button>
 }
-function FilePick({ label, onFile, accept = 'image/png,image/jpeg,image/webp', tone = 'secondary' }: {
-  label: string, onFile: (file: File) => void, accept?: string, tone?: 'primary' | 'secondary',
+function FilePick({ label, onFile, accept = 'image/png,image/jpeg,image/webp', tone = 'secondary', disabled = false }: {
+  label: string, onFile: (file: File) => void, accept?: string, tone?: 'primary' | 'secondary', disabled?: boolean,
 }) {
-  return <label className={`button button-${tone} file-pick`}><span>{label}</span><input type="file" accept={accept} onChange={(event) => {
+  return <label className={`button button-${tone} file-pick`} aria-disabled={disabled}><span>{label}</span><input type="file" disabled={disabled} accept={accept} onChange={(event) => {
     const file = event.target.files?.[0]
     if (file) onFile(file)
     event.target.value = ''
@@ -255,9 +256,14 @@ export default function App() {
   const [appearanceDraft, setAppearanceDraft] = useState('')
   const [kindDraft, setKindDraft] = useState<ElementKind>('freestanding-fixture')
   const [pendingPlacement, setPendingPlacement] = useState<{ elementId: string, target: PlacementTarget, warnings: string[] } | null>(null)
+  const [pendingReferenceDelete, setPendingReferenceDelete] = useState<string | null>(null)
+  const [undoAction, setUndoAction] = useState<{ projectId: string, revision: number, patch: CommonPatch, label: string, referenceId?: string, structureId?: string } | null>(null)
+  const [placementSelection, setPlacementSelection] = useState<'element' | 'structure'>('element')
   const pageTitleRef = useRef<HTMLHeadingElement>(null)
   const stepNavRef = useRef<HTMLElement>(null)
+  const referenceDeleteConfirmRef = useRef<HTMLElement>(null)
   const generationInFlightRef = useRef(false)
+  const deletedAssetCandidatesRef = useRef(new Set<string>())
 
   const selectedElement = project.elements.find((item) => item.id === selectedElementId)
   const selectedStructure = project.floorPlan?.structures.find((item) => item.id === selectedStructureId)
@@ -303,6 +309,29 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [notice, noticeSerial])
   useEffect(() => {
+    if (!pendingReferenceDelete) return
+    referenceDeleteConfirmRef.current?.querySelector<HTMLButtonElement>('[data-action="cancel"]')?.focus({ preventScroll: true })
+    const cancelWithEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setPendingReferenceDelete(null)
+      document.querySelector<HTMLButtonElement>('.reference-header-actions button')?.focus({ preventScroll: true })
+    }
+    document.addEventListener('keydown', cancelWithEscape)
+    return () => document.removeEventListener('keydown', cancelWithEscape)
+  }, [pendingReferenceDelete])
+  useEffect(() => {
+    const retainedProjects = [...projects, project]
+    for (const uri of deletedAssetCandidatesRef.current) {
+      const inUndo = undoAction?.patch.sourceImages?.some((image) => image.uri === uri)
+      const inProject = retainedProjects.some((item) => item.sourceImages.some((image) => image.uri === uri) || item.floorPlan?.imageUri === uri ||
+        item.results.some((result) => result.imageUri === uri || result.conditionsSnapshot.common?.sourceImages?.some((image) => image.uri === uri)))
+      if (inUndo || inProject) continue
+      deletedAssetCandidatesRef.current.delete(uri)
+      void deleteImageAsset(uri).catch(() => setError('레퍼런스 목록은 삭제했지만 사용하지 않는 원본 파일을 정리하지 못했습니다.'))
+    }
+  }, [project, projects, undoAction])
+  useEffect(() => {
     if (uncertainGenerationAt === null) return
     const timer = window.setInterval(() => setGenerationClock(Date.now()), 1000)
     return () => window.clearInterval(timer)
@@ -336,6 +365,7 @@ export default function App() {
   }, [step])
 
   function commit(next: Project, message?: string): boolean {
+    if (next === projectRef.current) return true
     try {
       saveProject(next)
       setSaveFailed(false)
@@ -343,6 +373,7 @@ export default function App() {
       setProject(next)
       setProjects(loadProjects())
       setError('')
+      setUndoAction(null)
       if (message) showNotice(message)
       return true
     } catch (cause) {
@@ -372,6 +403,7 @@ export default function App() {
     setRegionEditingElementId(null)
     setGenerationExistingPhotoId(restored.sourceImages.find((image) => image.role === 'existing-space')?.id ?? '')
     setEditingElementId(null)
+    setPendingReferenceDelete(null); setUndoAction(null); setPlacementSelection('element')
     setStep('space')
     try { saveProject(restored); setProjects(loadProjects()); setSaveFailed(false) } catch (cause) { setSaveFailed(true); setError(cause instanceof Error ? cause.message : '저장하지 못했습니다.') }
   }
@@ -385,7 +417,7 @@ export default function App() {
     setReferenceRegionMode('whole'); setReferenceRegionDraft(null); setRegionEditingElementId(null)
     setGenerationExistingPhotoId('')
     setEditingElementId(null)
-    setNewName(''); setNewType(''); setNewConcept('')
+    setNewName(''); setNewType(''); setNewConcept(''); setUndoAction(null); setPendingReferenceDelete(null); setPlacementSelection('element')
     setStep('space')
   }
   function go(next: Step) {
@@ -393,11 +425,60 @@ export default function App() {
       setSelectedElementId(project.elements.find((item) => item.status === 'apply')?.id ?? '')
     }
     setPendingPlacement(null)
+    setPendingReferenceDelete(null)
     setStep(next)
     window.scrollTo({ top: 0, behavior: 'instant' })
     window.requestAnimationFrame(() => pageTitleRef.current?.focus({ preventScroll: true }))
   }
-  function editElement(id: string) { go('placement'); setSelectedElementId(project.elements.some((item) => item.id === id && item.status === 'apply') ? id : project.elements.find((item) => item.status === 'apply')?.id ?? '') }
+  function editElement(id: string) {
+    const element = project.elements.find((item) => item.id === id)
+    if (!element) { go('references'); setError('현재 작업에서 삭제한 요소입니다. 이전 결과의 조건 기록은 보관되어 있습니다.'); return }
+    if (element.status === 'exclude') { go('references'); setSelectedElementId(id); setReferenceFocus(element.sourceReferenceId); return }
+    go('placement'); setPlacementSelection('element'); setSelectedElementId(id)
+  }
+  function selectPlacementStructure(id: string) { setSelectedStructureId(id); setPlacementSelection('structure'); setPendingPlacement(null); setPlanEditError('') }
+  function selectPlacementElement(id: string) { setSelectedElementId(id); setPlacementSelection('element'); setPendingPlacement(null); setPlanEditError('') }
+  function editStructurePosition(id: string) { go('placement'); selectPlacementStructure(id) }
+
+  function commitDeletion(next: Project, label: string, focus: { referenceId?: string, structureId?: string } = {}) {
+    const previous = projectRef.current
+    const patch: CommonPatch = {}
+    for (const key of ['sourceImages', 'references', 'elements', 'floorPlan', 'keeps'] as const) {
+      if (JSON.stringify(previous[key]) !== JSON.stringify(next[key])) Object.assign(patch, { [key]: previous[key] })
+    }
+    if (!commit(next, `${label}했습니다.`)) return false
+    for (const image of previous.sourceImages) {
+      if (image.uri.startsWith('asset://') && !next.sourceImages.some((item) => item.uri === image.uri)) deletedAssetCandidatesRef.current.add(image.uri)
+    }
+    setUndoAction({ projectId: previous.id, revision: next.commonRevision, patch, label, ...focus })
+    return true
+  }
+  function undoDeletion() {
+    if (!undoAction || undoAction.projectId !== project.id || undoAction.revision !== project.commonRevision) return
+    const focus = undoAction
+    if (!commit(updateCommon(project, undoAction.patch), '삭제를 되돌렸습니다.')) return
+    if (focus.referenceId) setReferenceFocus(focus.referenceId)
+    if (focus.structureId) setSelectedStructureId(focus.structureId)
+    window.requestAnimationFrame(() => {
+      const restoredControl = document.querySelector<HTMLButtonElement>(focus.referenceId ? '.reference-thumb[aria-pressed="true"]' : '.preservation-switch')
+      if (restoredControl) restoredControl.focus({ preventScroll: true })
+      else pageTitleRef.current?.focus({ preventScroll: true })
+    })
+  }
+  function deleteReferenceImage(referenceId: string) {
+    const reference = project.references.find((item) => item.id === referenceId)
+    if (!reference || busy) return
+    if (!commitDeletion(removeReference(project, referenceId), '레퍼런스를 삭제', { referenceId })) return
+    setReferenceFocus(''); setPendingReferenceDelete(null); setReferenceRegionMode('whole')
+    setReferenceRegionDraft(null); setRegionEditingElementId(null); setEditingElementId(null); setPendingPlacement(null)
+    if (!projectRef.current.elements.some((item) => item.id === selectedElementId)) setSelectedElementId(projectRef.current.elements[0]?.id ?? '')
+    window.requestAnimationFrame(() => pageTitleRef.current?.focus({ preventScroll: true }))
+  }
+  function deleteElement(element: DesignElement) {
+    if (!commitDeletion(removeDesignElement(project, element.id), '디자인 요소를 삭제', { referenceId: element.sourceReferenceId })) return
+    setEditingElementId(null); setRegionEditingElementId(null); setPendingPlacement(null)
+    setSelectedElementId(projectRef.current.elements[0]?.id ?? '')
+  }
   function beginConditionEdit(element: DesignElement) {
     setSelectedElementId(element.id)
     setReferenceFocus(element.sourceReferenceId)
@@ -435,6 +516,7 @@ export default function App() {
     return <div className="workspace-toolbar" aria-label="작업 패널 표시"><Button tone="quiet" onClick={() => setShowWorkspaceLeft((value) => !value)}>{leftLabel} {showWorkspaceLeft ? '숨기기' : '보이기'}</Button><span>도면에서 선택·드래그하고 손잡이를 돌려 조정하세요.</span><Button tone="quiet" onClick={() => setShowWorkspaceRight((value) => !value)}>속성 패널 {showWorkspaceRight ? '숨기기' : '보이기'}</Button></div>
   }
   async function uploadImage(file: File, role: SourceImage['role'], referenceRole?: Reference['role']) {
+    if (busy) return
     const uploadProjectId = projectRef.current.id
     setBusy(true); setError(''); setNotice('')
     try {
@@ -460,6 +542,7 @@ export default function App() {
     finally { setBusy(false) }
   }
   async function uploadPlan(file: File) {
+    if (busy) return
     const uploadProjectId = projectRef.current.id
     setBusy(true); setError(''); setNotice('')
     try {
@@ -502,7 +585,7 @@ export default function App() {
     const wallSpan = requiresWall ? spanOnWall(wall, { x, y }, { x: endX, y: endY }) : undefined
     if (requiresWall && (!wallSpan || wallSpan.start === wallSpan.end)) { rejectPlanEdit(`‘${wall?.name ?? '연결 벽'}’ 선을 따라 시작점에서 끝점까지 끌어 주세요. 벽 이름이 도면 위에 표시됩니다.`); return }
     const immutable = structureKind !== 'wall' || structureRole === 'base'
-    const structure: Structure = { id, kind: structureKind, name, geometry, immutable, protected: immutable, parentWallId,
+    const structure: Structure = { id, kind: structureKind, name, geometry, role: structureKind === 'wall' ? structureRole : 'base', immutable, protected: immutable, parentWallId,
       wallSpan, lightTone: structureKind === 'existing-light' ? structureLightTone.trim() || '온백색' : undefined,
       clearance: (structureKind === 'door' || structureKind === 'entrance') && wall ? entranceClearance(project.floorPlan, wall, { x, y }, { x: endX, y: endY }) : undefined }
     const checked = validateStructureDrawing(project, structure)
@@ -527,29 +610,26 @@ export default function App() {
     if (project.floorPlan.structures.some((item) => item.parentWallId === structure.id) || project.elements.some((element) => element.target?.kind === 'wall-segment' && element.target.wallId === structure.id)) {
       setError('연결된 개구부나 디자인 요소가 있습니다. 먼저 연결 위치를 변경하세요.'); return
     }
-    commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.filter((item) => item.id !== structure.id) } }), `${structure.name}을(를) 삭제했습니다.`)
-    setSelectedStructureId('')
+    if (commitDeletion(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.filter((item) => item.id !== structure.id) }, keeps: project.keeps.filter((keep) => keep.structureId !== structure.id) }), '구조를 삭제', { structureId: structure.id })) setSelectedStructureId('')
   }
-  function confirmStructureBase(structure: Structure) {
-    if (!project.floorPlan || structure.immutable) return
-    const keep = project.keeps.find((entry) => entry.structureId === structure.id)
-    const nextKeep = keep ?? { id: makeId('keep'), structureId: structure.id, intent: 'preserve' as const, description: `${structure.name}의 위치와 형태 보존` }
-    commit(updateCommon(project, {
-      floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === structure.id ? { ...item, immutable: true, protected: true } : item) },
-      keeps: keep ? project.keeps : [...project.keeps, nextKeep],
-    }), `${structure.name}을(를) 필수 보존 기본 구조로 확정했습니다.`)
-  }
-  function moveOptionalStructure(id: string, start: { x: number, y: number }, end: { x: number, y: number }) {
+  function moveOptionalStructure(id: string, delta: Point) {
     const structure = project.floorPlan?.structures.find((item) => item.id === id)
-    if (!project.floorPlan || !structure || structure.kind !== 'wall' || structure.geometry.kind !== 'segment') return
-    const checked = validateStructureOperation(project, id, 'move')
-    if (!checked.valid) { rejectPlanEdit(checked.issues.map((issue) => issue.message).join(' ')); return }
-    if (project.floorPlan.structures.some((item) => item.parentWallId === id)) { rejectPlanEdit('연결된 창·문·출입구가 있습니다. 먼저 연결을 수정해 주세요.'); return }
-    const points = [start.x, start.y, end.x, end.y]
-    if (points.some((value) => !Number.isFinite(value) || value < 0 || value > 1) || Math.hypot(end.x - start.x, end.y - start.y) < .02) { rejectPlanEdit('가벽은 도면 안에 길이를 유지하며 배치해 주세요.'); return }
-    const placement = validatePartitionPlacement(project, start, end, id)
-    if (!placement.valid) { rejectPlanEdit(placement.issues.map((issue) => issue.message).join(' ')); return }
-    if (commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === id ? { ...item, geometry: { kind: 'segment' as const, start, end } } : item) } }), `${structure.name}의 도면 위치를 저장했습니다.`)) setPlanEditError('')
+    if (!structure) return false
+    const moved = moveStructure(project, id, delta)
+    if (!moved.validation.valid) { rejectPlanEdit(moved.validation.issues.map((issue) => issue.message).join(' ')); return false }
+    const saved = commit(moved.project, `${structure.name}의 도면 위치를 저장했습니다.`)
+    if (saved) setPlanEditError('')
+    return saved
+  }
+  function setStructureCoordinate(structure: Structure, axis: 'x' | 'y', input: HTMLInputElement) {
+    const position = structurePosition(structure)
+    const value = fraction(input.value)
+    if (!input.value.trim() || !Number.isFinite(value) || value < 0 || value > 1) {
+      input.value = String(pct(position[axis]))
+      rejectPlanEdit('위치는 0–100% 사이의 숫자로 입력해 주세요.')
+      return
+    }
+    if (value !== position[axis] && !moveOptionalStructure(structure.id, axis === 'x' ? { x: value - position.x, y: 0 } : { x: 0, y: value - position.y })) input.value = String(pct(position[axis]))
   }
   function addArea(bounds?: { x: number, y: number, width: number, height: number }) {
     if (!project.floorPlan) { rejectPlanEdit('먼저 평면도를 준비해 주세요.'); return }
@@ -586,10 +666,49 @@ export default function App() {
     addArea(bounds)
   }
   function toggleKeep(structure: Structure) {
-    if (structure.immutable) { setError('기본 구조는 필수 보존 대상이라 Keep을 해제할 수 없습니다.'); return }
-    const existing = project.keeps.find((item) => item.structureId === structure.id)
-    if (existing) commit(removeKeep(project, existing.id), `${structure.name}의 Keep을 해제했습니다.`)
-    else commit(upsertKeep(project, { id: makeId('keep'), structureId: structure.id, intent: 'preserve', description: `${structure.name}의 위치와 형태 보존`, allowedSurfaceTreatment: structure.kind === 'wall' ? false : undefined }), `${structure.name}에 Keep을 설정했습니다.`)
+    const enabled = !isStructureLocked(project, structure)
+    if (commit(setStructurePreservation(project, structure.id, enabled), enabled ? `${structure.name}의 필수 보존을 켰습니다. 위치가 고정됩니다.` : `${structure.name}의 필수 보존을 껐습니다. 도면에서 위치를 수정할 수 있습니다.`)) setPlanEditError('')
+  }
+
+  function renderStructureInspector() {
+    const structure = selectedStructure
+    if (!structure) return <Empty>도면이나 목록에서 구조를 선택하세요.</Empty>
+    const keep = project.keeps.find((item) => item.structureId === structure.id)
+    const locked = isStructureLocked(project, structure)
+    const movementReason = structureMovementReason(project, structure)
+    const children = project.floorPlan?.structures.filter((item) => item.parentWallId === structure.id) ?? []
+    const position = structurePosition(structure)
+    const wall = project.floorPlan?.structures.find((item) => item.id === structure.parentWallId)
+    const opening = wall?.geometry.kind === 'segment' && structure.wallSpan
+    return <div className="inspector-block">
+      <h3>{structure.name}</h3><p className="muted">{STRUCTURE_LABELS[structure.kind]} · {structure.role === 'partition' ? '추가 가벽' : '기존 구조 표시'}</p>
+      <label className="field"><span>구조 이름</span><input defaultValue={structure.name} key={`${structure.id}-label`} onBlur={(event) => {
+        if (!project.floorPlan) return
+        const name = event.target.value.trim()
+        if (!name) { event.target.value = structure.name; setError('구조 이름을 입력해 주세요.'); return }
+        commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === structure.id ? { ...item, name } : item) } }))
+      }} /></label>
+      <button type="button" className="preservation-switch" role="switch" aria-checked={locked} aria-label={`${structure.name} 필수 보존 (위치 고정)`} onClick={() => toggleKeep(structure)}>
+        <span><strong>필수 보존 (위치 고정)</strong><small>{locked ? '켬 · 이동·삭제 잠금' : '끔 · 도면 위치 수정 가능'}</small></span><span className="preservation-switch__track" aria-hidden="true"><span /></span>
+      </button>
+      <p className="muted small">{movementReason ?? '구조나 ‘이동 가능’ 이름표를 끌어 위치를 바꾸세요. 방향키는 1%, Shift와 방향키는 5%씩 이동합니다.'}</p>
+      <p className="muted small">보존을 끄면 도면 표시와 생성 조건을 수정합니다. 실제 구조 변경 가능 여부는 별도로 확인하세요.</p>
+      {children.length > 0 && <div className="structure-connections"><strong>연결된 구조</strong>{children.map((child) => <Button key={child.id} tone="quiet" onClick={() => setSelectedStructureId(child.id)}>{child.name} · {isStructureLocked(project, child) ? '고정' : '이동 가능'}</Button>)}</div>}
+      {!locked && <>
+        {opening && wall.geometry.kind === 'segment' ? <label className="field"><span>{wall.name}을 따라 이동 · 시작 {pct(opening.start)}%</span><input type="range" min="0" max={Math.round((1 - (opening.end - opening.start)) * 100)} step="1" value={pct(opening.start)} disabled={!!movementReason} onChange={(event) => {
+          const offset = Number(event.target.value) / 100 - opening.start
+          if (wall.geometry.kind !== 'segment') return
+          moveOptionalStructure(structure.id, { x: (wall.geometry.end.x - wall.geometry.start.x) * offset, y: (wall.geometry.end.y - wall.geometry.start.y) * offset })
+        }} /></label> : <div className="field-row"><label className="field"><span>{structure.geometry.kind === 'segment' ? '시작' : structure.geometry.kind === 'rect' ? '왼쪽 위' : '중심'} X (%)</span><input type="number" min="0" max="100" step="1" disabled={!!movementReason} defaultValue={pct(position.x)} key={`${structure.id}-x-${position.x}`} onBlur={(event) => setStructureCoordinate(structure, 'x', event.target)} /></label><label className="field"><span>Y (%)</span><input type="number" min="0" max="100" step="1" disabled={!!movementReason} defaultValue={pct(position.y)} key={`${structure.id}-y-${position.y}`} onBlur={(event) => setStructureCoordinate(structure, 'y', event.target)} /></label></div>}
+        <div className="keep-actions"><Button icon="edit" onClick={() => editStructurePosition(structure.id)}>공간 배치에서 편집</Button><Button tone="danger" icon="trash" onClick={() => deleteStructure(structure)}>구조 삭제</Button></div>
+      </>}
+      {structure.kind === 'existing-light' && <label className="field"><span>기존 조명 색감</span><input defaultValue={structure.lightTone ?? '온백색'} key={`${structure.id}-tone`} onBlur={(event) => {
+        if (!project.floorPlan) return
+        const lightTone = event.target.value.trim() || '온백색'
+        commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === structure.id ? { ...item, lightTone } : item) } }), '기존 조명 색감을 저장했습니다.')
+      }} /><small>{locked ? '보존 중에는 색감만 변경할 수 있습니다.' : '위치와 색감을 수정할 수 있습니다.'}</small></label>}
+      {keep && <><label className="field"><span>보존 설명</span><textarea rows={3} defaultValue={keep.description} key={keep.id} onBlur={(event) => commit(updateKeep(project, keep.id, { description: event.target.value }))} /></label>{structure.kind === 'wall' && <label className="checkbox-row"><input type="checkbox" checked={!!keep.allowedSurfaceTreatment} onChange={(event) => commit(updateKeep(project, keep.id, { allowedSurfaceTreatment: event.target.checked }))} /><span>탈착식 표면 연출 허용</span></label>}</>}
+    </div>
   }
 
   function renderProjects() {
@@ -620,7 +739,7 @@ export default function App() {
 
   function renderSpace() {
     const existing = project.sourceImages.filter((image) => image.role === 'existing-space')
-    const movablePartitions = project.floorPlan?.structures.filter((item) => item.kind === 'wall' && item.geometry.kind === 'segment' && item.immutable === false && !item.protected && !project.keeps.some((keep) => keep.structureId === item.id) && !project.floorPlan?.structures.some((structure) => structure.parentWallId === item.id)) ?? []
+    const movablePartitions = project.floorPlan?.structures.filter((item) => !structureMovementReason(project, item)) ?? []
     const requiresDrawingWall = planDetailTab === 'structure' && ['window', 'door', 'entrance'].includes(structureKind)
     const hostWall = requiresDrawingWall ? drawingWall() : undefined
     const structureTools: { kind: Structure['kind'], role: 'base' | 'partition', label: string }[] = [
@@ -649,10 +768,10 @@ export default function App() {
     return <>
       {project.planAlignmentPending && <section className="plan-alignment-alert" aria-labelledby="plan-alignment-title"><div><p className="eyebrow">도면 대응 확인 필요</p><h3 id="plan-alignment-title">새 평면도의 사용 바닥과 배치를 확인하세요</h3><p>업로드한 이미지에서 사용 가능한 바닥 영역을 표시하고 구조·Keep·요소·카메라 좌표가 실제 도면과 맞는지 확인해야 미리보기를 열 수 있습니다. 이전 도면의 표시가 있다면 좌표는 임시로 유지됩니다.</p>{!project.floorPlan?.areas.some((area) => area.kind === 'floor') && <p className="plan-alignment-alert__required">아래 ‘영역·동선 그리기’에서 ‘사용 바닥’을 먼저 표시하세요.</p>}</div><div className="plan-alignment-alert__actions"><label className="checkbox-row"><input type="checkbox" checked={alignmentChecked} onChange={(event) => setAlignmentChecked(event.target.checked)} /><span>새 도면의 바닥·구조·배치·시점을 확인했습니다</span></label><Button tone="primary" disabled={!alignmentChecked || !project.floorPlan?.areas.some((area) => area.kind === 'floor')} onClick={() => { commit(updateCommon(project, { planAlignmentPending: false }), '평면도 대응 확인을 저장했습니다.'); setAlignmentChecked(false) }}>도면 대응 확인 완료</Button></div></section>}
       <div className={`space-two-col ${planDetailTab !== 'plan' ? 'is-editing-plan' : ''}`}>
-        <section className="surface-panel" aria-labelledby="existing-title"><div className="panel-heading"><div><p className="eyebrow">01 · 실제 공간</p><h2 id="existing-title">기존 공간 사진</h2></div><FilePick label="사진 추가" onFile={(file) => uploadImage(file, 'existing-space')} /></div>
+        <section className="surface-panel" aria-labelledby="existing-title"><div className="panel-heading"><div><p className="eyebrow">01 · 실제 공간</p><h2 id="existing-title">기존 공간 사진</h2></div><FilePick label={busy ? "등록 중…" : "사진 추가"} disabled={busy} onFile={(file) => uploadImage(file, 'existing-space')} /></div>
           {existing.length ? <div className="photo-carousel-wrap"><SwipeCarousel label="기존 공간 사진" variant="photo" items={existing.map((image) => ({ id: image.id, content: <figure><AssetImage uri={image.uri} alt={`${image.name} · 기존 공간 사진`} className="space-photo" /><figcaption>{image.name}<span>현장 외관 참고 · 치수 근거 아님</span></figcaption></figure> }))} /></div> : <Empty>실제 공간 사진을 추가하세요. 분위기 레퍼런스를 대신 사용할 수 없습니다.</Empty>}
         </section>
-        <section className={`surface-panel space-plan-panel ${planDetailTab !== 'plan' ? 'is-drawing' : ''}`} aria-labelledby="plan-title"><div className="panel-heading"><div><p className="eyebrow">02 · 배치 기준</p><h2 id="plan-title">평면도</h2></div><FilePick label="도면 업로드" onFile={uploadPlan} /></div>
+        <section className={`surface-panel space-plan-panel ${planDetailTab !== 'plan' ? 'is-drawing' : ''}`} aria-labelledby="plan-title"><div className="panel-heading"><div><p className="eyebrow">02 · 배치 기준</p><h2 id="plan-title">평면도</h2></div><FilePick label={busy ? "등록 중…" : "도면 업로드"} disabled={busy} onFile={uploadPlan} /></div>
           {project.floorPlan ? <>
             <div className="plan-origin" role="note">
               <div className="plan-origin__heading"><Badge tone="info">{planOrigin}</Badge><strong>도면은 Keep·요소 배치·시점의 2D 기준입니다.</strong></div>
@@ -667,8 +786,8 @@ export default function App() {
             <div className={`plan-editor-body ${planDetailTab !== 'plan' ? 'is-drawing' : ''}`}>
             {planDetailTab === 'plan' && <div className="plan-task-hint">
               <div className="plan-task-hint__heading"><strong>선택·이동 모드</strong><Button icon="add" onClick={() => chooseStructureTool('wall', 'partition')}>가벽 추가</Button></div>
-              <p>{movablePartitions.length ? `이동 가능한 가벽 ${movablePartitions.length}개가 있습니다. ‘이동 가능’ 이름표나 가벽 선을 잡고 끌어 주세요.` : '이동 가능한 가벽이 없습니다. 기존 벽·기둥 등은 위치가 고정되어 있습니다.'}</p>
-              {selectedStructure && <p className="plan-selection-status"><strong>선택: {selectedStructure.name}</strong><span>{movablePartitions.some((item) => item.id === selectedStructure.id) ? '이동 가능 · 이름표 또는 선을 끌어 이동' : '위치 고정 · 선택하여 정보 확인만 가능'}</span></p>}
+              <p>{movablePartitions.length ? `이동 가능한 구조 ${movablePartitions.length}개가 있습니다. ‘이동 가능’ 이름표나 구조를 잡고 끌어 주세요.` : '이동 가능한 구조가 없습니다. Keep에서 필수 보존을 끄면 위치를 수정할 수 있습니다.'}</p>
+              {selectedStructure && <p className="plan-selection-status"><strong>선택: {selectedStructure.name}</strong><span>{movablePartitions.some((item) => item.id === selectedStructure.id) ? '이동 가능 · 이름표 또는 구조를 끌어 이동' : structureMovementReason(project, selectedStructure)}</span></p>}
             </div>}
             {planDetailTab === 'structure' && <div className="plan-edit-tools" aria-label="구조 그리기 도구">
               <h3>1. 표시할 구조 선택</h3>
@@ -689,7 +808,7 @@ export default function App() {
               validationMessage={planEditError}
               onDraw={planDetailTab === 'structure' ? drawStructure : planDetailTab === 'area' ? drawArea : undefined} />
             {planDetailTab !== 'plan' && <div className="plan-drawing-exit"><span>그리기 모드 · 저장 후 선택 모드로 돌아갑니다.</span><Button tone="quiet" onClick={() => { setPlanDetailTab('plan'); setPlanEditError('') }}>그리기 취소</Button></div>}
-            {planDetailTab === 'plan' && movablePartitions.length > 0 && <div className="plan-partitions" aria-label="이동 가능한 가벽 목록"><h3>이동 가능한 가벽</h3>{movablePartitions.map((partition) => <div key={partition.id} className="plan-partition-row"><button type="button" aria-pressed={selectedStructureId === partition.id} onClick={() => setSelectedStructureId(partition.id)}>{partition.name}<span>도면에서 선택</span></button><Button tone="danger" onClick={() => deleteStructure(partition)}>제거</Button></div>)}</div>}
+            {planDetailTab === 'plan' && movablePartitions.length > 0 && <div className="plan-partitions" aria-label="이동 가능한 구조 목록"><h3>이동 가능한 구조</h3>{movablePartitions.map((partition) => <div key={partition.id} className="plan-partition-row"><button type="button" aria-pressed={selectedStructureId === partition.id} onClick={() => setSelectedStructureId(partition.id)}>{partition.name}<span>도면에서 선택</span></button><Button tone="danger" onClick={() => deleteStructure(partition)}>제거</Button></div>)}</div>}
             <div className="plan-caption"><Badge tone="info">{project.floorPlan.geometryConfidence === 'schematic' ? '치수 미확인' : '치수 확인'}</Badge><span>사진은 공간의 모습 참고용이며 도면 좌표와 별도로 보관됩니다.</span></div>
             {planDetailTab === 'structure' && <details className="plan-numeric-fallback"><summary>좌표로 구조 표시 (키보드 대체)</summary><p>도면 왼쪽 위가 0%, 오른쪽 아래가 100%입니다.{hostWall && ` ‘${hostWall.name}’의 한 구간을 미리 입력했습니다. 시작과 끝을 같은 벽 위에 유지하세요.`}</p><div className="structure-form">
               <label className="field compact-field"><span>시작 X (%)</span><input type="number" min="0" max="100" value={structureX} onChange={(event) => setStructureX(event.target.value)} /></label>
@@ -713,13 +832,12 @@ export default function App() {
 
   function renderKeep() {
     const structures = project.floorPlan?.structures.filter((item) => ['wall','window','pillar','door','entrance','existing-light'].includes(item.kind)) ?? []
-    const keep = project.keeps.find((item) => item.structureId === selectedStructure?.id)
     const firstPhoto = project.sourceImages.find((image) => image.role === 'existing-space')
     return <div className="keep-layout">
       {firstPhoto ? <PhotoKeepOverlay imageUri={firstPhoto.uri} structures={project.floorPlan?.structures ?? []} keeps={project.keeps} selectedStructureId={selectedStructureId} onSelect={setSelectedStructureId} onSetAnchor={(id, point) => { commit(updatePhotoAnchor(project, id, point), '사진 라벨 위치를 저장했습니다. 도면 구조는 변경되지 않았습니다.') }} /> : <section className="surface-panel"><div className="panel-heading"><div><p className="eyebrow">현장 사진</p><h2>기존 모습</h2></div></div><Empty>기존 공간 사진을 먼저 등록하세요.</Empty></section>}
       <section className="surface-panel"><div className="panel-heading"><div><p className="eyebrow">평면도 연결</p><h2>보존 구조 선택</h2></div><Badge tone="keep">{project.keeps.length}개 Keep</Badge></div><PlanCanvas project={project} mode="keep" selectedStructureId={selectedStructureId} onStructureSelect={setSelectedStructureId} onStructureMove={moveOptionalStructure} /></section>
-      <aside className="side-panel"><div className="panel-heading"><div><p className="eyebrow">보존 조건</p><h2>Keep 목록</h2></div></div>{selectedStructure && <div className="keep-selection-summary"><span className="eyebrow">현재 선택</span><strong>{selectedStructure.name}</strong><span>{selectedStructure.immutable ? '필수 보존 · 위치 고정' : keep ? 'Keep 보존 · 설정 수정 가능' : '수정 가능한 구조'}</span></div>}{structures.length ? <div className="structure-list">{structures.map((structure) => { const isKept = project.keeps.some((item) => item.structureId === structure.id); return <button key={structure.id} className={`list-row ${selectedStructureId === structure.id ? 'is-selected' : ''}`} onClick={() => setSelectedStructureId(structure.id)}><span><strong>{structure.name}</strong><small>{STRUCTURE_LABELS[structure.kind]}</small></span>{(isKept || structure.immutable) && <Badge tone="keep">{structure.immutable ? '필수 보존' : 'Keep'}</Badge>}</button> })}</div> : <Empty>평면도에 구조를 먼저 표시하세요.</Empty>}
-        {selectedStructure && <div className="inspector-block"><h3>{selectedStructure.name}</h3><p className="muted">{STRUCTURE_LABELS[selectedStructure.kind]} · {selectedStructure.immutable ? '기존 기본 구조 · 이동과 제거 불가' : '수정 가능한 도면 구조 · 보존 확정 전'}</p><label className="field"><span>구조 이름</span><input defaultValue={selectedStructure.name} key={`${selectedStructure.id}-label`} onBlur={(event) => { if (!project.floorPlan) return; const name = event.target.value.trim(); if (!name) return; commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === selectedStructure.id ? { ...item, name } : item) } })) }} /></label>{selectedStructure.immutable ? <Badge tone="keep">필수 보존 · 위치 고정</Badge> : <div className="keep-actions"><Button tone={keep ? 'secondary' : 'primary'} onClick={() => toggleKeep(selectedStructure)}>{keep ? 'Keep 해제' : 'Keep 지정'}</Button><Button tone="danger" icon="trash" onClick={() => deleteStructure(selectedStructure)}>구조 제거</Button><Button tone="quiet" icon="check" onClick={() => confirmStructureBase(selectedStructure)}>기본 구조로 확정</Button></div>}{selectedStructure.kind === 'existing-light' && <label className="field"><span>기존 조명 색감만 변경</span><input defaultValue={selectedStructure.lightTone ?? '온백색'} key={`${selectedStructure.id}-tone`} onBlur={(event) => { if (!project.floorPlan) return; const allowed = validateStructureOperation(project, selectedStructure.id, 'light-tone'); if (!allowed.valid) { setError(allowed.issues.map((issue) => issue.message).join(' ')); return } const lightTone = event.target.value.trim() || '온백색'; commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === selectedStructure.id ? { ...item, lightTone } : item) } }), '기존 조명 색감을 저장했습니다.') }} /><small className="muted">등기구의 위치와 형태는 고정됩니다.</small></label>}{keep && <><label className="field"><span>보존 설명</span><textarea rows={3} defaultValue={keep.description} key={keep.id} onBlur={(event) => commit(updateKeep(project, keep.id, { description: event.target.value }))} /></label>{selectedStructure.kind === 'wall' && <label className="checkbox-row"><input type="checkbox" checked={!!keep.allowedSurfaceTreatment} onChange={(event) => commit(updateKeep(project, keep.id, { allowedSurfaceTreatment: event.target.checked }))} /><span>탈착식 표면 연출 허용</span></label>}</>}</div>}
+      <aside className="side-panel"><div className="panel-heading"><div><p className="eyebrow">보존 조건</p><h2>Keep 목록</h2></div></div>{selectedStructure && <div className="keep-selection-summary"><span className="eyebrow">현재 선택</span><strong>{selectedStructure.name}</strong><span>{isStructureLocked(project, selectedStructure) ? '필수 보존 켜짐 · 위치 고정' : '필수 보존 꺼짐 · 위치 수정 가능'}</span></div>}{structures.length ? <div className="structure-list">{structures.map((structure) => { const isKept = project.keeps.some((item) => item.structureId === structure.id); return <button key={structure.id} className={`list-row ${selectedStructureId === structure.id ? 'is-selected' : ''}`} onClick={() => setSelectedStructureId(structure.id)}><span><strong>{structure.name}</strong><small>{STRUCTURE_LABELS[structure.kind]}</small></span>{(isKept || structure.immutable) && <Badge tone="keep">{structure.immutable ? '필수 보존' : 'Keep'}</Badge>}</button> })}</div> : <Empty>평면도에 구조를 먼저 표시하세요.</Empty>}
+        {renderStructureInspector()}
       </aside>
     </div>
   }
@@ -735,6 +853,7 @@ export default function App() {
     ]
     function chooseReference(id: string) {
       setReferenceFocus(id)
+      setPendingReferenceDelete(null)
       setReferenceRegionMode('whole')
       setReferenceRegionDraft(null)
       setRegionEditingElementId(null)
@@ -771,12 +890,13 @@ export default function App() {
     }
     return <div className="reference-layout">
       <aside className="library-panel"><div className="panel-heading"><div><p className="eyebrow">참고 이미지</p><h2>레퍼런스 라이브러리</h2></div></div>
-        {sourceGroups.map((group) => <div key={group.role} className="library-group"><div className="group-heading"><h3>{group.label}</h3><FilePick label="추가" onFile={(file) => uploadImage(file, group.sourceRole, group.role)} /></div>
+        {sourceGroups.map((group) => <div key={group.role} className="library-group"><div className="group-heading"><h3>{group.label}</h3><FilePick label={busy ? "등록 중…" : "추가"} disabled={busy} onFile={(file) => uploadImage(file, group.sourceRole, group.role)} /></div>
           {project.references.filter((item) => item.role === group.role).length === 0 && <p className="muted small">등록된 이미지가 없습니다.</p>}
           {project.references.filter((item) => item.role === group.role).map((reference) => { const image = project.sourceImages.find((entry) => entry.id === reference.imageId); return <button key={reference.id} className={`reference-thumb ${focused?.id === reference.id ? 'is-selected' : ''}`} aria-pressed={focused?.id === reference.id} onClick={() => chooseReference(reference.id)}><span className="thumb-image">{image && <AssetImage uri={image.uri} alt={`${image.name} 미리보기`} />}</span><span><strong>{image?.name ?? '이미지 없음'}</strong><small>{group.role === 'product' ? '제품' : group.role === 'ambience' ? '분위기' : '요소'}</small></span></button> })}
         </div>)}
       </aside>
-      <section className="reference-preview"><div className="panel-heading"><div><p className="eyebrow">선택한 레퍼런스</p><h2>{focusedImage?.name ?? '이미지를 선택하세요'}</h2></div>{focused && <Badge tone="info">{focused.role === 'ambience' ? '분위기' : focused.role === 'product' ? '제품' : '요소'}</Badge>}</div>
+      <section className="reference-preview"><div className="panel-heading"><div><p className="eyebrow">선택한 레퍼런스</p><h2>{focusedImage?.name ?? '이미지를 선택하세요'}</h2></div>{focused && <div className="reference-header-actions"><Badge tone="info">{focused.role === 'ambience' ? '분위기' : focused.role === 'product' ? '제품' : '요소'}</Badge><Button tone="quiet" icon="trash" disabled={busy} onClick={() => setPendingReferenceDelete(focused.id)}>이미지 삭제</Button></div>}</div>
+        {focused && pendingReferenceDelete === focused.id && <section ref={referenceDeleteConfirmRef} className="reference-delete-confirm" aria-label="레퍼런스 삭제 확인" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setPendingReferenceDelete(null) } }}><h3>이 레퍼런스를 삭제할까요?</h3><p>{focusedImage?.name}</p><p>이미지와 연결된 디자인 요소 {project.elements.filter((element) => element.sourceReferenceId === focused.id).length}개가 현재 작업에서 삭제됩니다. 기존 결과와 당시 조건은 보관됩니다.</p><div className="keep-actions"><Button tone="danger" icon="trash" disabled={busy} onClick={() => deleteReferenceImage(focused.id)}>이미지와 연결 요소 삭제</Button><button className="button button-secondary" data-action="cancel" type="button" onClick={() => { setPendingReferenceDelete(null); document.querySelector<HTMLButtonElement>('.reference-header-actions button')?.focus({ preventScroll: true }) }}>취소</button></div></section>}
         {focusedImage ? <>
           <div className="reference-scope-control" role="group" aria-label="요소의 이미지 참조 범위">
             <span>{regionEditingElement ? `${regionEditingElement.label}의 참조 범위 수정` : '새 요소의 참조 범위'}</span>
@@ -800,10 +920,11 @@ export default function App() {
           const editing = editingElementId === element.id
           return <div key={element.id} className={`element-card ${selected ? 'is-selected' : ''}`}>
             <div className="element-card-top"><strong>{element.label}</strong><Badge tone={element.status === 'exclude' ? 'error' : element.target ? 'selected' : 'neutral'}>{element.status === 'exclude' ? '제외' : element.target ? '적용 · 배치됨' : '적용 · 위치 미지정'}</Badge></div>
-            <p>{ELEMENT_LABELS[element.kind]} · {source?.name ?? '출처 없음'}</p>
+            <p>{ELEMENT_LABELS[element.kind]} · {source?.name ?? '출처 없음'}</p><Button tone="quiet" onClick={() => { chooseReference(element.sourceReferenceId); setSelectedElementId(element.id) }}>원본 레퍼런스 보기</Button>
             <p className="muted small">출처 범위 · {element.sourceRegion ? '이미지 일부' : '이미지 전체'}</p>
             <p className="muted small">{element.status === 'exclude' ? '배치와 미리보기 조건에서 제외' : targetDescription(project, element.target)}</p>
             <div className="element-card-actions">
+              <Button tone="quiet" icon="trash" onClick={() => deleteElement(element)}>요소 삭제</Button>
               <Button tone="quiet" onClick={() => editSourceRegion(element)}>출처 범위 편집</Button>
               <Button tone="quiet" icon="edit" onClick={() => editing ? setEditingElementId(null) : beginConditionEdit(element)}>{editing ? '편집 닫기' : '조건 편집'}</Button>
               <Button tone="quiet" onClick={() => commit(updateElement(project, element.id, { status: element.status === 'apply' ? 'exclude' : 'apply' }), element.status === 'apply' ? '요소를 제외했습니다.' : '요소를 적용 대상으로 바꿨습니다.')}>{element.status === 'apply' ? '제외' : '적용'}</Button>
@@ -839,7 +960,7 @@ export default function App() {
     const walls = project.floorPlan.structures.filter((structure) => structure.kind === 'wall')
     const floorTarget = selectedElement.target?.kind === 'floor-point' ? selectedElement.target : null
     const wallTarget = selectedElement.target?.kind === 'wall-segment' ? selectedElement.target : null
-    return <div className="inspector-content"><div className="inspector-block"><h3>{selectedElement.label}</h3><p className="muted">{ELEMENT_LABELS[selectedElement.kind]}</p><p className="rule-line">허용 위치 · {allowed.map(targetLabel).join(' / ')}</p>{selectedElement.kind === 'ambient-light' && <p className="muted small">이 항목은 레퍼런스에서 가져온 공간 분위기 조건입니다. 기존 천장 등기구는 공간 자료에서 고정 구조로 등록하고 색감만 조정합니다.</p>}<p className="muted small">현재 위치: {targetDescription(project, selectedElement.target)}</p></div>
+    return <div className="inspector-content"><div className="inspector-block"><h3>{selectedElement.label}</h3><p className="muted">{ELEMENT_LABELS[selectedElement.kind]}</p><p className="rule-line">허용 위치 · {allowed.map(targetLabel).join(' / ')}</p>{selectedElement.kind === 'ambient-light' && <p className="muted small">이 항목은 레퍼런스에서 가져온 공간 분위기 조건입니다. 기존 천장 등기구는 도면 구조로 등록하고 Keep에서 보존 여부와 색감을 조정합니다.</p>}<p className="muted small">현재 위치: {targetDescription(project, selectedElement.target)}</p></div>
       {allowed.includes('floor-point') && <form className="inspector-block" key={`${selectedElement.id}-floor-${floorTarget?.x}-${floorTarget?.y}-${floorTarget?.rotationDegrees}-${floorTarget?.footprint?.width}-${floorTarget?.footprint?.height}`} onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); applyTarget({ kind: 'floor-point', x: fraction(String(data.get('x'))), y: fraction(String(data.get('y'))), rotationDegrees: Number(data.get('rotation')), footprint: { width: fraction(String(data.get('width'))), height: fraction(String(data.get('height'))) } }) }}><h3>바닥 위치</h3><p className="muted small">평면도를 클릭하거나 비율을 입력하세요.</p><div className="field-grid"><label className="field"><span>X (%)</span><input name="x" type="number" min="0" max="100" defaultValue={pct(floorTarget?.x ?? .5)} /></label><label className="field"><span>Y (%)</span><input name="y" type="number" min="0" max="100" defaultValue={pct(floorTarget?.y ?? .5)} /></label><label className="field"><span>폭 (%)</span><input name="width" type="number" min="1" max="100" defaultValue={pct(floorTarget?.footprint?.width ?? .10)} /></label><label className="field"><span>깊이 (%)</span><input name="height" type="number" min="1" max="100" defaultValue={pct(floorTarget?.footprint?.height ?? .08)} /></label></div><label className="field"><span>회전 (도)</span><input name="rotation" type="number" min="0" max="359" defaultValue={floorTarget?.rotationDegrees ?? 0} /></label><Button type="submit">바닥 위치 적용</Button></form>}
       {allowed.includes('wall-segment') && <form className="inspector-block" key={`${selectedElement.id}-wall-${wallTarget?.wallId}-${wallTarget?.start}-${wallTarget?.end}`} onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); applyTarget({ kind: 'wall-segment', wallId: String(data.get('wallId')), start: fraction(String(data.get('start'))), end: fraction(String(data.get('end'))) }) }}><h3>벽 구간</h3><p className="muted small">배치된 구간을 벽을 따라 끌거나 다른 벽을 선택하세요. 창·문과 겹치면 적용되지 않습니다.</p><label className="field"><span>벽</span><select name="wallId" defaultValue={wallTarget?.wallId ?? walls[0]?.id}>{walls.map((wall) => <option key={wall.id} value={wall.id}>{wall.name}</option>)}</select></label><div className="field-grid"><label className="field"><span>시작 (%)</span><input name="start" type="number" min="0" max="99" defaultValue={pct(wallTarget?.start ?? .10)} /></label><label className="field"><span>끝 (%)</span><input name="end" type="number" min="1" max="100" defaultValue={pct(wallTarget?.end ?? .30)} /></label></div><Button type="submit" disabled={!walls.length}>벽 구간 적용</Button></form>}
       {allowed.includes('whole-space') && <div className="inspector-block"><h3>공간 범위</h3><p className="muted small">조명 분위기나 전체 색채는 한 점에 놓지 않습니다.</p><Button onClick={() => applyTarget({ kind: 'whole-space' })}>공간 전체 적용</Button>{spatialAreas.length > 0 && <label className="field"><span>또는 지정 영역</span><select value={selectedElement.target?.kind === 'named-area' ? selectedElement.target.areaId : ''} onChange={(event) => { if (event.target.value) applyTarget({ kind: 'named-area', areaId: event.target.value }) }}><option value="">영역 선택</option>{spatialAreas.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label>}</div>}
@@ -852,19 +973,19 @@ export default function App() {
   function renderPlacement() {
     const active = project.elements.filter((item) => item.status === 'apply')
     return <div className={`workspace-layout ${showWorkspaceLeft ? '' : 'is-left-hidden'} ${showWorkspaceRight ? '' : 'is-right-hidden'}`}> {renderWorkspaceToolbar('요소 목록')}
-      <aside className="workspace-side workspace-side--left"><div className="panel-heading"><div><p className="eyebrow">적용 요소</p><h2>배치 목록</h2></div><Badge>{active.length}개</Badge></div><div className="workspace-list">{active.map((element) => <button key={element.id} className={`element-list-button ${selectedElementId === element.id ? 'is-selected' : ''}`} aria-pressed={selectedElementId === element.id} onClick={() => setSelectedElementId(element.id)}><strong>{element.label}</strong><small>{ELEMENT_LABELS[element.kind]}</small><span className={`status-line ${element.target ? 'is-placed' : ''}`}>{element.target ? targetDescription(project, element.target) : '위치 미지정'}</span></button>)}</div>{active.length === 0 && <Empty>적용할 요소가 없습니다. 레퍼런스에서 적용 요소를 선택하세요.</Empty>}{project.elements.some((item) => item.status === 'exclude') && <div className="side-bottom"><p className="muted small">제외 요소 {project.elements.length - active.length}개는 배치하지 않습니다.</p><Button tone="quiet" onClick={() => go('references')}>제외 조건 보기</Button></div>}</aside>
-      <section className="workspace-main"><div className="panel-heading"><div><p className="eyebrow">평면도 작업</p><h2>공간 배치</h2></div><Badge tone="info">{project.floorPlan?.geometryConfidence === 'schematic' ? '개략 도면 · 치수 미확인' : '평면도'}</Badge></div><p className="narrow-notice">도면의 요소를 끌어 이동하고 회전 손잡이로 각도를 조정하세요. 수치 입력도 사용할 수 있습니다.</p>{pendingPlacement && <div className="placement-warning" role="alert"><NucleoIcon name="warning" /><div><strong>보존 조건 확인</strong>{pendingPlacement.warnings.map((message) => <p key={message}>{message}</p>)}<div className="placement-warning__actions"><Button tone="primary" onClick={() => applyElementTarget(pendingPlacement.elementId, pendingPlacement.target, true)}>확인하고 배치</Button><Button onClick={() => setPendingPlacement(null)}>취소</Button></div></div></div>}<PlanCanvas project={project} mode="place" selectedElementId={selectedElementId} selectedStructureId={selectedStructureId} selectedCameraId={selectedCameraId} onElementSelect={setSelectedElementId} onElementMove={(id, x, y) => { const element = project.elements.find((item) => item.id === id); if (element?.target?.kind === 'floor-point') applyElementTarget(id, { ...element.target, x, y }) }} onElementRotate={(id, rotationDegrees) => { const element = project.elements.find((item) => item.id === id); if (element?.target?.kind === 'floor-point') applyElementTarget(id, { ...element.target, rotationDegrees }) }} onWallElementMove={(id, wallId, start, end) => { const element = project.elements.find((item) => item.id === id); if (element?.target?.kind === 'wall-segment') applyElementTarget(id, { ...element.target, wallId, start, end }) }} onStructureSelect={setSelectedStructureId} onPlacePoint={(x, y) => {
-        if (!selectedElement) return
+      <aside className="workspace-side workspace-side--left"><div className="panel-heading"><div><p className="eyebrow">적용 요소</p><h2>배치 목록</h2></div><Badge>{active.length}개</Badge></div><div className="workspace-catalog"><div className="workspace-list">{active.map((element) => <button key={element.id} className={`element-list-button ${placementSelection === 'element' && selectedElementId === element.id ? 'is-selected' : ''}`} aria-pressed={placementSelection === 'element' && selectedElementId === element.id} onClick={() => selectPlacementElement(element.id)}><strong>{element.label}</strong><small>{ELEMENT_LABELS[element.kind]}</small><span className={`status-line ${element.target ? 'is-placed' : ''}`}>{element.target ? targetDescription(project, element.target) : '위치 미지정'}</span></button>)}</div>{active.length === 0 && <Empty>적용할 요소가 없습니다. 레퍼런스에서 적용 요소를 선택하세요.</Empty>}<div className="workspace-structure-list"><h3>도면 구조</h3><p className="muted small">보존을 끈 구조는 위치를 수정할 수 있습니다.</p>{project.floorPlan?.structures.map((structure) => <button key={structure.id} type="button" className={`element-list-button ${placementSelection === 'structure' && selectedStructureId === structure.id ? 'is-selected' : ''}`} aria-pressed={placementSelection === 'structure' && selectedStructureId === structure.id} onClick={() => selectPlacementStructure(structure.id)}><strong>{structure.name}</strong><span>{structureMovementReason(project, structure) ? '위치 고정 · 조건 확인' : '이동 가능'}</span></button>)}</div>{project.elements.some((item) => item.status === 'exclude') && <div className="side-bottom"><p className="muted small">제외 요소 {project.elements.length - active.length}개는 배치하지 않습니다.</p><Button tone="quiet" onClick={() => go('references')}>제외 조건 보기</Button></div>}</div></aside>
+      <section className="workspace-main"><div className="panel-heading"><div><p className="eyebrow">평면도 작업</p><h2>공간 배치</h2></div><Badge tone="info">{project.floorPlan?.geometryConfidence === 'schematic' ? '개략 도면 · 치수 미확인' : '평면도'}</Badge></div><p className="narrow-notice">도면의 요소를 끌어 이동하고 회전 손잡이로 각도를 조정하세요. 수치 입력도 사용할 수 있습니다.</p>{pendingPlacement && <div className="placement-warning" role="alert"><NucleoIcon name="warning" /><div><strong>보존 조건 확인</strong>{pendingPlacement.warnings.map((message) => <p key={message}>{message}</p>)}<div className="placement-warning__actions"><Button tone="primary" onClick={() => applyElementTarget(pendingPlacement.elementId, pendingPlacement.target, true)}>확인하고 배치</Button><Button onClick={() => setPendingPlacement(null)}>취소</Button></div></div></div>}<PlanCanvas project={project} mode="place" selectedElementId={placementSelection === 'element' ? selectedElementId : undefined} selectedStructureId={selectedStructureId} selectedCameraId={selectedCameraId} onElementSelect={selectPlacementElement} onElementMove={(id, x, y) => { const element = project.elements.find((item) => item.id === id); if (element?.target?.kind === 'floor-point') applyElementTarget(id, { ...element.target, x, y }) }} onElementRotate={(id, rotationDegrees) => { const element = project.elements.find((item) => item.id === id); if (element?.target?.kind === 'floor-point') applyElementTarget(id, { ...element.target, rotationDegrees }) }} onWallElementMove={(id, wallId, start, end) => { const element = project.elements.find((item) => item.id === id); if (element?.target?.kind === 'wall-segment') applyElementTarget(id, { ...element.target, wallId, start, end }) }} onStructureSelect={selectPlacementStructure} onStructureMove={moveOptionalStructure} validationMessage={planEditError} onPlacePoint={(x, y) => {
+        if (placementSelection !== 'element' || !selectedElement) return
         if (!allowedTargetKinds(selectedElement.kind).includes('floor-point')) { setError(`${selectedElement.label}은(는) 바닥의 한 점에 놓을 수 없습니다. ${allowedTargetKinds(selectedElement.kind).map(targetLabel).join(' 또는 ')}을 선택하세요.`); return }
         const old = selectedElement.target?.kind === 'floor-point' ? selectedElement.target : null
         applyTarget({ kind: 'floor-point', x, y, footprint: old?.footprint ?? { width: .10, height: .08 }, rotationDegrees: old?.rotationDegrees ?? 0 })
-      }} onWallSelect={(wallId) => {
-        if (!selectedElement) return
+      }} onWallSelect={placementSelection === 'element' ? (wallId) => {
+        if (placementSelection !== 'element' || !selectedElement) return
         if (!allowedTargetKinds(selectedElement.kind).includes('wall-segment')) { setError(`${selectedElement.label}은(는) 벽에 배치할 수 없습니다. ${allowedTargetKinds(selectedElement.kind).map(targetLabel).join(' 또는 ')}을 선택하세요.`); return }
         const old = selectedElement.target?.kind === 'wall-segment' ? selectedElement.target : null
         applyTarget({ kind: 'wall-segment', wallId, start: old?.wallId === wallId ? old.start : .10, end: old?.wallId === wallId ? old.end : .30 })
-      }} /><div className="canvas-help"><span>바닥 요소: 선택 후 드래그</span><span>회전: 선택 요소의 손잡이 드래그</span><span>벽 요소: 벽 구간 드래그</span></div></section>
-      <aside className="workspace-side inspector"><div className="panel-heading"><div><p className="eyebrow">유형별 설정</p><h2>속성 편집</h2></div></div>{renderPlacementInspector()}</aside>
+      } : undefined} /><div className="canvas-help"><span>바닥 요소: 선택 후 드래그</span><span>회전: 선택 요소의 손잡이 드래그</span><span>벽 요소: 벽 구간 드래그</span></div></section>
+      <aside className="workspace-side inspector"><div className="panel-heading"><div><p className="eyebrow">유형별 설정</p><h2>속성 편집</h2></div></div>{placementSelection === 'structure' ? <div className="inspector-content">{renderStructureInspector()}</div> : renderPlacementInspector()}</aside>
     </div>
   }
 
@@ -1040,12 +1161,12 @@ export default function App() {
     const current = selectedResult
     const approved = project.results.filter((item) => item.approved)
     const snapshot = current?.conditionsSnapshot
-    const snapshotProject = snapshot?.common?.floorPlan ? { ...project, floorPlan: snapshot.common.floorPlan } : project
+    const snapshotProject = snapshot?.common ? { ...project, ...snapshot.common, sourceImages: snapshot.common.sourceImages ?? project.sourceImages } : project
     return <div className="results-layout"><section className="result-main"><div className="panel-heading"><div><p className="eyebrow">시안 확인</p><h2>{project.cameras.find((item) => item.id === current?.cameraId)?.name ?? '결과'}</h2></div><div className="badge-line">{current?.stale && <Badge tone="error">이전 조건</Badge>}{current && <Badge tone="info">{current.origin === 'ai' ? 'AI 생성' : '사전 제공 샘플'}</Badge>}</div></div>
       {current ? <><div className="result-image-frame"><AssetImage uri={current.imageUri} alt={current.origin === 'ai' ? '현재 시점에서 AI가 생성한 공간 콘셉트 이미지' : '사전 준비된 AURA POP-UP 데모 공간 이미지'} className="result-image" /><span className="result-watermark">{current.origin === 'ai' ? 'AI 생성 · 실제 시공·치수 확인 필요' : '사전 제공 샘플 · 생성 결과 아님'}</span></div><div className="result-caption"><span>버전 {project.results.indexOf(current) + 1} · {new Date(current.createdAt).toLocaleDateString('ko-KR')} · {current.approved ? '승인됨' : '검토 중'}</span><span>{current.stale ? '현재 조건과 다릅니다. 이 이미지는 그대로 보관됩니다.' : current.origin === 'ai' ? '현재 입력 조건으로 생성한 콘셉트 이미지' : '조건 기록 · 샘플 이미지와 별개'}</span></div><div className="result-actions"><Button tone={current.approved ? 'secondary' : 'primary'} icon={current.approved ? undefined : 'check'} onClick={() => commit(setResultApproved(project, current.id, !current.approved), current.approved ? '승인을 취소했습니다.' : '결과를 승인했습니다.')}>{current.approved ? '승인 취소' : '이 결과 승인'}</Button><Button onClick={() => downloadResult(current)} disabled={busy}>이미지 내보내기</Button><Button onClick={exportRecord}>작업 기록 JSON</Button>{saveFailed && <Button onClick={() => commit(project, '프로젝트 기록을 저장했습니다.')}>프로젝트 저장 다시 시도</Button>}</div><p className="muted small">{current.origin === 'ai' ? '이미지 모델은 Keep·위치·치수의 완전한 일치를 보장하지 않습니다. 승인 전에 직접 대조해 주세요.' : OFFLINE_DEMO_NOTICE} 작업 기록 JSON에는 업로드 원본과 결과 이미지 파일이 포함되지 않습니다.</p></> : <div className="result-empty"><Empty>아직 결과가 없습니다. 조건 검토에서 샘플 미리보기를 열거나 AI 이미지를 생성하세요.</Empty><Button onClick={() => go('review')}>조건 검토로 이동</Button></div>}
       <div className="history-section"><div className="section-heading"><h3>결과 이력</h3><span className="meta">{project.results.length}개</span></div><SwipeCarousel label="결과 이력" variant="history" activeId={current?.id} onActiveIdChange={setSelectedResultId} items={project.results.map((result, index) => ({ id: result.id, content: <button type="button" className={`history-item ${current?.id === result.id ? 'is-selected' : ''}`} aria-pressed={current?.id === result.id} onClick={() => setSelectedResultId(result.id)}><AssetImage uri={result.imageUri} alt={`결과 ${index + 1} 미리보기`} /><span><strong>버전 {index + 1} · {project.cameras.find((camera) => camera.id === result.cameraId)?.name ?? '삭제된 시점'}</strong><small>{result.origin === 'ai' ? 'AI 생성' : '사전 제공 샘플'} · {result.approved ? '승인됨' : '검토 중'} · {result.stale ? '이전 조건' : '현재 조건'}</small></span></button> }))} /></div>
       {approved.length > 0 && <div className="moodboard-section"><div className="section-heading"><h3>승인 이미지 모아보기</h3><span className="meta">승인된 결과만 표시</span></div><SwipeCarousel label="승인 이미지" variant="gallery" activeId={current?.approved ? current.id : undefined} onActiveIdChange={setSelectedResultId} items={approved.map((result) => ({ id: result.id, content: <button type="button" className={`approved-result-card ${current?.id === result.id ? 'is-selected' : ''}`} aria-pressed={current?.id === result.id} onClick={() => setSelectedResultId(result.id)}><AssetImage uri={result.imageUri} alt={`승인된 ${result.origin === 'ai' ? 'AI 생성' : '사전 제공 샘플'} 결과 버전 ${project.results.indexOf(result) + 1}`} /><span>버전 {project.results.indexOf(result) + 1} · {project.cameras.find((camera) => camera.id === result.cameraId)?.name ?? '시점'}</span></button> }))} /></div>}
-    </section><aside className="result-inspector"><div className="panel-heading"><div><p className="eyebrow">이 결과의 조건</p><h2>조건 기록</h2></div></div>{snapshot ? <div className="result-conditions">{current?.origin === 'ai' && <div className="condition-group"><h3>생성 기준 사진</h3><p>{snapshot.existingPhotoId ? project.sourceImages.find((image) => image.id === snapshot.existingPhotoId)?.name ?? '선택한 사진이 현재 목록에 없습니다.' : '이전 결과에는 기준 사진 기록이 없습니다.'}</p></div>}<div className="condition-group"><div className="group-heading"><h3>Keep</h3><Button tone="quiet" onClick={() => go('keep')}>수정</Button></div><details className="result-details"><summary>보존 구조 {snapshot.common?.keeps.length ?? 0}개 펼쳐보기</summary>{(snapshot.common?.keeps ?? []).map((keep) => <p key={keep.id}>{snapshotProject.floorPlan?.structures.find((structure) => structure.id === keep.structureId)?.name ?? keep.description}</p>)}</details></div><div className="condition-group"><div className="group-heading"><h3>적용 요소</h3><Button tone="quiet" onClick={() => go('references')}>수정</Button></div>{(snapshot.common?.elements ?? []).filter((element) => element.status === 'apply').map((element) => <button key={element.id} className="condition-link" onClick={() => editElement(element.id)}><strong>{element.label}</strong><span>{targetDescription(snapshotProject, element.target)}</span></button>)}</div><div className="condition-group"><div className="group-heading"><h3>제외</h3><Button tone="quiet" onClick={() => go('references')}>수정</Button></div>{(snapshot.common?.elements ?? []).filter((element) => element.status === 'exclude').map((element) => <p key={element.id}>{element.label}</p>)}</div><div className="condition-group"><div className="group-heading"><h3>시점</h3><Button tone="quiet" onClick={() => go('camera')}>수정</Button></div><p>{project.cameras.find((camera) => camera.id === snapshot.camera.id)?.name ?? '시점'} · {pct(snapshot.camera.x)}%, {pct(snapshot.camera.y)}% · {snapshot.camera.directionDegrees}°</p></div></div> : <Empty>조건 기록이 없습니다.</Empty>}<div className="result-inspector-bottom"><Button onClick={() => go('review')}>조건 다시 검토</Button><Button onClick={() => { if (addView()) go('camera') }} disabled={project.cameras.length >= 3}>추가 시점 설정</Button></div></aside></div>
+    </section><aside className="result-inspector"><div className="panel-heading"><div><p className="eyebrow">이 결과의 조건</p><h2>조건 기록</h2></div></div>{snapshot ? <div className="result-conditions">{current?.origin === 'ai' && <div className="condition-group"><h3>생성 기준 사진</h3><p>{snapshot.existingPhotoId ? snapshotProject.sourceImages.find((image) => image.id === snapshot.existingPhotoId)?.name ?? '선택한 사진이 현재 목록에 없습니다.' : '이전 결과에는 기준 사진 기록이 없습니다.'}</p></div>}<div className="condition-group"><div className="group-heading"><h3>Keep</h3><Button tone="quiet" onClick={() => go('keep')}>수정</Button></div><details className="result-details"><summary>보존 구조 {snapshot.common?.keeps.length ?? 0}개 펼쳐보기</summary>{(snapshot.common?.keeps ?? []).map((keep) => <p key={keep.id}>{snapshotProject.floorPlan?.structures.find((structure) => structure.id === keep.structureId)?.name ?? keep.description}</p>)}</details></div><div className="condition-group"><div className="group-heading"><h3>적용 요소</h3><Button tone="quiet" onClick={() => go('references')}>수정</Button></div>{(snapshot.common?.elements ?? []).filter((element) => element.status === 'apply').map((element) => <button key={element.id} className="condition-link" disabled={!project.elements.some((item) => item.id === element.id)} onClick={() => editElement(element.id)}><strong>{element.label}{!project.elements.some((item) => item.id === element.id) && ' · 현재 작업에서 삭제됨'}</strong><span>{sourceFor(snapshotProject, element.sourceReferenceId)?.name ?? '이전 레퍼런스'} → {targetDescription(snapshotProject, element.target)}</span></button>)}</div><div className="condition-group"><div className="group-heading"><h3>제외</h3><Button tone="quiet" onClick={() => go('references')}>수정</Button></div>{(snapshot.common?.elements ?? []).filter((element) => element.status === 'exclude').map((element) => <p key={element.id}>{element.label}</p>)}</div><div className="condition-group"><div className="group-heading"><h3>시점</h3><Button tone="quiet" onClick={() => go('camera')}>수정</Button></div><p>{project.cameras.find((camera) => camera.id === snapshot.camera.id)?.name ?? '시점'} · {pct(snapshot.camera.x)}%, {pct(snapshot.camera.y)}% · {snapshot.camera.directionDegrees}°</p></div></div> : <Empty>조건 기록이 없습니다.</Empty>}<div className="result-inspector-bottom"><Button onClick={() => go('review')}>조건 다시 검토</Button><Button onClick={() => { if (addView()) go('camera') }} disabled={project.cameras.length >= 3}>추가 시점 설정</Button></div></aside></div>
   }
 
   const stepIndex = step === 'projects' ? -1 : STEPS.indexOf(step)
@@ -1053,6 +1174,7 @@ export default function App() {
     {step !== 'projects' && <nav ref={stepNavRef} className="step-nav" aria-label="작업 단계"><div className="step-nav-inner">{STEPS.map((item, index) => <button key={item} className={`step-link ${item === step ? 'is-current' : ''} ${index < stepIndex ? 'is-complete' : ''}`} aria-current={item === step ? 'step' : undefined} onClick={() => go(item)}><span className="step-number">{String(index + 1).padStart(2, '0')}</span><NucleoIcon name={STEP_ICONS[item]} /><span>{STEP_LABELS[item]}</span></button>)}</div></nav>}
     <main className={`main-content ${step === 'projects' ? 'project-main' : ''}`}><div className="content-wrap">{step !== 'projects' && <div className="page-intro"><div><p className="eyebrow">{project.name} · {String(stepIndex + 1).padStart(2, '0')} / 07</p><h1 ref={pageTitleRef} tabIndex={-1}>{STEP_LABELS[step]}</h1><p className="lede">{STEP_DESCRIPTIONS[step]}</p></div><div className="page-status"><Badge tone="info">{project.floorPlan?.geometryConfidence === 'schematic' ? '개략 도면' : project.floorPlan ? '도면 등록' : '도면 없음'}</Badge><span>수정 버전 {project.commonRevision}</span></div></div>}
       {error && <div className="alert alert-error" role="alert"><NucleoIcon name="warning" /><strong>확인 필요</strong><span>{error}</span><button onClick={() => setError('')} aria-label="오류 닫기" title="닫기"><NucleoIcon name="close" /></button></div>}{notice && <div key={noticeSerial} className="alert alert-info" role="status"><NucleoIcon name="info" /><span>{notice}</span><button onClick={() => setNotice('')} aria-label="알림 닫기" title="닫기"><NucleoIcon name="close" /></button></div>}
+      {undoAction && undoAction.projectId === project.id && <div className="undo-banner" role="status"><span>{undoAction.label}했습니다.</span><Button onClick={undoDeletion}>삭제 되돌리기</Button><button className="undo-banner__dismiss" type="button" aria-label="되돌리기 안내 닫기" onClick={() => setUndoAction(null)}><NucleoIcon name="close" /></button></div>}
       {step === 'projects' && renderProjects()}{step === 'space' && renderSpace()}{step === 'keep' && renderKeep()}{step === 'references' && renderReferences()}{step === 'placement' && renderPlacement()}{step === 'camera' && renderCamera()}{step === 'review' && renderReview()}{step === 'results' && renderResults()}
     </div></main>
     {step !== 'projects' && <footer className="app-footer"><div className="footer-inner"><span className="footer-note">{saveFailed ? '브라우저 저장 실패 · 오류를 확인해 주세요.' : '이 브라우저에 자동 저장 · 샘플과 AI 생성 결과는 출처를 구분해 표시합니다.'}</span><div className="footer-actions"><Button icon="previous" onClick={() => go(stepIndex === 0 ? 'projects' : STEPS[stepIndex - 1])}>{stepIndex === 0 ? '프로젝트 목록' : '이전 단계'}</Button>{stepIndex < STEPS.length - 1 && step !== 'review' && <Button tone="primary" icon="next" iconAfter onClick={() => go(STEPS[stepIndex + 1])}>다음 단계</Button>}</div></div></footer>}

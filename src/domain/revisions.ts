@@ -103,6 +103,61 @@ export function removeKeep(project: Project, keepId: string): Project {
   return setKeeps(project, project.keeps.filter((keep) => keep.id !== keepId));
 }
 
+/** Explicit user intent can release any preservation lock without changing its origin. */
+export function setStructurePreservation(project: Project, structureId: string, enabled: boolean): Project {
+  const structure = project.floorPlan?.structures.find((item) => item.id === structureId);
+  if (!structure || !project.floorPlan) return project;
+  const existing = project.keeps.find((keep) => keep.structureId === structureId);
+  const settings = existing ? { description: existing.description, allowedSurfaceTreatment: existing.allowedSurfaceTreatment } : structure.preservationSettings;
+  const keeps = enabled ? existing ? project.keeps : [...project.keeps, {
+    id: `keep-${structureId}`, structureId, intent: 'preserve' as const,
+    description: settings?.description ?? `${structure.name}의 위치와 형태 보존`,
+    allowedSurfaceTreatment: settings?.allowedSurfaceTreatment,
+  }] : project.keeps.filter((keep) => keep.structureId !== structureId);
+  return updateCommon(project, {
+    keeps,
+    floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === structureId ? {
+      ...item, role: item.role ?? (item.kind === 'wall' && item.immutable === false ? 'partition' : 'base'),
+      immutable: enabled, protected: enabled, ...(settings ? { preservationSettings: settings } : {}),
+    } : item) },
+  });
+}
+
+/** Delete the current reference and its derived conditions, preserving every result. */
+export function removeReference(project: Project, referenceId: string): Project {
+  const reference = project.references.find((item) => item.id === referenceId);
+  if (!reference) return project;
+  const references = project.references.filter((item) => item.id !== referenceId);
+  // Older snapshots contain reference IDs but no source metadata. Capture it before
+  // removal, without changing any previous condition or result image.
+  const withHistory = { ...project, results: project.results.map((result) => {
+    const common = result.conditionsSnapshot.common;
+    if (!common || common.sourceImages) return result;
+    const sourceIds = new Set(common.references.map((item) => item.imageId));
+    if (result.conditionsSnapshot.existingPhotoId) sourceIds.add(result.conditionsSnapshot.existingPhotoId);
+    return { ...result, conditionsSnapshot: { ...result.conditionsSnapshot, common: {
+      ...common, sourceImages: structuredClone(project.sourceImages.filter((image) => sourceIds.has(image.id))),
+    } } };
+  }) };
+  return updateCommon(withHistory, {
+    references,
+    sourceImages: references.some((item) => item.imageId === reference.imageId)
+      ? project.sourceImages : project.sourceImages.filter((item) => item.id !== reference.imageId),
+    elements: project.elements.filter((item) => item.sourceReferenceId !== referenceId),
+  });
+}
+
+export function removeDesignElement(project: Project, elementId: string): Project {
+  if (!project.elements.some((item) => item.id === elementId)) return project;
+  return updateCommon(project, {
+    elements: project.elements.filter((item) => item.id !== elementId),
+    references: project.references.map((item) => ({ ...item,
+      extractedElements: item.extractedElements.filter((id) => id !== elementId),
+      exclusions: item.exclusions.filter((id) => id !== elementId),
+    })),
+  });
+}
+
 export function updateElement(project: Project, elementId: string, patch: Partial<Omit<DesignElement, 'id' | 'target'>>): Project {
   const current = project.elements.find((element) => element.id === elementId);
   if (!current) return project;
@@ -180,6 +235,7 @@ export function createConditionsSnapshot(project: Project, cameraId: string, exi
       keeps: project.keeps,
       references: project.references,
       elements: project.elements,
+      sourceImages: project.sourceImages,
     }),
   };
 }

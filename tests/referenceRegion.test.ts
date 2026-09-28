@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createSampleProject } from '../src/data/sample'
-import { updateElement } from '../src/domain/revisions'
+import { setStructurePreservation, updateElement } from '../src/domain/revisions'
 import { isProject } from '../src/services/persistence'
 import { buildGenerationPrompt, referencePreparationFor, type GenerationImage } from '../src/services/generationContract'
 
@@ -10,6 +10,15 @@ const images: GenerationImage[] = [
 ]
 
 describe('reference source region', () => {
+  it('transmits released structure geometry separately from protected structures', () => {
+    const changed = setStructurePreservation(createSampleProject(), 'pillar-west', false)
+    const prompt = buildGenerationPrompt(changed, 'camera-entrance', images)
+    const protectedSection = prompt.split('Protected structures')[1].split('Saved preservation conditions')[0]
+    const editableSection = prompt.split('User-editable plan structures')[1].split('Registered plan areas')[0]
+    expect(protectedSection).not.toContain('기존 기둥')
+    expect(editableSection).toContain('기존 기둥 [pillar, base]')
+    expect(prompt).not.toContain('Preserve the existing shell, doors')
+  })
   it('keeps one normalized image region on the element, with whole image as the default', () => {
     const sample = createSampleProject()
     const region = { x: 0.2, y: 0.25, width: 0.4, height: 0.5 }

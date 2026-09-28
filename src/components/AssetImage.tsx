@@ -29,5 +29,5 @@ export default function AssetImage({ uri, alt, className }: Props) {
 
   if (error) return <div className={`image-empty ${className ?? ''}`} role="img" aria-label={alt}>저장된 이미지를 불러올 수 없습니다.</div>
   if (!src) return <div className={`image-empty ${className ?? ''}`} aria-hidden="true">이미지 불러오는 중</div>
-  return <img className={className} src={src} alt={alt} />
+  return <img className={className} src={src} alt={alt} onError={() => setError(true)} />
 }

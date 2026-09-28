@@ -3,6 +3,7 @@ import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import type { DesignElement, FloorPlan, Point, Project, Structure } from '../domain/types';
 import { resolveImageUri, revokeImageUrl } from '../services/assets';
 import { projectOntoWall, wallNearPointer } from './plan-drawing';
+import { previewStructureTranslation, structureMovementReason } from '../domain/structureEditing';
 import './plan-canvas.css';
 
 export interface PlanCanvasProps {
@@ -17,7 +18,7 @@ export interface PlanCanvasProps {
   onDrawWallSelect?: (id: string) => void;
   onDraw?: (start: Point, end: Point, wallId?: string) => void;
   onStructureSelect?: (id: string) => void;
-  onStructureMove?: (id: string, start: Point, end: Point) => void;
+  onStructureMove?: (id: string, delta: Point) => void;
   onPlacePoint?: (x: number, y: number) => void;
   onWallSelect?: (id: string) => void;
   onElementSelect?: (id: string) => void;
@@ -41,7 +42,7 @@ type WallDrag = {
   pointerOffset: number;
   geometry: { start: Point; end: Point };
 };
-type StructureDrag = { start: Point; end: Point; pointer: Point };
+type StructureDrag = { pointer: Point };
 type DragState = {
   kind: DragKind;
   id?: string;
@@ -60,7 +61,7 @@ type Preview = {
   point?: Point;
   degrees?: number;
   wall?: { wallId: string; start: number; end: number };
-  structure?: { start: Point; end: Point };
+  structure?: Point;
 };
 type DrawDraft = { pointerId: number; start: Point; end: Point; wallId?: string; clientStart: Point };
 
@@ -215,7 +216,7 @@ export default function PlanCanvas({
   const imageError = sourceUri && imageState?.sourceUri === sourceUri ? imageState.error : undefined;
   const keepNumbers = new Map(project.keeps.map((keep, index) => [keep.structureId, index + 1]));
   const activeElements = project.elements.filter((element) => element.status === 'apply' && element.target);
-  const movablePartitions = plan.structures.filter((structure) => structure.kind === 'wall' && structure.geometry.kind === 'segment' && structure.immutable === false && !structure.protected && !keepNumbers.has(structure.id) && !plan.structures.some((child) => child.parentWallId === structure.id));
+  const movableStructures = plan.structures.filter((structure) => !structureMovementReason(project, structure));
   const wallDrawing = drawTool === 'segment' && Boolean(onDrawWallSelect);
   const activeDrawWall = plan.structures.find((structure) => structure.id === (drawDraft?.wallId ?? drawWallId));
   const modeInstruction = drawTool === 'point'
@@ -225,12 +226,12 @@ export default function PlanCanvas({
       : drawTool === 'rect'
         ? '한쪽 모서리를 누른 채 반대쪽 모서리까지 끌어 주세요. 마우스를 놓으면 범위가 추가됩니다.'
         : mode === 'place'
-    ? '바닥 요소는 끌어서 이동하거나 회전 손잡이를 쓰세요. 벽 요소의 번호는 벽을 따라 끌 수 있습니다. 빈 바닥 클릭은 선택한 요소를 배치합니다. 기존 벽·기둥은 고정 구조입니다.'
+    ? '요소는 끌어서 이동하고 회전 손잡이로 각도를 조정하세요. ‘이동 가능’ 구조도 끌 수 있습니다. 벽에 붙은 창·문은 연결 벽을 따라 이동합니다. 빈 바닥 클릭은 선택한 디자인 요소를 배치합니다.'
     : mode === 'camera'
       ? '카메라 본체를 끌면 위치가 이동합니다. 본체와 떨어진 회전 손잡이를 끌면 시선 각도만 바뀝니다. 빈 바닥을 눌러도 카메라는 이동하지 않습니다.'
       : mode === 'keep'
-        ? `구조를 선택해 보존 조건을 확인하세요. ${movablePartitions.length ? '‘이동 가능’이 붙은 가벽의 선이나 이름을 끌면 위치가 바뀝니다.' : '현재 이동 가능한 가벽이 없습니다. 기존 구조는 위치가 고정됩니다.'}`
-        : movablePartitions.length ? '‘이동 가능’이 붙은 가벽의 선이나 이름을 끌어 위치를 바꾸세요. 빈 공간을 끌면 도면은 이동하지 않습니다.' : '현재 이동 가능한 가벽이 없습니다. 구조 그리기에서 ‘추가 가벽’을 먼저 그려 주세요. 기존 벽과 기둥은 위치가 고정됩니다.';
+        ? `구조를 선택하고 필수 보존을 켜거나 끄세요. ${movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌면 위치가 바뀝니다.' : '현재 이동 가능한 구조가 없습니다. 필수 보존을 끄면 도면 위치를 수정할 수 있습니다.'}`
+        : movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌어 위치를 바꾸세요. 빈 공간을 끌면 도면은 이동하지 않습니다.' : '현재 이동 가능한 구조가 없습니다. Keep에서 필수 보존을 끄거나 ‘추가 가벽’을 그려 주세요.';
   const showElements = mode === 'place' || mode === 'camera';
   const showCameras = mode === 'camera';
   const showStructureLayer = Boolean(drawTool) || layers.structures;
@@ -317,12 +318,12 @@ export default function PlanCanvas({
 
   function handleStructureSelect(structure: Structure) {
     if (wallDrawing && structure.kind === 'wall') onDrawWallSelect?.(structure.id);
-    else if (mode === 'place' && structure.kind === 'wall') onWallSelect?.(structure.id);
+    else if (mode === 'place' && structure.kind === 'wall' && onWallSelect && !movableStructures.some((item) => item.id === structure.id)) onWallSelect(structure.id);
     else onStructureSelect?.(structure.id);
   }
 
   function handleStructureKeyDown(event: KeyboardEvent<SVGGElement>, structure: Structure) {
-    if (!drawTool && structure.geometry.kind === 'segment' && movablePartitions.some((partition) => partition.id === structure.id) && onStructureMove && (mode === 'view' || mode === 'keep')) {
+    if (!drawTool && movableStructures.some((item) => item.id === structure.id) && onStructureMove && mode !== 'camera') {
       const step = event.shiftKey ? 0.05 : 0.01;
       const offsets: Record<string, Point> = {
         ArrowLeft: { x: -step, y: 0 }, ArrowRight: { x: step, y: 0 },
@@ -332,11 +333,7 @@ export default function PlanCanvas({
       if (offset) {
         event.preventDefault();
         event.stopPropagation();
-        const start = structure.geometry.start;
-        const end = structure.geometry.end;
-        const x = clamp(offset.x, Math.max(-start.x, -end.x), Math.min(1 - start.x, 1 - end.x));
-        const y = clamp(offset.y, Math.max(-start.y, -end.y), Math.min(1 - start.y, 1 - end.y));
-        onStructureMove(structure.id, { x: start.x + x, y: start.y + y }, { x: end.x + x, y: end.y + y });
+        onStructureMove(structure.id, offset);
         return;
       }
     }
@@ -347,12 +344,9 @@ export default function PlanCanvas({
   }
 
   function startStructureDrag(event: PointerEvent<SVGGElement>, structure: Structure) {
-    if (structure.geometry.kind !== 'segment') return;
     const pointer = svgPosition(event);
     if (!pointer) return;
     startDrag(event, 'structure-move', structure.id, undefined, undefined, {
-      start: structure.geometry.start,
-      end: structure.geometry.end,
       pointer,
     });
   }
@@ -385,12 +379,10 @@ export default function PlanCanvas({
     let next: Preview;
     if (drag.kind === 'structure-move') {
       if (!drag.structure) return;
-      const { start, end, pointer } = drag.structure;
-      const x = clamp(point.x - pointer.x, Math.max(-start.x, -end.x), Math.min(1 - start.x, 1 - end.x));
-      const y = clamp(point.y - pointer.y, Math.max(-start.y, -end.y), Math.min(1 - start.y, 1 - end.y));
+      const { pointer } = drag.structure;
       next = {
         kind: drag.kind, id: drag.id,
-        structure: { start: { x: start.x + x, y: start.y + y }, end: { x: end.x + x, y: end.y + y } },
+        structure: { x: point.x - pointer.x, y: point.y - pointer.y },
       };
     } else if (drag.kind === 'wall-element-move') {
       if (!drag.wall) return;
@@ -430,7 +422,7 @@ export default function PlanCanvas({
     if (last.kind === 'element-move' && last.point) onElementMove?.(last.id, last.point.x, last.point.y);
     if (last.kind === 'element-rotate' && last.degrees !== undefined) onElementRotate?.(last.id, last.degrees);
     if (last.kind === 'wall-element-move' && last.wall) onWallElementMove?.(last.id, last.wall.wallId, last.wall.start, last.wall.end);
-    if (last.kind === 'structure-move' && last.structure) onStructureMove?.(last.id, last.structure.start, last.structure.end);
+    if (last.kind === 'structure-move' && last.structure) onStructureMove?.(last.id, last.structure);
     if (last.kind === 'camera-move' && last.point) onCameraMove?.(last.id, last.point.x, last.point.y);
     if (last.kind === 'camera-rotate' && last.degrees !== undefined) onCameraRotate?.(last.id, last.degrees);
   }
@@ -523,15 +515,14 @@ export default function PlanCanvas({
     const drawHost = wallDrawing && structure.kind === 'wall' && structure.geometry.kind === 'segment';
     const selected = drawHost ? structure.id === activeDrawWall?.id : structure.id === selectedStructureId;
     const kept = keepNumbers.has(structure.id);
-    const structurePreview = preview?.kind === 'structure-move' && preview.id === structure.id ? preview.structure : undefined;
-    const geometry = structurePreview && structure.geometry.kind === 'segment'
-      ? { kind: 'segment' as const, start: structurePreview.start, end: structurePreview.end }
-      : structure.geometry;
+    const translated = preview?.kind === 'structure-move' && preview.structure
+      ? previewStructureTranslation(project, preview.id, preview.structure).find((item) => item.id === structure.id) : undefined;
+    const geometry = translated?.geometry ?? structure.geometry;
     const center = structureCenter({ ...structure, geometry });
-    const movable = !drawTool && movablePartitions.some((partition) => partition.id === structure.id)
-      && Boolean(onStructureMove) && (mode === 'view' || mode === 'keep');
+    const movable = !drawTool && movableStructures.some((item) => item.id === structure.id)
+      && Boolean(onStructureMove) && mode !== 'camera';
     const selectable = drawHost || (!drawTool && (movable || (mode === 'place' && structure.kind === 'wall'
-      ? Boolean(onWallSelect)
+      ? Boolean(onWallSelect || onStructureSelect)
       : Boolean(onStructureSelect))));
     const isOpening = structure.kind === 'window' || structure.kind === 'door' || structure.kind === 'entrance';
     const classes = [
@@ -560,16 +551,17 @@ export default function PlanCanvas({
       shape = <>
         {kept && <rect className="plan-structure__keep-halo" x={bounds.x * width - 4} y={bounds.y * height - 4} width={bounds.width * width + 8} height={bounds.height * height + 8} />}
         <rect className="plan-structure__shape" x={bounds.x * width} y={bounds.y * height} width={bounds.width * width} height={bounds.height * height} />
-        <rect className="plan-structure__hit" x={bounds.x * width - 4} y={bounds.y * height - 4} width={bounds.width * width + 8} height={bounds.height * height + 8} />
+        <rect className="plan-structure__hit" x={center.x * width - Math.max(bounds.width * width + 8, movable ? 40 / contentPixelScale : 0) / 2} y={center.y * height - Math.max(bounds.height * height + 8, movable ? 40 / contentPixelScale : 0) / 2} width={Math.max(bounds.width * width + 8, movable ? 40 / contentPixelScale : 0)} height={Math.max(bounds.height * height + 8, movable ? 40 / contentPixelScale : 0)} />
       </>;
     } else {
       shape = <>
         {kept && <circle className="plan-structure__keep-halo" cx={geometry.center.x * width} cy={geometry.center.y * height} r={geometry.radius * Math.min(width, height) + 4} />}
         <circle className="plan-structure__shape" cx={geometry.center.x * width} cy={geometry.center.y * height} r={geometry.radius * Math.min(width, height)} />
-        <circle className="plan-structure__hit" cx={geometry.center.x * width} cy={geometry.center.y * height} r={geometry.radius * Math.min(width, height) + 7} />
+        <circle className="plan-structure__hit" cx={geometry.center.x * width} cy={geometry.center.y * height} r={Math.max(geometry.radius * Math.min(width, height) + 7, movable ? 20 / contentPixelScale : 0)} />
       </>;
     }
     const keepNumber = keepNumbers.get(structure.id);
+    const moveLabelOffset = isOpening ? structure.kind === 'entrance' ? 112 : 68 : 24;
     const labelY = structure.kind === 'entrance' ? center.y * height + 31
       : structure.kind === 'window' ? center.y * height + 25
         : structure.kind === 'pillar' ? center.y * height - 35
@@ -579,7 +571,7 @@ export default function PlanCanvas({
       className={classes}
       role={selectable ? 'button' : undefined}
       tabIndex={selectable ? 0 : undefined}
-      aria-label={selectable ? `${structure.name}${drawHost ? ', 연결 벽으로 선택, 벽 선을 따라 드래그해 그리기' : movable ? ', 이동 가능한 가벽, 끌어서 이동 또는 방향키로 1% 이동' : ', 고정 구조, 선택만 가능'}${kept ? ', Keep 보존 대상' : ''}` : undefined}
+      aria-label={selectable ? `${structure.name}${drawHost ? ', 연결 벽으로 선택, 벽 선을 따라 드래그해 그리기' : movable ? ', 이동 가능한 구조, 끌어서 이동 또는 방향키로 1% 이동' : ', 위치 고정, 선택하여 보존 조건 확인'}${kept ? ', Keep 보존 대상' : ''}` : undefined}
       aria-pressed={selectable ? selected : undefined}
       onClick={selectable ? (event) => { event.stopPropagation(); if (!suppressClickRef.current) handleStructureSelect(structure); } : undefined}
       onKeyDown={selectable ? (event) => handleStructureKeyDown(event, structure) : undefined}
@@ -588,7 +580,7 @@ export default function PlanCanvas({
       <title>{`${structure.name}${kept ? ' · Keep' : ''}`}</title>
       {shape}
       {structure.kind === 'existing-light' && <text className="plan-structure__light-label" x={center.x * width} y={center.y * height + 5} textAnchor="middle" aria-hidden="true">등</text>}
-      {movable && <g className="plan-structure__move-label" transform={`translate(${center.x * width} ${center.y * height + (center.y > 0.8 ? -24 : 24) / contentPixelScale}) scale(${1 / contentPixelScale})`} aria-hidden="true">
+      {movable && <g className="plan-structure__move-label" transform={`translate(${center.x * width} ${center.y * height + (center.y > 0.8 ? -moveLabelOffset : moveLabelOffset) / contentPixelScale}) scale(${1 / contentPixelScale})`} aria-hidden="true">
         <rect x={-(structure.name.length * 7 + 42)} y={-18} width={structure.name.length * 14 + 84} height={36} rx={8} />
         <text textAnchor="middle" y={5}>{structure.name} · 이동 가능</text>
       </g>}
@@ -839,7 +831,7 @@ export default function PlanCanvas({
     {gestureHint && <p className="plan-canvas__gesture-hint" role="status">{gestureHint}</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
       <span><i className="plan-canvas__legend-keep" aria-hidden="true" />고정 구조 / Keep</span>
-      {!drawTool && (mode === 'view' || mode === 'keep') && movablePartitions.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 가벽 {movablePartitions.length}개</span>}
+      {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}
       {showElements && layers.elements && <span><i className="plan-canvas__legend-element" aria-hidden="true" />적용 요소</span>}
       {showCameras && layers.cameras && <span>카메라 본체: 위치 이동 · 바깥 링/회전: 시선 변경</span>}
     </div>

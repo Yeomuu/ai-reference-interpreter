@@ -1,6 +1,6 @@
 # Suggested Codex implementation architecture
 
-This is a starting architecture, not a requirement to change an existing repository. If empty, use React + TypeScript + Vite, CSS variables/design token stylesheet, and a small accessible component layer; avoid adding large design-system dependencies or a paid backend. Choose and explain canvas approach (SVG with typed hit areas is sufficient for schematic MVP). Keep image, immutable structure, movable element and camera overlays in one normalized coordinate system, while rendering only the layers relevant to each task. Optionally use a lightweight drag library only if necessary and tested with zoom, resize and typed validation; a generic pan tool is unnecessary for this 2D workflow.
+This is a starting architecture, not a requirement to change an existing repository. If empty, use React + TypeScript + Vite, CSS variables/design token stylesheet, and a small accessible component layer; avoid adding large design-system dependencies or a paid backend. Choose and explain canvas approach (SVG with typed hit areas is sufficient for schematic MVP). Keep image, preservation-controlled structure, movable element and camera overlays in one normalized coordinate system, while rendering only the layers relevant to each task. Optionally use a lightweight drag library only if necessary and tested with zoom, resize and typed validation; a generic pan tool is unnecessary for this 2D workflow.
 
 ```text
 src/
@@ -9,7 +9,7 @@ src/
   components/ui/    buttons, fields, dialogs, notices and NucleoIcon (manifest based)
   components/space/ plan renderer, layered tools, hit-test, direct manipulation and inspector
   features/project/ import and schematic editor
-  features/keep/    permanent base structures, optional Keep and removable partition manager
+  features/keep/    user-controlled preservation, remembered conditions and structural origin
   features/reference/ image roles, selection/exclusion and element cards
   features/placement/ domain-safe placement tools
   features/camera/  per-viewpoint editing
@@ -30,3 +30,6 @@ The deployed Vite app may add a small server function for live OpenAI image crea
 - Figma current wireframes: https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA/?node-id=107-2
 - Reference UI guides: https://vercel.com/geist/introduction ; https://developer.apple.com/design/human-interface-guidelines ; https://developer.samsung.com/one-ui ; https://tossmini-docs.toss.im/tds-mobile/ ; https://designlibrary.yeogi.com/ ; https://montage.wanted.co.kr/
 - Official Nucleo site: https://nucleoapp.com/ (only verified official free pack assets are permitted).
+
+## Editing actions · 2026-09-28
+`setStructurePreservation` synchronizes the lock and active Keep independently of `Structure.role`. `structureEditing.ts` owns shape-preserving translation, wall-constrained openings and connected-child checks. Canvas previews use the same translation as commits, and domain validators reject new collisions. `removeReference` cascades current derived elements while retaining result snapshots and source metadata; `removeDesignElement` clears its extraction links. A single pending UI undo stores changed common fields and its expected project/revision. Image cleanup considers stored history and undo before deleting IndexedDB records. Optional role/settings/source-image snapshot fields preserve compatibility with schema version 1, and persistence validates their nested shapes.

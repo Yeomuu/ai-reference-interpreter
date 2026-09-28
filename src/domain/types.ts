@@ -37,9 +37,13 @@ export interface Structure {
   connectedPhotoRegionId?: string;
   /** Approximate visual location on an existing-space photograph; never plan geometry. */
   photoAnchor?: Point;
-  /** Existing base fabric or fixture. Keep cannot be removed and geometry is fixed. */
+  /** Origin is independent from the user-controlled preservation lock. */
+  role?: 'base' | 'partition';
+  /** User-controlled preservation lock. Explicit false must survive reloads. */
   immutable?: boolean;
-  /** Existing ceiling fixture: its position stays fixed; only the light tone may change. */
+  /** Remember the user's preservation conditions while its switch is off. */
+  preservationSettings?: { description: string; allowedSurfaceTreatment?: boolean };
+  /** Existing ceiling fixture light tone; its geometry is fixed while preserved. */
   lightTone?: string;
   protected: boolean;
 }
@@ -150,6 +154,8 @@ export interface ConditionsSnapshot {
     keeps: Keep[];
     references: Reference[];
     elements: DesignElement[];
+    /** Keeps historical source attribution after a reference is removed. */
+    sourceImages?: SourceImage[];
   };
 }
 

@@ -38,6 +38,9 @@ function isStructure(value: unknown): boolean {
         typeof geometry.radius === 'number' && Number.isFinite(geometry.radius) && geometry.radius > 0;
   return validGeometry &&
     (value.immutable === undefined || typeof value.immutable === 'boolean') &&
+    (value.role === undefined || value.role === 'base' || value.role === 'partition') &&
+    (value.preservationSettings === undefined || (isRecord(value.preservationSettings) && typeof value.preservationSettings.description === 'string' &&
+      (value.preservationSettings.allowedSurfaceTreatment === undefined || typeof value.preservationSettings.allowedSurfaceTreatment === 'boolean'))) &&
     (value.parentWallId === undefined || typeof value.parentWallId === 'string') &&
     (value.lightTone === undefined || typeof value.lightTone === 'string') &&
     (value.photoAnchor === undefined || isPoint(value.photoAnchor)) &&
@@ -147,7 +150,8 @@ function isConditionsSnapshot(value: unknown): boolean {
     (common.floorPlan === null || isFloorPlan(common.floorPlan)) &&
     Array.isArray(common.keeps) && common.keeps.every(isKeep) &&
     Array.isArray(common.references) && common.references.every(isReference) &&
-    Array.isArray(common.elements) && common.elements.every(isElement);
+    Array.isArray(common.elements) && common.elements.every(isElement) &&
+    (common.sourceImages === undefined || (Array.isArray(common.sourceImages) && common.sourceImages.every(isSourceImage)));
 }
 
 function isResult(value: unknown): boolean {

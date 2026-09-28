@@ -165,6 +165,7 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     return `${index + 1}. ${image.role}: ${label}${prepared}`;
   });
   const fixed = plan.structures.filter((item) => item.immutable || item.protected);
+  const editable = plan.structures.filter((item) => !item.immutable && !item.protected);
   const applied = project.elements.filter((item) => item.status === 'apply');
   const excluded = project.elements.filter((item) => item.status === 'exclude');
   const prompt = [
@@ -174,11 +175,13 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     'The existing-space photograph shows the current room. Inspiration and product images are visual references only and are NEVER measured spatial geometry. The uploaded floor plan, when provided, is the 2D placement guide.',
     `Project: ${boundedText(project.name)}. Space type: ${boundedText(project.spaceType)}. Intended concept: ${boundedText(project.concept, 500)}.`,
     `Plan source: ${plan.kind}. Geometry confidence: ${plan.geometryConfidence}. Plan coordinates are normalized: x increases to the right and y increases downward. Do not invent precise dimensions from a schematic plan or any photograph.`,
-    'Preserve the existing shell, doors, passage, windows, pillars, and other Keep structures. Do not demolish, move, cover, or replace protected geometry. Keep surface decorations are allowed only when the saved condition permits removable treatment.',
+    'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, cover, or replace protected geometry. Keep surface decorations are allowed only when the saved condition permits removable treatment. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
     `Protected structures (${fixed.length}):`,
     ...fixed.map((item) => `- ${boundedText(item.name)} [${item.kind}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Existing light tone: ${boundedText(item.lightTone)}.` : ''}`),
     'Saved preservation conditions:',
     ...project.keeps.map((keep) => `- ${boundedText(plan.structures.find((item) => item.id === keep.structureId)?.name ?? keep.structureId)}: ${boundedText(keep.description)}. Removable surface treatment: ${keep.allowedSurfaceTreatment ? 'allowed' : 'not specified'}.`),
+    'User-editable plan structures (follow these saved positions; do not add an automatic preservation lock):',
+    ...editable.map((item) => `- ${boundedText(item.name)} [${item.kind}, ${item.role ?? 'unspecified origin'}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Light tone: ${boundedText(item.lightTone)}.` : ''}`),
     'Registered plan areas and circulation:',
     ...plan.areas.map((area) => `- ${boundedText(area.name)} [${area.kind}] rectangle (${percent(area.bounds.x)}, ${percent(area.bounds.y)}), width ${percent(area.bounds.width)}, height ${percent(area.bounds.height)}.`),
     'Applied design elements and their compatible targets:',

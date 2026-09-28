@@ -25,3 +25,8 @@ Read `docs/PRODUCT.md`, `docs/DESIGN_SYSTEM.md`, `docs/INTERACTIONS.md`, `docs/A
 
 ## Work method
 Inspect repository first. Plan minimal route and data model. Implement a fully usable vertical slice from project creation through placing typed elements, camera setup, review, results/sample state, revision and export. After each major change run available lint/typecheck/tests/build, inspect the rendered UI and keyboard paths, fix errors; do not claim tests you have not run. Do not add ornamental dashboards, gratuitous gradients, arbitrary colors or fake controls. If the source is inaccessible, preserve constraints from these local docs and report the missing source.
+
+## User-directed preservation and recovery update · 2026-09-28
+- A structure's origin (`base`/`partition`) is separate from its preservation lock. Original structures start preserved; the user can explicitly turn “필수 보존 (위치 고정)” off/on. Off permits validated plan correction; it never establishes physical relocation feasibility. Respect explicit off during reload/migration. Keep-aware conflict and typed-anchor checks still apply.
+- Reference deletion must clean current derived elements, preserve historical results/attribution and offer persistent undo. Individual element deletion keeps its reference source. Retain any image asset used by current data, history or undo.
+- The user-provided three-page planning PDF is verified source context. Do not claim inaccessible Google Doc tabs or absent sections 17–20 were read. Preserve the Reference → Element → Location and condition-revision workflow; do not introduce a CAD/3D system merely because an illustrative screen depicts it.
