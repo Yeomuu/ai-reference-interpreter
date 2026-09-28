@@ -30,7 +30,7 @@ The deployed Vite app may add a small server function for live OpenAI image crea
 - Figma final active wireframes v1.3: https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA/?node-id=125-2
 - Figma current Design System v1.2: https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA/?node-id=111-2
 
-The current app loads semantic values from `src/styles/tokens.css`, shared component rules/states from `app.css`, and the final responsive workspace hierarchy from `studio.css`. Component SVG/photo/carousel styles retain their own boundaries. This design update introduces no dependency, route migration, stored-schema migration, paid API path or research feature. Camera label offsets and pixel sizing are presentation only.
+The current app loads semantic values from `src/styles/tokens.css`, shared component rules/states from `app.css`, the final responsive workspace hierarchy from `studio.css`, and bounded viewport/scroll ownership from `viewport.css` in that order. Component SVG/photo/carousel styles retain their own boundaries. This design update introduces no dependency, route migration, stored-schema migration, paid API path or research feature. Camera label offsets and pixel sizing are presentation only.
 - Reference UI guides: https://vercel.com/geist/introduction ; https://developer.apple.com/design/human-interface-guidelines ; https://developer.samsung.com/one-ui ; https://tossmini-docs.toss.im/tds-mobile/ ; https://designlibrary.yeogi.com/ ; https://montage.wanted.co.kr/
 - Official Nucleo site: https://nucleoapp.com/ (only verified official free pack assets are permitted).
 

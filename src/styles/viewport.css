@@ -1,0 +1,160 @@
+/* A bounded application frame. Long content scrolls in its owning panel. */
+html, body, #root { width: 100%; height: 100%; overflow: hidden; }
+html { scroll-padding: 0; }
+.app-shell { width: 100vw; height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+.app-shell--project { align-items: stretch; }
+.app-shell--project .app-header { position: relative; }
+.app-shell--project .step-nav { position: relative; top: auto; height: 100%; min-height: 0; }
+.main-content, .app-shell--project .main-content { position: relative; display: flex; min-height: 0; overflow: hidden; padding: var(--space-16) 0; }
+.content-wrap { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; gap: var(--space-16); }
+.page-intro { flex: none; margin: 0; }
+.page-workspace { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.page-workspace > .workspace-layout, .page-workspace > .keep-layout,
+.page-workspace > .reference-layout, .page-workspace > .review-layout,
+.page-workspace > .results-layout { height: 100%; min-height: 0; align-items: stretch; }
+.plan-canvas__svg, .plan-structure { scroll-margin: var(--space-8); }
+.plan-canvas__svg { position: absolute; inset: 0; }
+
+/* Live regions overlay the active task without changing its geometry. */
+.notification-stack { position: absolute; z-index: var(--layer-notice); bottom: calc(var(--control-height-44) + var(--space-32)); right: var(--space-24); display: flex; flex-direction: column; gap: var(--space-8); width: min(var(--layout-notice-width), calc(100% - var(--space-48))); max-height: calc(100% - var(--control-height-44) - var(--space-48)); overflow-y: auto; pointer-events: none; }
+.notification-stack > * { flex: none; pointer-events: auto; }
+.notification-stack .alert, .notification-stack .undo-banner { margin: 0; box-shadow: var(--shadow-float); }
+.notification-stack .alert > span:not(.nucleo-icon) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.notification-stack .alert > .nucleo-icon, .notification-stack .alert > strong { flex: none; }
+.notification-stack .alert > button { margin: 0; }
+.notification-stack .undo-banner > span { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; }
+
+/* Optional study controls have a fixed summary and an overlaid content panel. */
+.experiment-panel { flex: none; position: static; margin: 0; }
+.experiment-panel > summary { min-height: var(--control-height-44); padding: var(--space-8) var(--space-16); }
+.experiment-panel[open] > .experiment-panel__content { position: absolute; z-index: var(--layer-popover); right: 0; bottom: calc(var(--control-height-44) + var(--space-12)); width: min(var(--layout-popover-width), 100%); max-height: calc(100% - var(--control-height-44) - var(--space-12)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-16); border: 1px solid var(--border-default); border-radius: var(--radius-16); background: var(--surface-base); box-shadow: var(--shadow-float); }
+
+/* Project list and registration remain independent of the page scrollbar. */
+.page-workspace--projects { display: flex; flex-direction: column; }
+.page-workspace--projects .intro-row { flex: none; margin: 0 0 var(--space-16); }
+.project-layout { flex: 1; min-height: 0; align-items: stretch; }
+.project-list, .new-project { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.project-list > *, .new-project > * { flex: none; }
+
+/* Space sources occupy the available height, with basic information on demand. */
+.space-screen { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; gap: var(--space-12); }
+.space-screen > .space-two-col { flex: 1; min-height: 0; align-items: stretch; }
+.space-two-col > .surface-panel, .space-two-col > .surface-panel:first-child { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.surface-panel > .panel-heading { flex: none; }
+.photo-carousel-wrap { flex: 1; min-height: 0; overflow-y: auto; }
+.photo-carousel-wrap .swipe-carousel { height: 100%; min-height: 0; }
+.photo-carousel-wrap .swipe-carousel__viewport { flex: 1; min-height: 0; align-items: center; }
+.photo-carousel-wrap .swipe-carousel__slide { height: 100%; }
+.photo-carousel-wrap figure { display: flex; flex-direction: column; justify-content: center; height: 100%; min-height: 0; }
+.photo-carousel-wrap .space-photo { flex: 1; min-height: 0; height: 100%; }
+.photo-carousel-wrap figcaption, .photo-carousel-wrap .swipe-carousel__controls { flex: none; }
+.plan-panel-content { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+.plan-panel-content > .plan-origin, .plan-detail-tabs, .plan-editor-focus-heading { flex: none; }
+.plan-editor-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+.plan-editor-body > .plan-canvas { flex: 1 0 auto; min-height: auto; }
+.space-plan-panel .plan-canvas__instruction, .space-plan-panel .plan-canvas__legend { display: none; }
+.space-plan-panel .plan-canvas__surface { flex: 1; height: auto; min-height: var(--layout-canvas-min-height); }
+.space-plan-panel .plan-canvas__toolbar { flex: none; }
+.plan-task-hint, .plan-drawing-exit, .plan-caption, .plan-partitions, .plan-numeric-fallback { flex: none; }
+.plan-task-hint { padding: var(--space-8) var(--space-16); }
+.plan-editor-body.is-drawing { display: grid; grid-template-columns: var(--layout-drawing-tools-width) minmax(0, 1fr); grid-template-rows: minmax(min-content, 1fr) auto auto; align-content: stretch; overflow-y: auto; }
+.plan-editor-body.is-drawing > .plan-edit-tools { grid-row: 1 / -1; min-height: 0; overflow-y: auto; }
+.space-plan-panel .plan-editor-body.is-drawing .plan-canvas__surface { height: auto; min-height: var(--layout-canvas-min-height); }
+.plan-alignment-alert { flex: none; margin: 0; padding: var(--space-12); gap: var(--space-12); }
+.space-project-details { position: static; flex: none; border: 1px solid var(--border-default); border-radius: var(--radius-12); background: var(--surface-base); }
+.space-project-details > summary { min-height: var(--control-height-44); padding: var(--space-8) var(--space-16); cursor: pointer; }
+.space-project-details[open] > .details-strip { position: absolute; z-index: var(--layer-popover); left: 0; bottom: calc(var(--control-height-44) + var(--space-12)); width: 100%; max-height: calc(100% - var(--control-height-44) - var(--space-12)); overflow-y: auto; margin: 0; padding: var(--space-16); border: 1px solid var(--border-default); border-radius: var(--radius-16); background: var(--surface-base); box-shadow: var(--shadow-float); }
+
+/* Editors give the remaining height to the plan; properties and catalogs scroll. */
+.workspace-main, .keep-layout > .surface-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow-y: auto; }
+.workspace-main > .panel-heading, .keep-layout .panel-heading { flex: none; }
+.workspace-main .plan-canvas, .keep-layout .plan-canvas { flex: 1 0 auto; min-height: auto; }
+.workspace-main .plan-canvas__surface, .keep-layout .plan-canvas__surface { flex: 1; height: auto; min-height: var(--layout-canvas-min-height); }
+.workspace-main .plan-canvas__toolbar, .keep-layout .plan-canvas__toolbar,
+.plan-canvas__instruction, .plan-canvas__legend, .plan-canvas__image-status { flex: none; }
+.workspace-side { align-self: stretch; height: 100%; min-height: 0; overflow: hidden; }
+.workspace-side > .panel-heading, .workspace-side .side-bottom { flex: none; }
+.workspace-catalog, .workspace-side > .workspace-list { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
+.workspace-side.inspector { position: static; height: 100%; min-height: 0; max-height: none; overflow-y: auto; }
+.workspace-side.inspector .inspector-content { flex: none; min-height: 0; max-height: none; overflow: visible; }
+.keep-layout > .side-panel { height: 100%; min-height: 0; overflow-y: auto; }
+
+/* Source and condition panels retain independent scroll boundaries. */
+.library-panel, .element-panel, .reference-preview { height: 100%; min-height: 0; overflow-y: auto; }
+.reference-preview { display: flex; flex-direction: column; }
+.reference-preview > :not(.reference-region-picker) { flex: none; }
+.reference-region-picker { flex: 1; min-height: 180px; justify-content: center; }
+.reference-region-picker__stage { flex: none; }
+.reference-scope-status { min-height: calc(var(--control-height-40) + var(--space-32)); }
+.reference-note > summary { min-height: var(--control-height-44); padding: var(--space-8) 0; cursor: pointer; }
+.reference-note[open] > .field { margin-top: var(--space-8); }
+.element-scroll { min-height: 0; max-height: none; overflow: visible; }
+.review-main, .review-side { height: 100%; min-height: 0; overflow-y: auto; }
+.review-main > * { flex: none; }
+.review-side { position: static; }
+
+/* Keep the current result generous. Collections expand only when requested. */
+.result-main { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow-y: auto; }
+.result-main > :not(.result-image-frame) { flex: none; }
+.result-image-frame { flex: 1; min-height: var(--layout-canvas-min-height); }
+.result-image { height: 100%; min-height: 0; }
+.history-section, .moodboard-section { padding: 0; }
+.history-section > summary, .moodboard-section > summary { min-height: var(--control-height-44); padding: var(--space-8) var(--space-16); font-weight: 600; cursor: pointer; }
+.history-section > .swipe-carousel, .moodboard-section > .swipe-carousel { padding: var(--space-12) var(--space-16); }
+.result-inspector { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.result-inspector > .panel-heading, .result-inspector-bottom { flex: none; }
+.result-conditions { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
+
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .app-shell--project .step-nav { height: 56px; }
+  .workspace-layout { grid-template-columns: 220px minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); }
+  .workspace-layout.is-left-hidden { grid-template-columns: minmax(0, 1fr) 260px; }
+  .workspace-layout.is-right-hidden { grid-template-columns: 220px minmax(0, 1fr); }
+  .workspace-layout.is-left-hidden.is-right-hidden { grid-template-columns: minmax(0, 1fr); }
+  .workspace-layout > .workspace-main, .workspace-layout > .workspace-side--left, .workspace-layout > .workspace-side.inspector { grid-column: auto; grid-row: auto; }
+  .workspace-layout.is-left-hidden > .workspace-side.inspector, .workspace-layout.is-right-hidden > .workspace-side--left { grid-column: auto; }
+  .space-screen > .space-two-col { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+  .space-two-col > .surface-panel:first-child { grid-column: 1; grid-row: 1; }
+  .space-two-col > .surface-panel:last-child { grid-column: 2; grid-row: 1; }
+  .space-two-col.is-editing-plan { grid-template-columns: minmax(0, 1fr); }
+  .space-two-col.is-editing-plan > .surface-panel:last-child { grid-column: 1; }
+}
+@media (max-width: 999px) {
+  .app-shell--project .step-nav { height: 56px; flex: none; }
+  .page-workspace { overflow-y: auto; overscroll-behavior: contain; }
+  .page-workspace > .workspace-layout, .page-workspace > .keep-layout,
+  .page-workspace > .reference-layout, .page-workspace > .review-layout,
+  .page-workspace > .results-layout, .space-screen { height: auto; min-height: 100%; }
+  .workspace-main, .workspace-side, .workspace-side.inspector, .keep-layout > .surface-panel,
+  .keep-layout > .side-panel, .library-panel, .element-panel, .reference-preview,
+  .review-main, .review-side, .result-main, .result-inspector { height: auto; max-height: none; overflow: visible; }
+  .workspace-main .plan-canvas__surface, .keep-layout .plan-canvas__surface,
+  .space-plan-panel .plan-canvas__surface { flex: none; height: 320px; }
+  .space-screen > .space-two-col { flex: none; min-height: 0; }
+  .space-two-col > .surface-panel, .space-two-col > .surface-panel:first-child { height: auto; }
+  .plan-panel-content, .plan-editor-body { overflow: visible; }
+  .photo-carousel-wrap .space-photo { flex: none; height: 240px; }
+  .photo-carousel-wrap .swipe-carousel, .photo-carousel-wrap .swipe-carousel__slide,
+  .photo-carousel-wrap figure { height: auto; }
+  .reference-region-picker { flex: none; min-height: 0; }
+  .result-image { height: 300px; }
+  .result-image-frame { flex: none; }
+  .space-project-details[open] > .details-strip { position: static; max-height: none; border: 0; border-top: 1px solid var(--border-default); box-shadow: none; }
+  .plan-editor-body.is-drawing { display: block; }
+  .plan-editor-body.is-drawing > .plan-edit-tools { overflow: visible; }
+}
+@media (max-width: 767px) {
+  .main-content, .app-shell--project .main-content { padding: var(--space-12) 0; }
+  .app-shell--project .main-content { padding-bottom: calc(var(--control-height-48) + var(--space-24) + env(safe-area-inset-bottom, 0px)); }
+  .content-wrap { gap: var(--space-12); }
+  .page-intro .lede { display: none; }
+  .page-intro-right { position: absolute; top: var(--space-12); right: var(--space-16); margin: 0; }
+  .page-status { margin: 0; flex-direction: column; align-items: flex-end; gap: var(--space-4); }
+  .page-status > span { display: none; }
+  .page-intro > div:first-child { padding-right: var(--space-48); }
+  .notification-stack { bottom: calc(var(--control-height-44) + var(--control-height-48) + var(--space-48) + env(safe-area-inset-bottom, 0px)); right: var(--space-16); width: calc(100% - var(--space-32)); }
+  .notification-stack .alert { gap: var(--space-8); padding: var(--space-8); }
+  .notification-stack .alert > strong { display: none; }
+  .project-layout { flex: none; }
+  .project-list, .new-project { overflow: visible; }
+}

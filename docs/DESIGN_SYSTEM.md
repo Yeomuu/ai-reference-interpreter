@@ -441,7 +441,11 @@ Only task-relevant layers and tools change.
 - three-column editor where applicable
 - plan and active inspector visible together
 
-**768–1199px**
+**1000–1199px**
+- horizontal step navigation
+- retain adjacent editor panels with 220px list and 260px inspector; allow independent collapse
+
+**768–999px**
 - plan occupies full first workspace row
 - list and inspector below
 - do not squeeze canvas between fixed sidebars
@@ -454,6 +458,16 @@ Only task-relevant layers and tools change.
 - no hidden critical action behind hover
 
 Do not use a generic plan pan mode for this 2D flow.
+
+### 7.3.1 Bounded viewport and scroll ownership · user update 2026-09-28
+
+- Application frame: `100vw`, `100vh` fallback / `100dvh`, `overflow:hidden`. The document never scrolls.
+- Keep header, step navigation, task heading and task actions outside scrolling content. Give the task workspace the remaining height with `min-height:0`.
+- At >=1000px, long catalogs, inspectors, review conditions and expanded result collections scroll inside their own panels. A short viewport may require scrolling within the plan panel; never compress controls into overlapping rows or clip their only access path.
+- Below 1000px, stack the existing surfaces in a single vertically scrollable task workspace. This is an accessibility exception to the one-screen presentation: the document and mobile bottom actions remain fixed, and all inputs and text alternatives remain reachable.
+- Project information and optional study controls open within the available frame without changing the plan's position. Reference notes, result history and approved collections are explicit disclosures, closed initially. Preserve all controls and keyboard access inside them.
+- SVG fills a positioned plan surface without imposing an intrinsic height on its parent. Reference image previews retain aspect ratio; reserve the selection-status action row so a crop gesture cannot change its image bounds.
+- Shared geometry tokens: minimum plan surface 280px, notification width 560px, study drawer maximum width 720px, drawing tools 240px. Overlay layers: notices 50, optional detail panels 40. Existing spacing, borders, colors and shadows apply; these tokens add no brand treatment.
 
 ### 7.4 Spacing rhythm
 
@@ -750,12 +764,15 @@ Name the readiness action “생성 가능 여부 확인”. It refreshes availa
 - begins gradual fade after 3s
 - manual close remains immediate
 - not the sole source of an error explanation
+- positioned absolutely in the main frame, above the lower utility/action area; never reserves layout space or covers title-adjacent step actions
 
 **Inline alert / page alert**
 - blocking validation
 - save failure
 - unknown paid-request outcome
 - stays until dismissed or resolved
+- global page alerts share the non-displacing overlay stack; local validation stays beside its input/canvas and can scroll inside its owning panel
+- persistent deletion undo is independent of transient notices and also overlays the frame
 
 **Modal**
 - high-impact irreversible action only

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import type { Point, Rect } from '../domain/types'
 import AssetImage from './AssetImage'
@@ -35,6 +35,18 @@ export function validReferenceRegion(region: Rect): boolean {
 }
 
 export default function ReferenceRegionPicker({ uri, name, imageWidth, imageHeight, selection, enabled, onChange }: Props) {
+  const pickerRef = useRef<HTMLDivElement>(null)
+  const [stageHeight, setStageHeight] = useState(460)
+  useEffect(() => {
+    const picker = pickerRef.current
+    if (!picker) return
+    const observer = new ResizeObserver(([entry]) => {
+      const height = Math.max(140, Math.min(460, entry.contentRect.height - (enabled ? 44 : 0)))
+      setStageHeight((previous) => previous === height ? previous : height)
+    })
+    observer.observe(picker)
+    return () => observer.disconnect()
+  }, [enabled])
   const drag = useRef<{ pointerId: number; start: Point } | null>(null)
   const [preview, setPreview] = useState<Rect | null>(null)
   const [hint, setHint] = useState('')
@@ -106,9 +118,9 @@ export default function ReferenceRegionPicker({ uri, name, imageWidth, imageHeig
     }
   }
 
-  return <div className="reference-region-picker">
+  return <div ref={pickerRef} className="reference-region-picker">
     <div className={`reference-region-picker__stage ${enabled ? 'is-drawing' : ''}`}
-      style={{ aspectRatio: `${imageWidth || 3} / ${imageHeight || 2}`, maxWidth: `${Math.round(460 * ratio)}px` }}
+      style={{ aspectRatio: `${imageWidth || 3} / ${imageHeight || 2}`, maxWidth: `${Math.round(stageHeight * ratio)}px` }}
       role="img" aria-label={`${name} ${enabled ? '선택 영역 편집' : '전체 이미지 보기'}`}
       aria-description={enabled ? '포인터를 드래그해 영역을 선택합니다. 키보드는 Enter로 중앙 영역을 만든 뒤 방향키로 이동하고 Shift와 방향키로 크기를 조정합니다. Escape는 선택을 해제합니다.' : undefined}
       tabIndex={enabled ? 0 : undefined}

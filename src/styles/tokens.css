@@ -36,6 +36,9 @@
   --layout-list-width:clamp(220px, 17vw, 260px);
   --layout-inspector-width:clamp(260px, 20vw, 300px);
   --layout-reference-list-width:clamp(200px, 16vw, 240px);
+  --layout-canvas-min-height:280px; --layout-notice-width:560px;
+  --layout-popover-width:720px; --layout-drawing-tools-width:240px;
+  --layer-notice:50; --layer-popover:40;
   --control-height-32:32px; --control-height-40:40px; --control-height-44:44px; --control-height-48:48px;
   --font-ui:Paperlogy,"Noto Sans KR",system-ui,sans-serif;
 }

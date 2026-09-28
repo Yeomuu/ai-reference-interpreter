@@ -33,8 +33,12 @@ The app completes the offline interaction flow with preloaded coherent sample ph
 
 ## Source links
 - Project specification: https://docs.google.com/document/d/1ACvyr2W8FkFqxCOeUUGbDniS8gvQctPcwj4BFovNLSw/edit
-- Current Figma wireframe section: https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA/?node-id=107-2
+- Current Figma wireframe section: https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA/?node-id=125-2
 
 
 ## User-directed navigation and study update · 2026-09-28
 Actual structure names replace numbered Keep markers, with only a lock icon representing preservation at one side. Save drawings without automatic tab changes. Step navigation must use real project/step URLs so browser Back, Forward and reload work. Optional experiment collection is explicitly consented, anonymous, browser-local and exportable as an actual ZIP; never treat behavioral validation as condition accuracy or claim completed paired research.
+
+## User-directed viewport and notice update · 2026-09-28
+
+Use a viewport-sized application frame without document scrolling. Notices and persistent undo overlay the frame without shifting the plan, photographs or other controls. Short success notices still fade after three seconds; blocking errors remain until dismissed or resolved. Keep navigation usable while an alert is present. Long content scrolls only in its owning desktop panel, or in the active stacked workspace on narrow screens, so hiding document overflow never makes editing, recovery or export inaccessible. Optional project information, reference notes, saved result collections and study controls use explicit disclosures; opening project/study detail panels must not displace the plan.
