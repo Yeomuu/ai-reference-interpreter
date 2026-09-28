@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [{ "source": "/projects/:projectId/:step", "destination": "/index.html" }],
   "functions": {
     "api/generate.ts": {
       "maxDuration": 180

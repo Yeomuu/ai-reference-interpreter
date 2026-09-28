@@ -1,13 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import generate from '../api/generate';
 import status from '../api/status';
+import { generationQuota, quotaConfigured, QuotaError } from '../api/_lib/generationQuota';
+vi.mock('../api/_lib/generationQuota', async (original) => { const actual = await original<typeof import('../api/_lib/generationQuota')>(); return { ...actual, quotaConfigured: vi.fn(), generationQuota: { status: vi.fn(), reserve: vi.fn(), finish: vi.fn() } }; });
 import { createSampleProject } from '../src/data/sample';
-import { buildGenerationPrompt, MIN_GENERATION_ACCESS_CODE_LENGTH, type GenerationImage, type GenerationRequest } from '../src/services/generationContract';
+import { buildGenerationPrompt, type GenerationImage, type GenerationRequest } from '../src/services/generationContract';
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0xff, 0xd9]).toString('base64');
 const dataUrl = `data:image/jpeg;base64,${jpeg}`;
-const testAccessCode = 'a'.repeat(MIN_GENERATION_ACCESS_CODE_LENGTH);
+const requestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 function responseStub() {
   const values: { statusCode: number; body: string; headers: Record<string, string> } = {
@@ -22,12 +24,12 @@ function responseStub() {
   return { response, values };
 }
 
-function requestStub(body: unknown, code = testAccessCode): IncomingMessage & { body: unknown } {
+function requestStub(body: unknown, id = requestId): IncomingMessage & { body: unknown } {
   return {
     method: 'POST',
     headers: {
       host: 'example.test', origin: 'https://example.test',
-      'content-type': 'application/json', 'x-generation-access-code': code,
+      'content-type': 'application/json', 'x-generation-request-id': id,
     },
     body,
   } as unknown as IncomingMessage & { body: unknown };
@@ -45,51 +47,70 @@ function sampleRequest(): GenerationRequest {
   return { project, cameraId: 'camera-entrance', images };
 }
 
+beforeEach(() => {
+  vi.clearAllMocks(); vi.stubEnv('OPENAI_API_KEY', 'test-key');
+  vi.mocked(quotaConfigured).mockReturnValue(true);
+  vi.mocked(generationQuota.status).mockResolvedValue({ totalLimit:60, used:0, remaining:60, dailyLimit:20, dailyRemaining:20, busy:false });
+  vi.mocked(generationQuota.reserve).mockResolvedValue(); vi.mocked(generationQuota.finish).mockResolvedValue();
+});
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
 describe('image generation API boundary', () => {
-  it('reports availability without calling a model', () => {
+  it('reports quota availability without calling a model', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
     const { response, values } = responseStub();
-    status({ method: 'GET' } as IncomingMessage, response);
+    await status({ method: 'GET', headers: {} } as IncomingMessage, response);
     expect(values.statusCode).toBe(200);
     expect(JSON.parse(values.body)).toMatchObject({
-      available: true, requiresAccessCode: true,
+      available: true, requiresAccessCode: false, quota: { remaining: 60 },
       model: 'gpt-image-1-mini', quality: 'low', size: '1536x1024', outputPriceUsd: 0.006,
     });
   });
 
-  it('disables a short legacy access code without a paid call', async () => {
+  it('fails closed without quota configuration or if quota reads fail', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', 'short-legacy-code');
-    const call = vi.fn();
-    vi.stubGlobal('fetch', call);
+    const call = vi.fn(); vi.stubGlobal('fetch', call);
+    vi.mocked(quotaConfigured).mockReturnValue(false);
     const { response, values } = responseStub();
-    status({ method: 'GET' } as IncomingMessage, response);
+    await generate(requestStub(sampleRequest()), response);
+    expect(values.statusCode).toBe(503); expect(call).not.toHaveBeenCalled();
+    vi.mocked(quotaConfigured).mockReturnValue(true);
+    vi.mocked(generationQuota.status).mockRejectedValueOnce(new Error('store unavailable'));
+    await status({ method: 'GET', headers: {} } as IncomingMessage, response);
     expect(JSON.parse(values.body).available).toBe(false);
-    await generate(requestStub(sampleRequest(), 'short-legacy-code'), response);
-    expect(values.statusCode).toBe(503);
-    expect(call).not.toHaveBeenCalled();
   });
-
-  it('blocks a wrong access code before parsing images or calling OpenAI', async () => {
-    vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
-    const call = vi.fn();
-    vi.stubGlobal('fetch', call);
+  it('rejects a missing request ID and cross-site origin before paid usage', async () => {
+    const call = vi.fn(); vi.stubGlobal('fetch', call);
     const { response, values } = responseStub();
-    await generate(requestStub(sampleRequest(), 'wrong'), response);
-    expect(values.statusCode).toBe(401);
-    expect(call).not.toHaveBeenCalled();
+    await generate(requestStub(sampleRequest(), 'invalid'), response);
+    expect(values.statusCode).toBe(400);
+    const request = requestStub(sampleRequest()); delete request.headers.origin;
+    await generate(request, response); expect(values.statusCode).toBe(403);
+    expect(generationQuota.reserve).not.toHaveBeenCalled(); expect(call).not.toHaveBeenCalled();
   });
-
+  it('stops at the global cap or a storage fault without a provider call', async () => {
+    const call = vi.fn(); vi.stubGlobal('fetch', call);
+    const { response, values } = responseStub();
+    vi.mocked(generationQuota.reserve).mockRejectedValueOnce(new QuotaError('전체 횟수 소진', 429));
+    await generate(requestStub(sampleRequest()), response); expect(values.statusCode).toBe(429);
+    vi.mocked(generationQuota.reserve).mockRejectedValueOnce(new Error('storage failure'));
+    await generate(requestStub(sampleRequest()), response); expect(values.statusCode).toBe(503);
+    expect(call).not.toHaveBeenCalled(); expect(generationQuota.finish).not.toHaveBeenCalled();
+  });
+  it('records an uncertain upstream outcome without refunding the reservation', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network lost')));
+    const { response, values } = responseStub();
+    await generate(requestStub(sampleRequest()), response);
+    expect(values.statusCode).toBe(502); expect(JSON.parse(values.body).outcomeUnknown).toBe(true);
+    expect(generationQuota.reserve).toHaveBeenCalledWith(requestId);
+    expect(generationQuota.finish).toHaveBeenCalledWith(requestId);
+  });
   it('rejects omitted applied references without a paid call', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
     const call = vi.fn();
     vi.stubGlobal('fetch', call);
     const input = sampleRequest();
@@ -99,11 +120,11 @@ describe('image generation API boundary', () => {
     expect(values.statusCode).toBe(400);
     expect(values.body).toContain('빠졌습니다');
     expect(call).not.toHaveBeenCalled();
+    expect(generationQuota.reserve).not.toHaveBeenCalled();
   });
 
   it('sends exactly one low-cost image edit only after valid preflight', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
-    vi.stubEnv('GENERATION_ACCESS_CODE', testAccessCode);
     const call = vi.fn(async (_url: string, options: RequestInit) => {
       const form = options.body as FormData;
       expect(form.get('model')).toBe('gpt-image-1-mini');
@@ -118,6 +139,8 @@ describe('image generation API boundary', () => {
     const { response, values } = responseStub();
     await generate(requestStub(sampleRequest()), response);
     expect(call).toHaveBeenCalledTimes(1);
+    expect(generationQuota.reserve).toHaveBeenCalledWith(requestId);
+    expect(generationQuota.finish).toHaveBeenCalledWith(requestId);
     expect(values.statusCode).toBe(200);
     expect(JSON.parse(values.body).imageDataUrl).toBe(dataUrl);
   });

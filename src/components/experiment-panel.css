@@ -1,0 +1,15 @@
+.experiment-panel { margin-bottom: var(--space-16); border: 1px solid var(--border-default); border-radius: var(--radius-12); background: var(--surface-base); }
+.experiment-panel > summary { padding: var(--space-12) var(--space-16); cursor: pointer; font-size: 14px; font-weight: 500; }
+.experiment-panel__content { padding: 0 var(--space-16) var(--space-16); }
+.experiment-panel__start { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-16); }
+.experiment-panel__start .field { width: 160px; }
+.experiment-panel__start .checkbox-row { align-self: center; }
+.experiment-panel__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-16); }
+.experiment-panel__export { display: flex; flex-wrap: wrap; gap: var(--space-16); align-items: end; margin-top: var(--space-16); padding-top: var(--space-16); border-top: 1px solid var(--border-default); }
+.experiment-panel__export > .field { flex: 1; min-width: 180px; }
+.experiment-panel__export > p, .experiment-survey { flex-basis: 100%; }
+.experiment-panel__error { color: var(--state-error-fg); }
+.experiment-survey { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-16); border: 1px solid var(--border-default); padding: var(--space-16); border-radius: var(--radius-12); }
+.experiment-survey legend { font-size: 14px; }
+.experiment-survey p { grid-column: 1 / -1; }
+@media (max-width: 767px) { .experiment-survey { grid-template-columns: 1fr; } .experiment-panel__start .field { flex: 1; min-width: 100px; } }

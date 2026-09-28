@@ -35,7 +35,7 @@
 | `IconLayers3Outline18.js` | `IconLayers3Outline18.svg` | 도면 레이어 |
 | `IconEyeOpenOutline18.js` | `IconEyeOpenOutline18.svg` | 레이어 보이기 |
 | `IconEyeClosedOutline18.js` | `IconEyeClosedOutline18.svg` | 레이어 숨기기 |
-| `IconLockOutline18.js` | `IconLockOutline18.svg` | 고정 구조/필수 Keep |
+| `IconLockOutline18.js` | `IconLockOutline18.svg` | 고정 구조/필수 Keep. 도면·사진의 실제 구조 이름 한쪽에 표시하는 잠금 배지 (번호·‘보존’ 배지 대체) |
 | `IconTrashOutline18.js` | `IconTrashOutline18.svg` | 삭제 |
 | `IconRefresh2Outline18.js` | `IconRefresh2Outline18.svg` | 새로고침·다시 시도 |
 | `IconPen3Outline18.js` | `IconPen3Outline18.svg` | 조건 편집 |

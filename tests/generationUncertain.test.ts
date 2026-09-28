@@ -27,30 +27,37 @@ function stubImagePreparation(post: () => Promise<unknown>) {
 describe('uncertain paid request outcome', () => {
   it('distinguishes a lost network response from a definitive rejection', async () => {
     const send = stubImagePreparation(async () => { throw new TypeError('connection reset') })
-    const action = createApiImageProvider('access-code').createResult(createSampleProject(), 'camera-entrance')
+    const action = createApiImageProvider().createResult(createSampleProject(), 'camera-entrance')
     await expect(action).rejects.toMatchObject({ name: 'GenerationOutcomeUnknownError', message: expect.stringContaining('즉시 다시 요청하지 마세요') })
     expect(send).toHaveBeenCalledTimes(1)
   })
 
   it('marks a success response with unreadable body as uncertain', async () => {
     stubImagePreparation(async () => ({ ok: true, json: async () => { throw new SyntaxError('truncated') } }))
-    await expect(createApiImageProvider('access-code').createResult(createSampleProject(), 'camera-entrance'))
+    await expect(createApiImageProvider().createResult(createSampleProject(), 'camera-entrance'))
       .rejects.toBeInstanceOf(GenerationOutcomeUnknownError)
   })
 
   it('keeps a server-declared validation rejection as an ordinary error', async () => {
     stubImagePreparation(async () => ({ ok: false, json: async () => ({ error: '입력 형식을 확인해 주세요.' }) }))
-    const action = createApiImageProvider('access-code').createResult(createSampleProject(), 'camera-entrance')
+    const action = createApiImageProvider().createResult(createSampleProject(), 'camera-entrance')
     await expect(action).rejects.toThrow('입력 형식을 확인해 주세요.')
     await expect(action).rejects.not.toBeInstanceOf(GenerationOutcomeUnknownError)
   })
+
+  it('keeps server-reported upstream uncertainty and an unreadable gateway error locked', async () => {
+    stubImagePreparation(async () => ({ ok: false, status:502, json: async () => ({ error:'결과 불확실', outcomeUnknown:true }) }));
+    await expect(createApiImageProvider().createResult(createSampleProject(), 'camera-entrance')).rejects.toBeInstanceOf(GenerationOutcomeUnknownError);
+    stubImagePreparation(async () => ({ ok:false, status:504, json:async () => { throw new SyntaxError('gateway HTML'); } }));
+    await expect(createApiImageProvider().createResult(createSampleProject(), 'camera-entrance')).rejects.toBeInstanceOf(GenerationOutcomeUnknownError);
+  });
 
   it('sends the chosen existing-space photo as the first input', async () => {
     const send = stubImagePreparation(async () => ({ ok: false, json: async () => ({ error: '검증 종료' }) }))
     const project = createSampleProject()
     const existing = project.sourceImages.find((image) => image.role === 'existing-space')!
     project.sourceImages.push({ ...existing, id: 'second-existing', name: '두 번째 기존 공간 사진' })
-    await expect(createApiImageProvider('access-code').createResult(project, 'camera-entrance', 'second-existing'))
+    await expect(createApiImageProvider().createResult(project, 'camera-entrance', 'second-existing'))
       .rejects.toThrow('검증 종료')
     const options = send.mock.calls[0][1]!
     const body = JSON.parse(String(options.body))
@@ -59,7 +66,7 @@ describe('uncertain paid request outcome', () => {
 
   it('blocks a missing selected existing-space photo before a paid call', async () => {
     const send = stubImagePreparation(async () => ({ ok: false, json: async () => ({ error: 'unexpected' }) }))
-    await expect(createApiImageProvider('access-code').createResult(createSampleProject(), 'camera-entrance', 'deleted-photo'))
+    await expect(createApiImageProvider().createResult(createSampleProject(), 'camera-entrance', 'deleted-photo'))
       .rejects.toThrow('선택한 기존 공간 사진을 찾지 못했습니다')
     expect(send).not.toHaveBeenCalled()
   })
@@ -70,7 +77,7 @@ describe('uncertain paid request outcome', () => {
     }) }))
     const open = vi.fn(() => { throw new Error('storage unavailable') })
     vi.stubGlobal('indexedDB', { open })
-    await expect(createApiImageProvider('access-code').createResult(createSampleProject(), 'camera-entrance'))
+    await expect(createApiImageProvider().createResult(createSampleProject(), 'camera-entrance'))
       .rejects.toMatchObject({ name: 'GenerationOutcomeUnknownError',
         message: expect.stringContaining('생성됐지만 이 브라우저에 저장하지 못했습니다') })
     expect(send).toHaveBeenCalledTimes(1)

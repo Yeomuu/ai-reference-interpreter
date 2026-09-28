@@ -359,15 +359,15 @@
 }
 
 .plan-keep-label rect {
-  fill: var(--state-keep-bg);
-  stroke: var(--state-keep-fg);
+  fill: var(--surface-base);
+  stroke: var(--border-default);
   stroke-width: 1;
 }
 
 .plan-keep-label text {
-  fill: var(--state-keep-fg);
+  fill: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 

@@ -1,10 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import generate from '../api/generate'
+vi.mock('../api/_lib/generationQuota', async original => { const actual = await original<typeof import('../api/_lib/generationQuota')>(); return { ...actual, quotaConfigured: () => true, generationQuota: { reserve: vi.fn(async () => {}), finish: vi.fn(async () => {}) } }; })
 import { createSampleProject } from '../src/data/sample'
-import { MIN_GENERATION_ACCESS_CODE_LENGTH, referencePreparationFor, type GenerationRequest } from '../src/services/generationContract'
+import { referencePreparationFor, type GenerationRequest } from '../src/services/generationContract'
 
-const code = 'a'.repeat(MIN_GENERATION_ACCESS_CODE_LENGTH)
 const dataUrl = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0xff, 0xd9]).toString('base64')}`
 
 function requestAndResponse(project = createSampleProject()) {
@@ -19,7 +19,7 @@ function requestAndResponse(project = createSampleProject()) {
     ],
   }
   const request = { method: 'POST', headers: { host: 'example.test', origin: 'https://example.test',
-    'content-type': 'application/json', 'x-generation-access-code': code }, body } as unknown as IncomingMessage & { body: unknown }
+    'content-type': 'application/json', 'x-generation-request-id': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, body } as unknown as IncomingMessage & { body: unknown }
   const result = { statusCode: 200, body: '' }
   const response = {
     set statusCode(status: number) { result.statusCode = status },
@@ -34,7 +34,6 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 describe('reference crop API gate', () => {
   it('rejects a selected crop when its transmitted preparation metadata is missing', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key')
-    vi.stubEnv('GENERATION_ACCESS_CODE', code)
     const providerCall = vi.fn()
     vi.stubGlobal('fetch', providerCall)
     const { request, response, result, body } = requestAndResponse()
@@ -47,7 +46,6 @@ describe('reference crop API gate', () => {
 
   it('rejects a changed grid order before contacting the model', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key')
-    vi.stubEnv('GENERATION_ACCESS_CODE', code)
     const providerCall = vi.fn()
     vi.stubGlobal('fetch', providerCall)
     const { request, response, result, body } = requestAndResponse()
@@ -65,7 +63,6 @@ describe('reference crop API gate', () => {
 
   it('accepts matching grid metadata and directs each element to its transmitted panel', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key')
-    vi.stubEnv('GENERATION_ACCESS_CODE', code)
     const providerCall = vi.fn(async (url: string, options: RequestInit) => {
       expect(url).toBe('https://api.openai.com/v1/images/edits')
       const prompt = String((options.body as FormData).get('prompt'))

@@ -87,3 +87,7 @@ WCAG AA contrast targets: body text ≥4.5:1; essential icons/controls ≥3:1; v
 
 ## Preservation and deletion components · 2026-09-28
 Preservation uses a text-labeled `role="switch"` with `aria-checked`, 48px minimum row height, visible on/off wording and the existing Keep color tokens. Its track uses existing 44/24/16/4px sizing tokens and obeys reduced motion. Deletion uses the existing danger/secondary buttons in an inline confirmation; no nested interactive card buttons. The persistent undo banner uses information tokens and stays separate from fading notices. Card action rows wrap so every command remains reachable. A single Placement catalog scrolls within the left panel on desktop and returns to ordinary page flow on mobile.
+
+
+## Structure labels and optional study controls · 2026-09-28
+Use actual structure names with the verified lock SVG at one side for an active Keep; no numbered Keep labels or preservation halo. Preserve selected/movable states independently. Labels remain 14px in screen space, with separate wall/door/entrance offsets. Optional experiment controls use a collapsed, neutral disclosure, token-based spacing and existing secondary controls; show anonymous recording status in its summary. Keep source evidence and the canvas visually dominant.

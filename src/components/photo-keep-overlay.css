@@ -93,8 +93,8 @@
 .photo-keep-overlay__marker--edge-right { transform: translate(-100%, -50%); }
 
 .photo-keep-overlay__marker--kept {
-  border-color: var(--state-keep-fg);
-  background: var(--state-keep-bg);
+  border-color: var(--border-control);
+  background: var(--surface-base);
 }
 
 .photo-keep-overlay__marker--selected {

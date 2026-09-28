@@ -29,4 +29,11 @@ Inspect repository first. Plan minimal route and data model. Implement a fully u
 ## User-directed preservation and recovery update · 2026-09-28
 - A structure's origin (`base`/`partition`) is separate from its preservation lock. Original structures start preserved; the user can explicitly turn “필수 보존 (위치 고정)” off/on. Off permits validated plan correction; it never establishes physical relocation feasibility. Respect explicit off during reload/migration. Keep-aware conflict and typed-anchor checks still apply.
 - Reference deletion must clean current derived elements, preserve historical results/attribution and offer persistent undo. Individual element deletion keeps its reference source. Retain any image asset used by current data, history or undo.
-- The user-provided three-page planning PDF is verified source context. Do not claim inaccessible Google Doc tabs or absent sections 17–20 were read. Preserve the Reference → Element → Location and condition-revision workflow; do not introduce a CAD/3D system merely because an illustrative screen depicts it.
+- The earlier three-page planning excerpt was superseded by the latest verified 14-page PDF. Do not claim direct access to inaccessible Google Doc tabs. Preserve the Reference → Element → Location and condition-revision workflow; do not introduce a CAD/3D system merely because an illustrative screen depicts it.
+
+## User-directed labels, navigation and experiment update · 2026-09-28
+- Actual structure names and one official lock badge replace numbered Keep labels. Preserve the current drawing tab/tool after saving.
+- Project/step URLs must support browser history and reload. Optional study logs follow the latest 14-page PDF, last five pages plus relevant definitions, as documented in docs/EXPERIMENT_LOGGING.md. Do not claim an implemented free-text comparison, filled ground truth, server collection or human-coded accuracy.
+
+## User-directed generation update · 2026-09-28
+- Read the API key from server env; require no participant key, access code or invitation link. A durable shared private quota must reserve before paid calls, fail closed on storage faults, and reject replays. Initial maximums are 60 total and 20/day, across Production/Preview. Never reset usage on deploy, failure or a public request.

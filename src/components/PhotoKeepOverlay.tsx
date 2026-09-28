@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import type { FormEvent, MouseEvent, SyntheticEvent } from 'react';
 import type { Keep, Point, Structure } from '../domain/types';
 import { resolveImageUri, revokeImageUrl } from '../services/assets';
+import NucleoIcon from './NucleoIcon';
 import './photo-keep-overlay.css';
 
 export interface PhotoKeepOverlayProps {
@@ -128,7 +129,7 @@ export default function PhotoKeepOverlay({
                 aria-pressed={selected}
                 onClick={(event) => { event.stopPropagation(); onSelect(structure.id); setEditingAnchor(false); }}
               >
-                <span className="photo-keep-overlay__marker-dot" aria-hidden="true">{kept ? '보존' : '위치'}</span>
+                {kept && <span className="photo-keep-overlay__marker-dot" aria-hidden="true"><NucleoIcon name="lock" /></span>}
                 <span className="photo-keep-overlay__marker-label">{structure.name}</span>
               </button>;
             })}

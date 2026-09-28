@@ -10,8 +10,6 @@ export const MAX_REFERENCE_REGIONS_PER_IMAGE = 4;
 export const MAX_GENERATION_IMAGES = 5;
 export const MAX_GENERATION_IMAGE_BYTES = 550_000;
 export const MAX_GENERATION_BODY_BYTES = 4_000_000;
-/** A shorter legacy code is treated as unconfigured after credential rotation. */
-export const MIN_GENERATION_ACCESS_CODE_LENGTH = 48;
 
 export type GenerationImageRole = 'existing-space' | 'floor-plan' | 'inspiration' | 'product';
 
@@ -38,6 +36,7 @@ export interface GenerationRequest {
 export interface GenerationStatus {
   available: boolean;
   requiresAccessCode: boolean;
+  quota?: { totalLimit: number; used: number; remaining: number; dailyLimit: number; dailyRemaining: number; busy: boolean };
   reason?: string;
   model: typeof GENERATION_MODEL;
   quality: typeof GENERATION_QUALITY;

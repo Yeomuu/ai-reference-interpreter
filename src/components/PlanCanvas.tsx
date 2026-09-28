@@ -8,6 +8,7 @@ import './plan-canvas.css';
 
 export interface PlanCanvasProps {
   project: Project;
+  onDragEvent?: (phase: 'start' | 'end' | 'cancel', kind: string, id: string) => void;
   selectedElementId?: string;
   selectedStructureId?: string;
   selectedCameraId?: string;
@@ -112,6 +113,7 @@ function areaBounds(plan: FloorPlan, areaId: string) {
 /** Plan values remain normalized. Only this component maps them to SVG units. */
 export default function PlanCanvas({
   project,
+  onDragEvent,
   selectedElementId,
   selectedStructureId,
   selectedCameraId,
@@ -133,6 +135,8 @@ export default function PlanCanvas({
   onCameraMove,
   onCameraRotate,
 }: PlanCanvasProps) {
+  const dragEventRef = useRef(onDragEvent);
+  useEffect(() => { dragEventRef.current = onDragEvent; }, [onDragEvent]);
   const svgRef = useRef<SVGSVGElement>(null);
   const contentRef = useRef<SVGGElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -193,12 +197,13 @@ export default function PlanCanvas({
   }, [sourceUri]);
 
   useEffect(() => () => {
+    if (dragRef.current?.id) dragEventRef.current?.('cancel', dragRef.current.kind, dragRef.current.id);
     const pointerId = drawRef.current?.pointerId ?? dragRef.current?.pointerId;
     const svg = svgRef.current;
-    if (pointerId !== undefined && svg?.hasPointerCapture(pointerId)) svg.releasePointerCapture(pointerId);
     drawRef.current = null;
     dragRef.current = null;
     previewRef.current = null;
+    if (pointerId !== undefined && svg?.hasPointerCapture(pointerId)) svg.releasePointerCapture(pointerId);
     setDrawDraft(null);
     setPreview(null);
     setGestureHint(null);
@@ -214,7 +219,7 @@ export default function PlanCanvas({
   const floorAreas = plan.areas.filter((area) => area.kind === 'floor');
   const imageUri = sourceUri && imageState?.sourceUri === sourceUri ? safeLocalImage(imageState.url) : undefined;
   const imageError = sourceUri && imageState?.sourceUri === sourceUri ? imageState.error : undefined;
-  const keepNumbers = new Map(project.keeps.map((keep, index) => [keep.structureId, index + 1]));
+  const keptIds = new Set(project.keeps.map((keep) => keep.structureId));
   const activeElements = project.elements.filter((element) => element.status === 'apply' && element.target);
   const movableStructures = plan.structures.filter((structure) => !structureMovementReason(project, structure));
   const wallDrawing = drawTool === 'segment' && Boolean(onDrawWallSelect);
@@ -360,6 +365,7 @@ export default function PlanCanvas({
       moved: false, center, wall, structure,
       pointerOffset: pointer && center ? { x: center.x - pointer.x, y: center.y - pointer.y } : undefined,
     };
+    dragEventRef.current?.('start', kind, id);
     svgRef.current?.focus({ preventScroll: true });
     svgRef.current?.setPointerCapture(event.pointerId);
     if (kind.startsWith('element') || kind === 'wall-element-move') onElementSelect?.(id);
@@ -415,6 +421,7 @@ export default function PlanCanvas({
     previewRef.current = null;
     setPreview(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (drag.id) dragEventRef.current?.(event.type === 'pointercancel' || !drag.moved || !last ? 'cancel' : 'end', drag.kind, drag.id);
     if (!drag.moved) return;
     suppressClickRef.current = true;
     window.setTimeout(() => { suppressClickRef.current = false; }, 0);
@@ -428,11 +435,14 @@ export default function PlanCanvas({
   }
 
   function cancelGesture() {
-    const pointerId = drawRef.current?.pointerId ?? dragRef.current?.pointerId;
-    if (pointerId !== undefined && svgRef.current?.hasPointerCapture(pointerId)) svgRef.current.releasePointerCapture(pointerId);
-    drawRef.current = null;
+    const drag = dragRef.current;
+    if (drag?.id) dragEventRef.current?.('cancel', drag.kind, drag.id);
+    // Clear before releasing capture so lostcapture cannot recursively cancel.
     dragRef.current = null;
+    const pointerId = drawRef.current?.pointerId ?? drag?.pointerId;
+    drawRef.current = null;
     previewRef.current = null;
+    if (pointerId !== undefined && svgRef.current?.hasPointerCapture(pointerId)) svgRef.current.releasePointerCapture(pointerId);
     setDrawDraft(null);
     setPreview(null);
   }
@@ -514,7 +524,7 @@ export default function PlanCanvas({
   function renderStructure(structure: Structure) {
     const drawHost = wallDrawing && structure.kind === 'wall' && structure.geometry.kind === 'segment';
     const selected = drawHost ? structure.id === activeDrawWall?.id : structure.id === selectedStructureId;
-    const kept = keepNumbers.has(structure.id);
+    const kept = keptIds.has(structure.id);
     const translated = preview?.kind === 'structure-move' && preview.structure
       ? previewStructureTranslation(project, preview.id, preview.structure).find((item) => item.id === structure.id) : undefined;
     const geometry = translated?.geometry ?? structure.geometry;
@@ -542,30 +552,27 @@ export default function PlanCanvas({
       const y2 = geometry.end.y * height;
       shape = <>
         {isOpening && <line className="plan-structure__opening-gap" x1={x1} y1={y1} x2={x2} y2={y2} />}
-        {kept && <line className="plan-structure__keep-halo" x1={x1} y1={y1} x2={x2} y2={y2} />}
         <line className="plan-structure__shape" x1={x1} y1={y1} x2={x2} y2={y2} />
         <line className="plan-structure__hit" x1={x1} y1={y1} x2={x2} y2={y2} style={movable || drawHost ? { strokeWidth: 40 / contentPixelScale } : undefined} />
       </>;
     } else if (geometry.kind === 'rect') {
       const { bounds } = geometry;
       shape = <>
-        {kept && <rect className="plan-structure__keep-halo" x={bounds.x * width - 4} y={bounds.y * height - 4} width={bounds.width * width + 8} height={bounds.height * height + 8} />}
         <rect className="plan-structure__shape" x={bounds.x * width} y={bounds.y * height} width={bounds.width * width} height={bounds.height * height} />
         <rect className="plan-structure__hit" x={center.x * width - Math.max(bounds.width * width + 8, movable ? 40 / contentPixelScale : 0) / 2} y={center.y * height - Math.max(bounds.height * height + 8, movable ? 40 / contentPixelScale : 0) / 2} width={Math.max(bounds.width * width + 8, movable ? 40 / contentPixelScale : 0)} height={Math.max(bounds.height * height + 8, movable ? 40 / contentPixelScale : 0)} />
       </>;
     } else {
       shape = <>
-        {kept && <circle className="plan-structure__keep-halo" cx={geometry.center.x * width} cy={geometry.center.y * height} r={geometry.radius * Math.min(width, height) + 4} />}
         <circle className="plan-structure__shape" cx={geometry.center.x * width} cy={geometry.center.y * height} r={geometry.radius * Math.min(width, height)} />
         <circle className="plan-structure__hit" cx={geometry.center.x * width} cy={geometry.center.y * height} r={Math.max(geometry.radius * Math.min(width, height) + 7, movable ? 20 / contentPixelScale : 0)} />
       </>;
     }
-    const keepNumber = keepNumbers.get(structure.id);
+    const nameWidth = structure.name.length * 13 + (kept ? 36 : 20);
     const moveLabelOffset = isOpening ? structure.kind === 'entrance' ? 112 : 68 : 24;
-    const labelY = structure.kind === 'entrance' ? center.y * height + 31
-      : structure.kind === 'window' ? center.y * height + 25
-        : structure.kind === 'pillar' ? center.y * height - 35
-          : center.y * height - 18;
+    const nameOffset = structure.kind === 'entrance' ? (center.y > .75 ? -62 : 62)
+      : structure.kind === 'door' || structure.kind === 'window' ? (center.y > .75 ? -28 : 28)
+        : structure.kind === 'pillar' ? -30 : (center.y > .8 ? 20 : -22);
+    const labelY = clamp(center.y * height + nameOffset / contentPixelScale, 14 / contentPixelScale, height - 14 / contentPixelScale);
     return <g
       key={structure.id}
       className={classes}
@@ -584,9 +591,10 @@ export default function PlanCanvas({
         <rect x={-(structure.name.length * 7 + 42)} y={-18} width={structure.name.length * 14 + 84} height={36} rx={8} />
         <text textAnchor="middle" y={5}>{structure.name} · 이동 가능</text>
       </g>}
-      {keepNumber && <g className="plan-keep-label" aria-hidden="true">
-        <rect x={center.x * width - 37} y={labelY - 13} width={74} height={22} rx={11} />
-        <text x={center.x * width} y={labelY + 2} textAnchor="middle">Keep {keepNumber}</text>
+      {!movable && !drawHost && <g className={`plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${Math.max(nameWidth / (2 * contentPixelScale), Math.min(width - nameWidth / (2 * contentPixelScale), center.x * width))} ${labelY}) scale(${1 / contentPixelScale})`} aria-hidden="true">
+        <rect x={-nameWidth / 2} y={-14} width={nameWidth} height={28} rx={8} />
+        {kept && <image href="/icons/nucleo/IconLockOutline18.svg" x={-nameWidth / 2 + 8} y={-9} width={18} height={18} />}
+        <text x={kept ? 10 : 0} y={5} textAnchor="middle">{structure.name}</text>
       </g>}
     </g>;
   }
@@ -596,8 +604,9 @@ export default function PlanCanvas({
     const selected = activeDrawWall?.id === wall.id;
     const horizontal = wall.geometry.kind === 'segment' && Math.abs(wall.geometry.end.x - wall.geometry.start.x) * width >= Math.abs(wall.geometry.end.y - wall.geometry.start.y) * height;
     const offset = 24 / contentPixelScale;
-    const label = `${wall.name}${selected ? ' · 연결 벽' : ''}`;
-    const labelWidth = label.length * 13 + 20;
+    const label = wall.name;
+    const kept = keptIds.has(wall.id);
+    const labelWidth = label.length * 13 + (kept ? 42 : 20);
     const x = clamp(center.x * width + (horizontal ? 0 : center.x < .5 ? offset : -offset), (labelWidth / 2 + 4) / contentPixelScale, width - (labelWidth / 2 + 4) / contentPixelScale);
     const y = clamp(center.y * height + (horizontal ? center.y < .2 ? offset : -offset : 0), 20 / contentPixelScale, height - 20 / contentPixelScale);
     return <g key={`${wall.id}-name`} className={`plan-wall-label${selected ? ' plan-wall-label--selected' : ''}`}
@@ -608,7 +617,8 @@ export default function PlanCanvas({
       onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onDrawWallSelect?.(wall.id); } }}>
       <rect className="plan-wall-label__hit" x={-labelWidth / 2} y={-20} width={labelWidth} height={40} rx={8} />
       <rect x={-labelWidth / 2} y={-14} width={labelWidth} height={28} rx={8} />
-      <text textAnchor="middle" y={5}>{label}</text>
+      {kept && <image href="/icons/nucleo/IconLockOutline18.svg" x={-labelWidth / 2 + 8} y={-9} width={18} height={18} aria-hidden="true" />}
+      <text textAnchor="middle" x={kept ? 10 : 0} y={5}>{label}</text>
     </g>;
   }
 

@@ -60,7 +60,7 @@ export const offlineDemoProvider: ImageProvider = {
 
 const unavailableStatus: GenerationStatus = {
   available: false,
-  requiresAccessCode: true,
+  requiresAccessCode: false,
   model: GENERATION_MODEL,
   quality: GENERATION_QUALITY,
   size: GENERATION_SIZE,
@@ -72,7 +72,7 @@ const unavailableStatus: GenerationStatus = {
 /** A read-only availability check; it never triggers model usage or billing. */
 export async function getGenerationStatus(): Promise<GenerationStatus> {
   try {
-    const response = await fetch('/api/status', { method: 'GET', cache: 'no-store', credentials: 'omit' });
+    const response = await fetch('/api/status', { method: 'GET', cache: 'no-store', credentials: 'same-origin' });
     if (!response.ok) return unavailableStatus;
     const data: unknown = await response.json();
     if (!data || typeof data !== 'object' || !('available' in data) || typeof data.available !== 'boolean') {
@@ -182,7 +182,7 @@ export async function compactImage(uri: string, preparation?: ReferencePreparati
   throw new Error('이미지 용량을 줄일 수 없습니다. 더 작은 이미지를 등록해 주세요.');
 }
 
-async function requestImage(project: Project, cameraId: string, accessCode: string, existingPhotoId?: string): Promise<string> {
+async function requestImage(project: Project, cameraId: string, existingPhotoId: string | undefined, requestId: string): Promise<string> {
   const existing = project.sourceImages.find((image) => image.role === 'existing-space' &&
     (!existingPhotoId || image.id === existingPhotoId));
   if (!existing) throw new Error(existingPhotoId
@@ -215,9 +215,9 @@ async function requestImage(project: Project, cameraId: string, accessCode: stri
   try {
     response = await fetch('/api/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Generation-Access-Code': accessCode },
+      headers: { 'Content-Type': 'application/json', 'X-Generation-Request-Id': requestId },
       body: serialized,
-      credentials: 'omit',
+      credentials: 'same-origin',
       cache: 'no-store',
     });
   } catch {
@@ -226,12 +226,13 @@ async function requestImage(project: Project, cameraId: string, accessCode: stri
   let payload: unknown;
   try { payload = await response.json(); }
   catch {
-    if (response.ok) throw new GenerationOutcomeUnknownError(UNKNOWN_GENERATION_OUTCOME);
+    if (response.ok || response.status >= 500) throw new GenerationOutcomeUnknownError(UNKNOWN_GENERATION_OUTCOME);
     payload = null;
   }
   if (!response.ok) {
     const message = payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
       ? payload.error : '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+    if (payload && typeof payload === 'object' && 'outcomeUnknown' in payload && payload.outcomeUnknown === true) throw new GenerationOutcomeUnknownError(message);
     throw new Error(message);
   }
   if (!payload || typeof payload !== 'object' || !('imageDataUrl' in payload) ||
@@ -241,8 +242,8 @@ async function requestImage(project: Project, cameraId: string, accessCode: stri
   return payload.imageDataUrl;
 }
 
-/** The access code exists in memory only and is sent only on explicit generation. */
-export function createApiImageProvider(accessCode: string): ImageProvider {
+/** The server holds the API key and enforces the shared durable quota. */
+export function createApiImageProvider(requestId = crypto.randomUUID()): ImageProvider {
   return {
     mode: 'api',
     provenance: 'OpenAI 이미지 API로 생성한 시안입니다. 구조와 배치가 정확히 반영되었는지 결과를 직접 확인해 주세요.',
@@ -250,10 +251,9 @@ export function createApiImageProvider(accessCode: string): ImageProvider {
       const preflight = validatePreflight(project, cameraId);
       const firstError = preflight.issues.find((issue) => issue.severity === 'error');
       if (firstError) throw new Error(firstError.message);
-      if (!accessCode.trim()) throw new Error('이미지 생성 접근 코드를 입력해 주세요.');
       const conditionsSnapshot = createConditionsSnapshot(project, cameraId, existingPhotoId);
       if (!conditionsSnapshot) throw new Error('카메라를 찾을 수 없습니다.');
-      const dataUrl = await requestImage(project, cameraId, accessCode.trim(), existingPhotoId);
+      const dataUrl = await requestImage(project, cameraId, existingPhotoId, requestId);
       let imageUri: string;
       try {
         const blob = await (await fetch(dataUrl)).blob();

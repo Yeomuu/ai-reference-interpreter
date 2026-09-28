@@ -30,7 +30,8 @@ describe('drawing affordances', () => {
     const project = createSampleProject();
     const wall = project.floorPlan!.structures.find((structure) => structure.kind === 'wall')!;
     const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'view', drawTool: 'segment', drawWallId: wall.id, onDrawWallSelect: () => {} }));
-    expect(html).toContain(`${wall.name} · 연결 벽`);
+    expect(html).toContain(`>${wall.name}</text>`);
+    expect(html).toContain('plan-wall-label--selected');
     expect(html).toContain('plan-canvas__active-wall');
     expect(html).toContain(`${wall.name}을 연결 벽으로 선택`);
   });

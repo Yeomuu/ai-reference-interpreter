@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { generationQuota, quotaConfigured, validRequestId, QuotaError } from './_lib/generationQuota.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { validatePreflight } from '../src/domain/validation.js';
 import { isProject } from '../src/services/persistence.js';
@@ -7,7 +7,6 @@ import {
   GENERATION_SIZE, MAX_GENERATION_BODY_BYTES, MAX_GENERATION_IMAGES,
   MAX_GENERATION_IMAGE_BYTES, MAX_REFERENCE_IMAGES,
   matchesReferencePreparation, referencePreparationFor,
-  MIN_GENERATION_ACCESS_CODE_LENGTH,
   type GenerationImage, type GenerationRequest,
 } from '../src/services/generationContract.js';
 
@@ -17,7 +16,7 @@ export const maxDuration = 180;
 type BodyRequest = IncomingMessage & { body?: unknown };
 
 class RequestError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(message: string, public status: number, public outcomeUnknown = false) { super(message); }
 }
 
 function send(response: ServerResponse, status: number, body: object): void {
@@ -28,15 +27,9 @@ function send(response: ServerResponse, status: number, body: object): void {
   response.end(JSON.stringify(body));
 }
 
-function constantTimeCodeMatch(received: string, expected: string): boolean {
-  const left = createHash('sha256').update(received).digest();
-  const right = createHash('sha256').update(expected).digest();
-  return timingSafeEqual(left, right);
-}
-
 function sameOrigin(request: IncomingMessage): boolean {
   const origin = request.headers.origin;
-  if (!origin) return true;
+  if (!origin) return false;
   try {
     const url = new URL(origin);
     const host = request.headers['x-forwarded-host'] ?? request.headers.host;
@@ -159,18 +152,17 @@ function upstreamError(status: number, code?: string): RequestError {
 export default async function handler(request: BodyRequest, response: ServerResponse): Promise<void> {
   if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); send(response, 405, { error: '지원하지 않는 요청입니다.' }); return; }
   if (!sameOrigin(request)) { send(response, 403, { error: '다른 사이트에서 이미지 생성을 요청할 수 없습니다.' }); return; }
-  const configuredCode = process.env.GENERATION_ACCESS_CODE;
-  if (!process.env.OPENAI_API_KEY || !configuredCode ||
-      configuredCode.length < MIN_GENERATION_ACCESS_CODE_LENGTH) {
-    send(response, 503, { error: '이미지 생성 기능이 아직 설정되지 않았습니다. 데모 샘플을 이용해 주세요.' }); return;
+  if (!process.env.OPENAI_API_KEY || !quotaConfigured()) {
+    send(response, 503, { error: '이미지 생성 서버 또는 전체 호출 상한이 준비되지 않았습니다. 무료 샘플을 이용해 주세요.' }); return;
   }
-  const accessCode = request.headers['x-generation-access-code'];
-  if (typeof accessCode !== 'string' || !constantTimeCodeMatch(accessCode, configuredCode)) {
-    send(response, 401, { error: '이미지 생성 접근 코드를 확인해 주세요.' }); return;
+  const requestId = request.headers['x-generation-request-id'];
+  if (!validRequestId(requestId)) {
+    send(response, 400, { error: '생성 요청 번호를 확인해 주세요.' }); return;
   }
   if (!request.headers['content-type']?.startsWith('application/json')) {
     send(response, 415, { error: 'JSON 형식의 요청만 받습니다.' }); return;
   }
+  let reserved = false, providerAttempted = false;
   try {
     const { body, decoded } = validateRequest(await readBody(request));
     const prompt = buildGenerationPrompt(body.project, body.cameraId, body.images);
@@ -184,6 +176,9 @@ export default async function handler(request: BodyRequest, response: ServerResp
     form.set('output_format', 'jpeg');
     form.set('output_compression', '72');
     decoded.forEach((bytes, index) => form.append('image[]', new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }), `reference-${index + 1}.jpg`));
+    await generationQuota.reserve(requestId);
+    reserved = true;
+    providerAttempted = true;
     const upstream = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -202,15 +197,17 @@ export default async function handler(request: BodyRequest, response: ServerResp
     const base64 = image && typeof image === 'object' && 'b64_json' in image && typeof image.b64_json === 'string'
       ? image.b64_json : null;
     if (!base64 || base64.length > 3_800_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
-      throw new RequestError('이미지는 생성되었지만 결과 파일을 전달하지 못했습니다. 비용이 발생했을 수 있으니 사용량을 확인한 뒤 다시 시도해 주세요.', 502);
+      throw new RequestError('이미지는 생성되었지만 결과 파일을 전달하지 못했습니다. 비용이 발생했을 수 있으니 사용량을 확인한 뒤 다시 시도해 주세요.', 502, true);
     }
     send(response, 200, { imageDataUrl: `data:image/jpeg;base64,${base64}`, model: GENERATION_MODEL,
       quality: GENERATION_QUALITY, size: GENERATION_SIZE });
   } catch (error) {
-    if (error instanceof RequestError) { send(response, error.status, { error: error.message }); return; }
+    if (error instanceof QuotaError || error instanceof RequestError) { send(response, error.status, { error: error.message, outcomeUnknown: error instanceof RequestError && error.outcomeUnknown }); return; }
     if (error instanceof Error && error.name === 'TimeoutError') {
-      send(response, 504, { error: '이미지 생성 시간이 초과되었습니다. 비용이 발생했을 수 있으니 결과와 사용량을 확인한 뒤 다시 시도해 주세요.' }); return;
+      send(response, 504, { error: '이미지 생성 시간이 초과되었습니다. 비용이 발생했을 수 있으니 결과와 사용량을 확인한 뒤 다시 시도해 주세요.', outcomeUnknown: providerAttempted }); return;
     }
-    send(response, 502, { error: '이미지 생성에 실패했습니다. 이전 결과는 그대로 보관됩니다.' });
+    send(response, providerAttempted ? 502 : 503, { error: providerAttempted ? '생성 결과를 확인하지 못했습니다. 비용이 발생했을 수 있으니 사용량을 확인해 주세요.' : '전체 호출 상한 저장소를 확인하지 못해 생성을 중단했습니다. 무료 샘플은 계속 사용할 수 있습니다.', outcomeUnknown: providerAttempted });
+  } finally {
+    if (reserved) await generationQuota.finish(requestId).catch(() => { /* Retain lease on storage failure; never refund. */ });
   }
 }

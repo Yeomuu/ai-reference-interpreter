@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { generationQuota, quotaConfigured } from './_lib/generationQuota.js';
 import {
   GENERATION_MODEL, GENERATION_OUTPUT_PRICE_USD, GENERATION_PRICING_NOTE,
   GENERATION_QUALITY, GENERATION_SIZE, type GenerationStatus,
-  MIN_GENERATION_ACCESS_CODE_LENGTH,
 } from '../src/services/generationContract.js';
 
-export default function handler(request: IncomingMessage, response: ServerResponse): void {
+export default async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -15,17 +15,22 @@ export default function handler(request: IncomingMessage, response: ServerRespon
     response.end(JSON.stringify({ error: '지원하지 않는 요청입니다.' }));
     return;
   }
-  const available = Boolean(process.env.OPENAI_API_KEY &&
-    (process.env.GENERATION_ACCESS_CODE?.length ?? 0) >= MIN_GENERATION_ACCESS_CODE_LENGTH);
+  let available = Boolean(process.env.OPENAI_API_KEY && quotaConfigured());
+  let quota: GenerationStatus['quota'];
+  if (available) {
+    try { quota = await generationQuota.status(); }
+    catch { available = false; }
+  }
   const status: GenerationStatus = {
     available,
-    requiresAccessCode: true,
+    requiresAccessCode: false,
+    quota,
     model: GENERATION_MODEL,
     quality: GENERATION_QUALITY,
     size: GENERATION_SIZE,
     outputPriceUsd: GENERATION_OUTPUT_PRICE_USD,
     pricingNote: GENERATION_PRICING_NOTE,
-    reason: available ? undefined : '서버의 이미지 생성 키 또는 접근 코드가 설정되지 않았습니다. 데모 샘플은 계속 사용할 수 있습니다.',
+    reason: available ? undefined : '이미지 생성 서버 또는 호출 상한 저장소를 확인할 수 없습니다. 무료 샘플은 계속 사용할 수 있습니다.',
   };
   response.statusCode = 200;
   response.end(JSON.stringify(status));
