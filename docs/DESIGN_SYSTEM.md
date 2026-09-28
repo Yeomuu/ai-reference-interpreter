@@ -303,7 +303,7 @@ Not allowed for:
 - result image
 - inspector content
 - form panel
-- pricing/generation explanation
+- generation explanation
 
 If `backdrop-filter` is unsupported or reduced transparency is requested:
 - remove blur
@@ -717,8 +717,8 @@ Show before paid action:
 - chosen existing-space anchor photo
 - image transfer summary
 - one-image scope
-- dated output-price example
-- note that input costs vary
+- one concise sentence: “설정한 조건과 선택한 시점으로 이미지 1장을 만듭니다.”
+- transmitted inputs/result limitations in “사용 자료·결과 안내”; no per-image API price or provider pricing link
 - shared total/daily quota and plain-language busy/exhausted reason; no user key, code or invitation link
 - structural-accuracy limitation
 
@@ -726,7 +726,7 @@ Primary action:
 - when AI configured: near-black `AI 이미지 생성`
 - when AI unavailable: free sample action may become the only primary
 
-A readiness/status check must never look like a generated result.
+Name the readiness action “생성 가능 여부 확인”. It refreshes availability and remaining shared counts, never image progress. Show a disabled “확인 중…”/aria-busy state during refresh. Do not add a “비용 발생” suffix to the participant image action.
 
 ### 11.9 ResultViewer
 
@@ -913,7 +913,7 @@ Respect:
 - compact condition synthesis
 - Keep details collapsible
 - free sample and paid generation explicitly separate
-- cost/data notice immediately before paid action
+- concise one-image guidance and accessible data-use details before generation; API billing guidance remains in operator documentation
 
 ### Results
 - current result image dominant
