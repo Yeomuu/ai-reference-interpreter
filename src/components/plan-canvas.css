@@ -267,13 +267,67 @@
   pointer-events: none;
 }
 
-.plan-structure__move-label {
+.plan-structure__move-label rect {
+  fill: var(--surface-selected);
+  stroke: var(--border-selected);
+  stroke-width: 1;
+}
+
+.plan-structure__move-label text {
   fill: var(--action-selected);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.plan-structure__move-label text { pointer-events: none; }
+.plan-structure--movable .plan-structure__shape { stroke-dasharray: 12 5; }
+.plan-structure--draw-host { cursor: crosshair; }
+.plan-canvas__active-wall {
+  stroke: var(--canvas-selection);
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.plan-wall-label { cursor: pointer; }
+.plan-wall-label rect {
+  fill: var(--surface-base);
+  stroke: var(--border-control);
+  stroke-width: 1;
+}
+.plan-wall-label rect.plan-wall-label__hit { fill: transparent; stroke: none; pointer-events: all; }
+.plan-wall-label text {
+  fill: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 14px;
   font-weight: 600;
   pointer-events: none;
 }
+.plan-wall-label--selected rect:not(.plan-wall-label__hit) {
+  fill: var(--surface-selected);
+  stroke: var(--canvas-selection);
+  stroke-width: 2;
+}
+.plan-wall-label--selected text { fill: var(--action-selected); }
+.plan-wall-label:focus-visible rect:not(.plan-wall-label__hit) { stroke: var(--action-selected); stroke-width: 3; }
+.plan-canvas__gesture-hint {
+  margin: 0;
+  border-radius: var(--radius-8);
+  padding: var(--space-12) var(--space-16);
+  background: var(--state-info-bg);
+  color: var(--state-info-fg);
+  font-size: 14px;
+  line-height: 22px;
+}
+.plan-canvas__validation {
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--state-error-fg);
+  border-radius: var(--radius-8);
+  color: var(--state-error-fg);
+  background: var(--state-error-bg);
+  font-size: 14px;
+  line-height: 22px;
+}
+.plan-canvas__validation p { margin: var(--space-4) 0 0; }
 
 .plan-structure__opening-gap {
   stroke: var(--surface-base);
@@ -543,6 +597,12 @@
 .plan-canvas__legend-element {
   border-color: var(--canvas-structure);
   background: var(--surface-subtle);
+}
+
+.plan-canvas__legend i.plan-canvas__legend-movable {
+  border-color: var(--canvas-selection);
+  border-style: dashed;
+  background: var(--surface-selected);
 }
 
 @media (max-width: 767px) {

@@ -1,5 +1,6 @@
 import type {
   Area,
+  DesignElement,
   ElementKind,
   PlacementTarget,
   Point,
@@ -30,6 +31,8 @@ const TARGETS: Record<ElementKind, readonly TargetKind[]> = {
 
 /** Plan-display tolerance for a camera point on a wall line; not a measured clearance. */
 const CAMERA_WALL_TOLERANCE = 0.008;
+/** Drawing-display tolerance only; it does not assert a measured clearance. */
+const DRAWING_TOLERANCE = 0.003;
 
 export function allowedTargetKinds(kind: ElementKind): readonly TargetKind[] {
   return TARGETS[kind];
@@ -90,6 +93,16 @@ function segmentIntersectsRect(start: Point, end: Point, rect: Rect): boolean {
     if (first > last) return false;
   }
   return true;
+}
+
+/** A passage may end at a wall/entrance boundary, but must not cross a wall inside. */
+function segmentIntersectsRectInterior(start: Point, end: Point, rect: Rect): boolean {
+  const inset = 1e-9;
+  if (rect.width <= inset * 2 || rect.height <= inset * 2) return false;
+  return segmentIntersectsRect(start, end, {
+    x: rect.x + inset, y: rect.y + inset,
+    width: rect.width - inset * 2, height: rect.height - inset * 2,
+  });
 }
 
 function segmentIntersectsCircle(start: Point, end: Point, circle: { center: Point; radius: number }, width: number, height: number): boolean {
@@ -154,8 +167,106 @@ function isPreserved(project: Project, structure: Structure): boolean {
   return !!structure.immutable || structure.protected || project.keeps.some((keep) => keep.structureId === structure.id);
 }
 
+function physicalFloorBounds(project: Project, element: DesignElement, target = element.target): Rect | undefined {
+  if (!project.floorPlan || !target || !['freestanding-fixture', 'furniture', 'standing-light'].includes(element.kind)) return;
+  if (target.kind === 'floor-point') return floorFootprintRect(target, project.floorPlan.width, project.floorPlan.height);
+  if (target.kind === 'floor-area') return areaById(project, target.areaId)?.bounds;
+}
+
+function sameRect(a: Rect, b: Rect): boolean {
+  return (['x', 'y', 'width', 'height'] as const).every((key) => Math.abs(a[key] - b[key]) <= DRAWING_TOLERANCE);
+}
+
+function spanOverlap(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
+  return Math.min(a.end, b.end) - Math.max(a.start, b.start) > DRAWING_TOLERANCE;
+}
+
+function segmentsOverlap(a: Extract<Structure['geometry'], { kind: 'segment' }>, b: Extract<Structure['geometry'], { kind: 'segment' }>): boolean {
+  const dx = a.end.x - a.start.x, dy = a.end.y - a.start.y;
+  const length = Math.hypot(dx, dy);
+  if (!length) return false;
+  const onLine = (point: Point) => Math.abs(dx * (point.y - a.start.y) - dy * (point.x - a.start.x)) / length <= DRAWING_TOLERANCE;
+  if (!onLine(b.start) || !onLine(b.end)) return false;
+  const project = (point: Point) => ((point.x - a.start.x) * dx + (point.y - a.start.y) * dy) / (length * length);
+  const first = project(b.start), last = project(b.end);
+  return (Math.min(1, Math.max(first, last)) - Math.max(0, Math.min(first, last))) * length > DRAWING_TOLERANCE;
+}
+
+/** Junctions at segment ends are valid; crossing through a wall's interior is not. */
+function segmentsCross(a: Extract<Structure['geometry'], { kind: 'segment' }>, b: Extract<Structure['geometry'], { kind: 'segment' }>): boolean {
+  const ax = a.end.x - a.start.x, ay = a.end.y - a.start.y;
+  const bx = b.end.x - b.start.x, by = b.end.y - b.start.y;
+  const cross = ax * by - ay * bx;
+  if (Math.abs(cross) < Number.EPSILON) return false;
+  const dx = b.start.x - a.start.x, dy = b.start.y - a.start.y;
+  const at = (dx * by - dy * bx) / cross;
+  const bt = (dx * ay - dy * ax) / cross;
+  return at > DRAWING_TOLERANCE && at < 1 - DRAWING_TOLERANCE && bt >= 0 && bt <= 1;
+}
+
+function geometryOverlaps(project: Project, a: Structure['geometry'], b: Structure['geometry']): boolean {
+  const plan = project.floorPlan!;
+  if (a.kind === 'segment') {
+    if (b.kind === 'segment') return segmentsOverlap(a, b);
+    if (b.kind === 'rect') return segmentIntersectsRect(a.start, a.end, b.bounds);
+    return segmentIntersectsCircle(a.start, a.end, b, plan.width, plan.height);
+  }
+  if (a.kind === 'rect') {
+    if (b.kind === 'rect') return intersects(a.bounds, b.bounds);
+    if (b.kind === 'circle') return circleIntersectsRect(b, a.bounds, plan.width, plan.height);
+    return segmentIntersectsRect(b.start, b.end, a.bounds);
+  }
+  if (b.kind === 'rect') return circleIntersectsRect(a, b.bounds, plan.width, plan.height);
+  if (b.kind === 'segment') return segmentIntersectsCircle(b.start, b.end, a, plan.width, plan.height);
+  const radius = (a.radius + b.radius) * Math.min(plan.width, plan.height);
+  return Math.hypot((a.center.x - b.center.x) * plan.width, (a.center.y - b.center.y) * plan.height) < radius;
+}
+
+function geometryIntersectsRect(project: Project, geometry: Structure['geometry'], rect: Rect): boolean {
+  if (geometry.kind === 'rect') return intersects(geometry.bounds, rect);
+  if (geometry.kind === 'segment') return segmentIntersectsRect(geometry.start, geometry.end, rect);
+  return circleIntersectsRect(geometry, rect, project.floorPlan!.width, project.floorPlan!.height);
+}
+
+/** A zone is the ceiling fixture's reserved extent until an exact footprint is supported. */
+function ceilingBounds(project: Project, target: PlacementTarget | null): Rect | undefined {
+  return target?.kind === 'ceiling-zone' ? areaById(project, target.zoneId)?.bounds : undefined;
+}
+
+function validateElementOccupancy(project: Project, element: DesignElement, target: PlacementTarget): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const floor = physicalFloorBounds(project, element, target);
+  const ceiling = ceilingBounds(project, target);
+  const wallPhysical = ['photozone', 'wall-graphic', 'wall-mounted-product', 'wall-light'].includes(element.kind);
+  for (const other of project.elements) {
+    if (other.id === element.id || other.status !== 'apply' || !other.target) continue;
+    let overlap = false;
+    const otherFloor = physicalFloorBounds(project, other);
+    if (floor && otherFloor && validRect(floor) && validRect(otherFloor)) overlap = intersects(floor, otherFloor);
+    if (target.kind === 'wall-segment' && other.target.kind === 'wall-segment' && target.wallId === other.target.wallId) {
+      const sameLayer = wallPhysical && ['photozone', 'wall-graphic', 'wall-mounted-product', 'wall-light'].includes(other.kind) || element.kind === 'wall-material' && other.kind === 'wall-material';
+      if (sameLayer) overlap = spanOverlap(target, other.target);
+    }
+    const otherCeiling = ceilingBounds(project, other.target);
+    if (ceiling && otherCeiling) overlap = intersects(ceiling, otherCeiling);
+    if (element.kind === 'floor-material' && other.kind === 'floor-material' && target.kind === 'floor-area' && other.target.kind === 'floor-area') {
+      const area = areaById(project, target.areaId), otherArea = areaById(project, other.target.areaId);
+      if (area && otherArea) overlap = intersects(area.bounds, otherArea.bounds);
+    }
+    if (overlap) issues.push(error('element-overlap', ceiling
+      ? `${other.label}이(가) 이미 이 천장 영역을 사용합니다. 정확한 점유 크기가 없는 천장 요소는 영역 전체를 사용하므로, 비어 있는 더 작은 천장 영역을 그려 선택해 주세요.`
+      : `${other.label}이(가) 이미 이 위치를 사용하고 있습니다. 같은 바닥·벽 위치에 두 요소를 겹쳐 배치할 수 없습니다. 다른 위치나 더 작은 영역을 선택해 주세요.`, element.id));
+  }
+  if (ceiling) {
+    for (const fixture of project.floorPlan!.structures.filter((item) => item.kind === 'existing-light')) {
+      if (geometryIntersectsRect(project, fixture.geometry, ceiling)) issues.push(error('element-overlap', `${fixture.name}이(가) 있는 천장 위치입니다. 기존 조명을 피한 천장 영역을 선택해 주세요.`, element.id, fixture.id));
+    }
+  }
+  return issues;
+}
+
 /** Validate the proposed geometry, not just whether a partition may be edited. */
-export function validatePartitionPlacement(project: Project, start: Point, end: Point): ValidationResult {
+export function validatePartitionPlacement(project: Project, start: Point, end: Point, ignoredStructureId?: string): ValidationResult {
   const plan = project.floorPlan;
   if (!plan) return result([error('missing-plan', '가벽을 표시하려면 먼저 도면이 필요합니다.')]);
   if (![start.x, start.y, end.x, end.y].every(isFraction) || Math.hypot(end.x - start.x, end.y - start.y) < 0.02) {
@@ -188,6 +299,13 @@ export function validatePartitionPlacement(project: Project, start: Point, end: 
     }
   }
   for (const structure of plan.structures) {
+    if (structure.id === ignoredStructureId) continue;
+    if (structure.kind === 'wall' && structure.geometry.kind === 'segment') {
+      const candidate = { kind: 'segment' as const, start, end };
+      if (segmentsOverlap(candidate, structure.geometry) || segmentsCross(candidate, structure.geometry)) {
+        issues.push(error('structure-overlap', `${structure.name} 벽 선과 겹치거나 가로지릅니다. 다른 위치에 가벽을 그려 주세요.`, undefined, structure.id));
+      }
+    }
     if (structure.kind === 'pillar') {
       const hit = structure.geometry.kind === 'rect'
         ? segmentIntersectsRect(start, end, structure.geometry.bounds)
@@ -202,6 +320,108 @@ export function validatePartitionPlacement(project: Project, start: Point, end: 
   for (const area of plan.areas) {
     if (area.kind === 'passage' && segmentIntersectsRect(start, end, area.bounds)) {
       issues.push(error('passage-blocked', `가벽이 ${area.name} 동선을 가로지릅니다.`));
+    }
+  }
+  return result(issues);
+}
+
+/** Validates new structure markings before they become preserved source geometry. */
+export function validateStructureDrawing(project: Project, candidate: Structure, ignoredStructureId?: string): ValidationResult {
+  const plan = project.floorPlan;
+  if (!plan) return result([error('missing-plan', '구조를 그리려면 먼저 도면이 필요합니다.')]);
+  const geometry = candidate.geometry;
+  const valid = geometry.kind === 'segment'
+    ? [geometry.start.x, geometry.start.y, geometry.end.x, geometry.end.y].every(isFraction) && Math.hypot(geometry.end.x - geometry.start.x, geometry.end.y - geometry.start.y) > DRAWING_TOLERANCE
+    : geometry.kind === 'rect' ? validRect(geometry.bounds)
+      : [geometry.center.x, geometry.center.y].every(isFraction) && Number.isFinite(geometry.radius) && geometry.radius > 0 && validRect({
+        x: geometry.center.x - geometry.radius * Math.min(plan.width, plan.height) / plan.width,
+        y: geometry.center.y - geometry.radius * Math.min(plan.width, plan.height) / plan.height,
+        width: geometry.radius * 2 * Math.min(plan.width, plan.height) / plan.width,
+        height: geometry.radius * 2 * Math.min(plan.width, plan.height) / plan.height,
+      });
+  if (!valid) return result([error('invalid-coordinate', '구조의 전체 표시가 도면 안에 들어오도록 위치와 크기를 지정해 주세요.')]);
+  const issues: ValidationIssue[] = [];
+  const openings = ['window', 'door', 'entrance'];
+  if (openings.includes(candidate.kind)) {
+    const wall = structureById(project, candidate.parentWallId ?? '');
+    const span = candidate.wallSpan;
+    if (!wall || wall.kind !== 'wall' || wall.geometry.kind !== 'segment') return result([error('missing-structure', '창·문·출입구를 붙일 벽을 도면에서 선택해 주세요.')]);
+    if (!span || !isFraction(span.start) || !isFraction(span.end) || span.start >= span.end || geometry.kind !== 'segment' || !segmentsOverlap(wall.geometry, geometry)) {
+      return result([error('invalid-coordinate', `${wall.name}의 강조된 선을 따라 시작점에서 끝점까지 끌어 주세요.`, undefined, wall.id)]);
+    }
+    for (const other of plan.structures) {
+      if (other.id === ignoredStructureId || other.parentWallId !== wall.id || !other.wallSpan || !openings.includes(other.kind) || !spanOverlap(span, other.wallSpan)) continue;
+      // A door and its entrance describe the same opening; two doors/windows do not.
+      const sharedDoorOpening = (candidate.kind === 'door' && other.kind === 'entrance' || candidate.kind === 'entrance' && other.kind === 'door') &&
+        Math.abs(span.start - other.wallSpan.start) <= DRAWING_TOLERANCE && Math.abs(span.end - other.wallSpan.end) <= DRAWING_TOLERANCE;
+      if (!sharedDoorOpening) issues.push(error('opening-overlap', `${other.name}이(가) 이미 이 벽 구간에 있습니다. 비어 있는 벽 구간을 선택해 주세요.`, undefined, other.id));
+    }
+    for (const element of project.elements) {
+      if (element.status === 'apply' && element.target?.kind === 'wall-segment' && element.target.wallId === wall.id && spanOverlap(span, element.target)) {
+        issues.push(error('element-overlap', `${element.label}이(가) 배치된 벽 구간입니다. 요소를 먼저 옮기거나 다른 벽 구간을 선택해 주세요.`, element.id));
+      }
+      const occupied = element.status === 'apply' ? physicalFloorBounds(project, element) : undefined;
+      if (candidate.clearance && occupied && intersects(candidate.clearance, occupied)) {
+        issues.push(error('door-clearance', `${element.label}이(가) 놓인 바닥과 문 여닫이·출입 공간이 겹칩니다. 요소를 먼저 옮기거나 다른 개구부 위치를 선택해 주세요.`, element.id));
+      }
+    }
+  } else {
+    for (const other of plan.structures) {
+      if (other.id === ignoredStructureId || other.kind !== candidate.kind) continue;
+      if (geometryOverlaps(project, geometry, other.geometry)) issues.push(error('structure-overlap', `${other.name}이(가) 이미 이 위치에 있습니다. 같은 구조를 겹쳐 그릴 수 없습니다.`, undefined, other.id));
+    }
+  }
+  if (candidate.kind === 'wall' && geometry.kind === 'segment') {
+    // Original structure may be marked before a usable floor is registered. Its
+    // geometry still cannot silently intersect already placed elements/cameras.
+    const placementIssues = validatePartitionPlacement(project, geometry.start, geometry.end, ignoredStructureId).issues;
+    return result(placementIssues.filter((issue) => candidate.immutable === false || issue.code !== 'outside-floor').map((issue) => ({
+      ...issue, message: issue.message.replace(/^가벽이 /, `${candidate.name}이(가) `),
+    })));
+  }
+  if (candidate.kind === 'pillar' || candidate.kind === 'existing-light') {
+    for (const element of project.elements) {
+      if (element.status !== 'apply') continue;
+      const occupied = candidate.kind === 'pillar' ? physicalFloorBounds(project, element) : ceilingBounds(project, element.target);
+      if (occupied && geometryIntersectsRect(project, geometry, occupied)) issues.push(error('element-overlap', `${element.label}이(가) 사용 중인 위치입니다. 요소를 먼저 옮기거나 다른 위치를 선택해 주세요.`, element.id));
+    }
+    if (candidate.kind === 'pillar') {
+      for (const area of plan.areas) {
+        if (area.kind === 'passage' && geometryIntersectsRect(project, geometry, area.bounds)) issues.push(error('passage-blocked', `${area.name} 동선에 기둥을 겹쳐 그릴 수 없습니다. 동선 표시를 먼저 수정해 주세요.`));
+      }
+      for (const opening of plan.structures) {
+        if (opening.clearance && geometryIntersectsRect(project, geometry, opening.clearance)) issues.push(error('door-clearance', `${opening.name}의 여닫이·출입 공간과 겹칩니다.`, undefined, opening.id));
+      }
+      for (const camera of project.cameras) {
+        const inside = geometry.kind === 'rect' ? containsPoint(geometry.bounds, camera)
+          : geometry.kind === 'circle' && circleContainsPoint(geometry, camera, plan.width, plan.height);
+        if (inside) issues.push({ ...error('invalid-camera', `${camera.name} 카메라가 있는 위치입니다. 카메라를 먼저 옮기거나 다른 위치를 선택해 주세요.`), cameraId: camera.id });
+      }
+    }
+  }
+  return result(issues);
+}
+
+/** Areas are semantic layers: floor/ceiling and connected passage regions may overlap. */
+export function validateAreaDrawing(project: Project, candidate: Area, ignoredAreaId?: string): ValidationResult {
+  const plan = project.floorPlan;
+  if (!plan) return result([error('missing-plan', '영역을 그리려면 먼저 도면이 필요합니다.')]);
+  if (!validRect(candidate.bounds)) return result([error('invalid-coordinate', '영역의 전체 표시가 도면 안에 들어오도록 그려 주세요.')]);
+  const issues: ValidationIssue[] = [];
+  for (const other of plan.areas) {
+    if (other.id !== ignoredAreaId && other.kind === candidate.kind && sameRect(candidate.bounds, other.bounds)) issues.push(error('area-overlap', `${other.name}이(가) 같은 위치와 크기로 이미 표시돼 있습니다. 기존 영역을 사용하거나 다른 범위를 그려 주세요.`));
+  }
+  if (candidate.kind === 'passage') {
+    for (const structure of plan.structures) {
+      if (structure.kind === 'pillar' && geometryIntersectsRect(project, structure.geometry, candidate.bounds)) issues.push(error('pillar-collision', `${structure.name}이(가) 있는 곳은 통행 동선으로 표시할 수 없습니다. 기둥을 피해 그려 주세요.`, undefined, structure.id));
+      if (structure.kind === 'wall' && structure.geometry.kind === 'segment' && segmentIntersectsRectInterior(structure.geometry.start, structure.geometry.end, candidate.bounds)) {
+        issues.push(error(structure.immutable === false ? 'partition-conflict' : 'structure-overlap', `${structure.name} 벽을 가로질러 동선을 표시할 수 없습니다. 벽의 안쪽 바닥에 그려 주세요.`, undefined, structure.id));
+      }
+    }
+    for (const element of project.elements) {
+      if (element.status !== 'apply') continue;
+      const occupied = physicalFloorBounds(project, element);
+      if (occupied && intersects(candidate.bounds, occupied)) issues.push(error('element-overlap', `${element.label}이(가) 놓인 바닥은 통행 동선으로 표시할 수 없습니다. 요소를 옮기거나 동선 범위를 바꿔 주세요.`, element.id));
     }
   }
   return result(issues);
@@ -225,9 +445,9 @@ function validateFloorPoint(project: Project, elementId: string, target: Extract
   }
 
   for (const structure of project.floorPlan!.structures) {
-    if (structure.kind === 'wall' && structure.immutable === false && structure.geometry.kind === 'segment' &&
+    if (structure.kind === 'wall' && structure.geometry.kind === 'segment' &&
         segmentIntersectsRect(structure.geometry.start, structure.geometry.end, footprintRect)) {
-      issues.push(error('partition-conflict', `${structure.name} 가벽과 겹칩니다. 다른 바닥 위치를 선택해 주세요.`, elementId, structure.id));
+      issues.push(error(structure.immutable === false ? 'partition-conflict' : 'structure-overlap', `${structure.name} ${structure.immutable === false ? '가벽' : '벽'}과 겹칩니다. 다른 바닥 위치를 선택해 주세요.`, elementId, structure.id));
     }
     if (structure.kind === 'pillar') {
       const collides = structure.geometry.kind === 'rect'
@@ -299,22 +519,23 @@ export function validatePlacement(project: Project, elementId: string, target: P
   if (!allowedTargetKinds(element.kind).includes(target.kind)) {
     return result([error('invalid-target-kind', `${element.label}은(는) ${allowedTargetKinds(element.kind).map(targetLabel).join(' 또는 ')}에만 배치할 수 있습니다.`, elementId)]);
   }
+  const occupancy = validateElementOccupancy(project, element, target);
 
   switch (target.kind) {
     case 'floor-point':
-      return result(validateFloorPoint(project, elementId, target));
+      return result([...validateFloorPoint(project, elementId, target), ...occupancy]);
     case 'floor-area': {
       const area = areaById(project, target.areaId);
       if (!area) return result([error('missing-area', '선택한 바닥 영역을 찾을 수 없습니다.', elementId)]);
       if (area.kind !== 'floor') return result([error('invalid-area-kind', '바닥 영역만 선택할 수 있습니다.', elementId)]);
       // A material covers the floor itself. A physical fixture assigned to a bounded
       // zone must have the entire zone clear, since its exact footprint is unknown.
-      if (element.kind === 'floor-material') return result([]);
+      if (element.kind === 'floor-material') return result(occupancy);
       const conflicts: ValidationIssue[] = [];
       for (const structure of project.floorPlan.structures) {
-        if (structure.kind === 'wall' && structure.immutable === false && structure.geometry.kind === 'segment' &&
+        if (structure.kind === 'wall' && structure.geometry.kind === 'segment' &&
             segmentIntersectsRect(structure.geometry.start, structure.geometry.end, area.bounds)) {
-          conflicts.push(error('partition-conflict', `${area.name}이(가) ${structure.name} 가벽과 겹칩니다. 더 작은 바닥 영역을 지정해 주세요.`, elementId, structure.id));
+          conflicts.push(error(structure.immutable === false ? 'partition-conflict' : 'structure-overlap', `${area.name}이(가) ${structure.name} 벽과 겹칩니다. 더 작은 바닥 영역을 지정해 주세요.`, elementId, structure.id));
         }
         if (structure.kind === 'pillar' && (
           structure.geometry.kind === 'rect' && intersects(area.bounds, structure.geometry.bounds) ||
@@ -331,10 +552,10 @@ export function validatePlacement(project: Project, elementId: string, target: P
       for (const passage of project.floorPlan.areas.filter((entry) => entry.kind === 'passage')) {
         if (intersects(area.bounds, passage.bounds)) conflicts.push(error('passage-blocked', `${area.name}이(가) ${passage.name} 동선과 겹칩니다.`, elementId));
       }
-      return result(conflicts);
+      return result([...conflicts, ...occupancy]);
     }
     case 'wall-segment':
-      return result(validateWallSegment(project, elementId, element.kind, target));
+      return result([...validateWallSegment(project, elementId, element.kind, target), ...occupancy]);
     case 'ceiling-zone': {
       const area = areaById(project, target.zoneId);
       if (!area) return result([error('missing-area', '선택한 천장 영역을 찾을 수 없습니다.', elementId)]);
@@ -342,7 +563,7 @@ export function validatePlacement(project: Project, elementId: string, target: P
       if (target.offset && (!isFraction(target.offset.x) || !isFraction(target.offset.y))) {
         return result([error('invalid-coordinate', '천장 영역 안의 위치를 지정해 주세요.', elementId)]);
       }
-      return result([]);
+      return result(occupancy);
     }
     case 'whole-space':
       return result([]);
@@ -444,7 +665,7 @@ export function validatePreflight(project: Project, previewCameraId?: string): V
   }
   for (const structure of project.floorPlan?.structures ?? []) {
     if (structure.kind === 'wall' && structure.immutable === false && structure.geometry.kind === 'segment') {
-      issues.push(...validatePartitionPlacement(project, structure.geometry.start, structure.geometry.end).issues);
+      issues.push(...validatePartitionPlacement(project, structure.geometry.start, structure.geometry.end, structure.id).issues);
     }
   }
 

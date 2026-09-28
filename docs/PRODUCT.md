@@ -22,6 +22,8 @@ Projects → create/edit project name, type, concept → register existing-space
 7. Results: main large image, condition inspector, revision/history, approved/exported images, optional additional viewpoints and one simple moodboard. History and approved images use previous/next and drag navigation with the current/total position, while the approved collection centers its active image with a small preview of each available neighbor. Do not require two more viewpoints to finish a project.
 
 ## Feedback and action clarity
+Space setup uses clearly named structure tools and area purposes with direct drawing guidance. A host wall is identified by name and highlight on the actual plan, with snapping for window/door/entrance gestures. Selecting/moving shows which partitions really can move and says when none exists. Prevent duplicate markings and same-layer physical object overlap without forbidding legitimate floor, ceiling and ambience layering; failed drawings leave the saved plan intact.
+
 Short informational and success notices begin fading after three seconds and retain immediate manual dismissal. Blocking validation or other messages that a user must read remain visible until dismissed or resolved. “새 미리보기 열기” acts on the current conditions; “결과 이력 보기” navigates to previously saved results. The two actions must not appear as duplicate controls for the same destination. A preflight synthesis explains which preserved structures, applied/excluded elements and viewpoint define the proposed concept; it is a summary of user settings, not a prediction or generated image.
 
 ## Demo and generation boundary

@@ -1,5 +1,13 @@
 # Acceptance test matrix
 
+## Space drawing regression cases · 2026-09-28
+
+- Window/door/entrance tools name and highlight the host wall on the visible plan. Wall name/line click changes the host without adding a zero-length opening; a nearby start and off-line drag snap to the same wall. Empty-floor and tiny gestures explain the next action beside the canvas.
+- A successfully drawn point/segment/rectangle returns to selecting/moving. Escape, canceled pointer capture and switching tools or projects cancel unfinished geometry. Numeric alternatives run the same validators.
+- Only movable, unkept, unprotected partitions show movement labels and dashed strokes before selection. Drag both the line and label; retain length, direction and initial grab offset. Arrow keys move the selected partition. Plans without a partition give an accurate no-movable-partition state.
+- Reject a duplicate pillar/wall/light, occupied wall opening and same-kind identical area. New passages cannot cover physical floor items, pillars or walls. A rejected drawing leaves the plan unchanged.
+- Two physical floor items cannot overlap; wall decorations cannot share the same span; ceiling fixtures cannot reserve overlapping zones. Floor-vs-ceiling, ambience layers, smaller named scopes and allowed removable graphics on a Keep wall remain valid. Invalid edits retain the previous valid target.
+
 1. Start without credentials and create/open sample project; every page works, no pretend AI invocation. No map UI/routes/data/dependencies.
 2. Add existing-space image, inspiration mood image and product image; each shows distinct role; user cannot mistake a mood image for measured plan.
 3. Add/load schematic plan and label its unmeasured status; its four starting boundary walls have mandatory Keeps. The Space screen distinguishes a prepared sample, a user-started schematic and an uploaded plan, explains that no geometry is inferred from photos/uploads, and offers working structure and usable-floor/passage actions beside the plan. The canvas stays visible when switching structure and area tools. Verify point click, segment drag and rectangle drag each commit a visible, validated result; invalid drawings leave prior geometry intact with a reason. Place further structural wall/window/door/pillar; register each as original mandatory structure or removable partition as appropriate. Numeric coordinates remain a keyboard alternative. Keep selections persist across navigation.

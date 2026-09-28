@@ -53,6 +53,7 @@ describe('reference crop API gate', () => {
     const { request, response, result, body } = requestAndResponse()
     body.project.elements[0].sourceRegion = { x: 0.1, y: 0.2, width: 0.3, height: 0.4 }
     body.project.elements.push({ ...body.project.elements[0], id: 'second-display',
+      target: { kind: 'floor-point', x: .75, y: .55, footprint: { width: .17, height: .12 } },
       sourceRegion: { x: 0.6, y: 0.5, width: 0.2, height: 0.2 } })
     const preparation = referencePreparationFor(body.project, 'photo-product')!
     body.images[3] = { ...body.images[3], referencePreparation: { ...preparation, regions: [...preparation.regions].reverse() } }
@@ -77,6 +78,7 @@ describe('reference crop API gate', () => {
     const { request, response, result, body } = requestAndResponse()
     body.project.elements[0].sourceRegion = { x: 0.1, y: 0.2, width: 0.3, height: 0.4 }
     body.project.elements.push({ ...body.project.elements[0], id: 'second-display',
+      target: { kind: 'floor-point', x: .75, y: .55, footprint: { width: .17, height: .12 } },
       sourceRegion: { x: 0.6, y: 0.5, width: 0.2, height: 0.2 } })
     body.images[3] = { ...body.images[3], referencePreparation: referencePreparationFor(body.project, 'photo-product') }
     await generate(request, response)

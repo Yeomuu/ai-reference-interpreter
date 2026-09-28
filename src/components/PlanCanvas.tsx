@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import type { DesignElement, FloorPlan, Point, Project, Structure } from '../domain/types';
 import { resolveImageUri, revokeImageUrl } from '../services/assets';
+import { projectOntoWall, wallNearPointer } from './plan-drawing';
 import './plan-canvas.css';
 
 export interface PlanCanvasProps {
@@ -11,7 +12,10 @@ export interface PlanCanvasProps {
   selectedCameraId?: string;
   mode: 'view' | 'keep' | 'place' | 'camera';
   drawTool?: 'point' | 'segment' | 'rect';
-  onDraw?: (start: Point, end: Point) => void;
+  drawWallId?: string;
+  validationMessage?: string;
+  onDrawWallSelect?: (id: string) => void;
+  onDraw?: (start: Point, end: Point, wallId?: string) => void;
   onStructureSelect?: (id: string) => void;
   onStructureMove?: (id: string, start: Point, end: Point) => void;
   onPlacePoint?: (x: number, y: number) => void;
@@ -58,7 +62,7 @@ type Preview = {
   wall?: { wallId: string; start: number; end: number };
   structure?: { start: Point; end: Point };
 };
-type DrawDraft = { pointerId: number; start: Point; end: Point };
+type DrawDraft = { pointerId: number; start: Point; end: Point; wallId?: string; clientStart: Point };
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
@@ -112,6 +116,9 @@ export default function PlanCanvas({
   selectedCameraId,
   mode,
   drawTool,
+  drawWallId,
+  validationMessage,
+  onDrawWallSelect,
   onDraw,
   onStructureSelect,
   onStructureMove,
@@ -135,6 +142,7 @@ export default function PlanCanvas({
   const [zoom, setZoom] = useState(1);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [drawDraft, setDrawDraft] = useState<DrawDraft | null>(null);
+  const [gestureHint, setGestureHint] = useState<string | null>(null);
   const [layers, setLayers] = useState({ structures: true, elements: true, cameras: true });
   const [imageState, setImageState] = useState<{ sourceUri: string; url?: string; error?: string } | null>(null);
   const [canvasDisplay, setCanvasDisplay] = useState({ scale: 1, narrow: false });
@@ -183,6 +191,18 @@ export default function PlanCanvas({
     };
   }, [sourceUri]);
 
+  useEffect(() => () => {
+    const pointerId = drawRef.current?.pointerId ?? dragRef.current?.pointerId;
+    const svg = svgRef.current;
+    if (pointerId !== undefined && svg?.hasPointerCapture(pointerId)) svg.releasePointerCapture(pointerId);
+    drawRef.current = null;
+    dragRef.current = null;
+    previewRef.current = null;
+    setDrawDraft(null);
+    setPreview(null);
+    setGestureHint(null);
+  }, [drawTool, project.id]);
+
   if (!plan) {
     return <div className="plan-canvas plan-canvas--empty" role="status">도면이 없습니다. 공간 자료에서 도면을 등록하거나 개략 도면을 만들어 주세요.</div>;
   }
@@ -195,19 +215,22 @@ export default function PlanCanvas({
   const imageError = sourceUri && imageState?.sourceUri === sourceUri ? imageState.error : undefined;
   const keepNumbers = new Map(project.keeps.map((keep, index) => [keep.structureId, index + 1]));
   const activeElements = project.elements.filter((element) => element.status === 'apply' && element.target);
+  const movablePartitions = plan.structures.filter((structure) => structure.kind === 'wall' && structure.geometry.kind === 'segment' && structure.immutable === false && !structure.protected && !keepNumbers.has(structure.id) && !plan.structures.some((child) => child.parentWallId === structure.id));
+  const wallDrawing = drawTool === 'segment' && Boolean(onDrawWallSelect);
+  const activeDrawWall = plan.structures.find((structure) => structure.id === (drawDraft?.wallId ?? drawWallId));
   const modeInstruction = drawTool === 'point'
-    ? '도면을 눌러 선택한 구조의 위치를 표시하세요. 표시 위치는 실측 좌표가 아닙니다.'
+    ? '원하는 위치를 한 번 누르면 구조가 추가됩니다.'
     : drawTool === 'segment'
-      ? '도면에서 시작점부터 끝점까지 끌어 선을 그리세요. 창·문·출입구는 연결 벽을 먼저 선택하고 그 벽 위를 따라 그립니다.'
+      ? wallDrawing ? `${activeDrawWall?.name ?? '연결할 벽'}의 선에서 시작해 원하는 길이만큼 끌어 주세요. 다른 벽의 선을 누르면 연결 벽이 바뀝니다.` : '시작 위치를 누른 채 끝 위치까지 끌어 주세요. 마우스를 놓으면 선이 추가됩니다.'
       : drawTool === 'rect'
-        ? '도면에서 시작점부터 끝점까지 끌어 영역을 표시하세요. 바닥과 통행 동선을 직접 구분해 주세요.'
+        ? '한쪽 모서리를 누른 채 반대쪽 모서리까지 끌어 주세요. 마우스를 놓으면 범위가 추가됩니다.'
         : mode === 'place'
     ? '바닥 요소는 끌어서 이동하거나 회전 손잡이를 쓰세요. 벽 요소의 번호는 벽을 따라 끌 수 있습니다. 빈 바닥 클릭은 선택한 요소를 배치합니다. 기존 벽·기둥은 고정 구조입니다.'
     : mode === 'camera'
       ? '카메라 본체를 끌면 위치가 이동합니다. 본체와 떨어진 회전 손잡이를 끌면 시선 각도만 바뀝니다. 빈 바닥을 눌러도 카메라는 이동하지 않습니다.'
       : mode === 'keep'
-        ? '기존 구조물은 고정입니다. 추가한 가벽은 Keep이 없을 때 끌어서 이동할 수 있습니다. 구조물을 선택해 보존 조건을 확인하세요.'
-        : '도면의 구조와 Keep을 확인하세요. 사진을 분석해 만든 도면이나 자동 측정 결과가 아닙니다. 추가 가벽은 끌어서 이동할 수 있습니다.';
+        ? `구조를 선택해 보존 조건을 확인하세요. ${movablePartitions.length ? '‘이동 가능’이 붙은 가벽의 선이나 이름을 끌면 위치가 바뀝니다.' : '현재 이동 가능한 가벽이 없습니다. 기존 구조는 위치가 고정됩니다.'}`
+        : movablePartitions.length ? '‘이동 가능’이 붙은 가벽의 선이나 이름을 끌어 위치를 바꾸세요. 빈 공간을 끌면 도면은 이동하지 않습니다.' : '현재 이동 가능한 가벽이 없습니다. 구조 그리기에서 ‘추가 가벽’을 먼저 그려 주세요. 기존 벽과 기둥은 위치가 고정됩니다.';
   const showElements = mode === 'place' || mode === 'camera';
   const showCameras = mode === 'camera';
   const showStructureLayer = Boolean(drawTool) || layers.structures;
@@ -242,9 +265,20 @@ export default function PlanCanvas({
     if (!drawTool || !onDraw || event.button !== 0) return;
     const position = svgPosition(event);
     if (!position || position.x < 0 || position.x > 1 || position.y < 0 || position.y > 1) return;
-    const draft = { pointerId: event.pointerId, start: position, end: position };
+    let start = position;
+    let wallId: string | undefined;
+    if (wallDrawing) {
+      const hit = wallNearPointer(position, activePlan.structures, width, height, contentPixelScale);
+      if (!hit) { setGestureHint('이 구조는 벽에 붙여 그립니다. 이름이 표시된 벽의 선 위에서 드래그를 시작해 주세요.'); return; }
+      wallId = hit.wall.id;
+      start = hit.point;
+      onDrawWallSelect?.(wallId);
+    }
+    setGestureHint(null);
+    const draft = { pointerId: event.pointerId, start, end: start, wallId, clientStart: { x: event.clientX, y: event.clientY } };
     drawRef.current = draft;
     setDrawDraft(draft);
+    event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   }
@@ -254,7 +288,9 @@ export default function PlanCanvas({
     if (!drawTool || !draft || draft.pointerId !== event.pointerId) return false;
     const position = svgPosition(event);
     if (!position) return true;
-    const next = { ...draft, end: { x: clamp(position.x, 0, 1), y: clamp(position.y, 0, 1) } };
+    const wall = draft.wallId && activePlan.structures.find((item) => item.id === draft.wallId);
+    const end = wall ? projectOntoWall(position, wall, width, height)?.point ?? draft.end : { x: clamp(position.x, 0, 1), y: clamp(position.y, 0, 1) };
+    const next = { ...draft, end };
     drawRef.current = next;
     setDrawDraft(next);
     return true;
@@ -268,19 +304,25 @@ export default function PlanCanvas({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (event.type !== 'pointercancel') {
       const position = svgPosition(event);
-      const end = position ? { x: clamp(position.x, 0, 1), y: clamp(position.y, 0, 1) } : draft.end;
-      onDraw?.(draft.start, end);
+      const wall = draft.wallId && activePlan.structures.find((item) => item.id === draft.wallId);
+      const end = position ? wall ? projectOntoWall(position, wall, width, height)?.point ?? draft.end : { x: clamp(position.x, 0, 1), y: clamp(position.y, 0, 1) } : draft.end;
+      if (drawTool !== 'point' && Math.hypot(event.clientX - draft.clientStart.x, event.clientY - draft.clientStart.y) < 4) {
+        setGestureHint(wall ? `${wall.name}을 연결 벽으로 선택했습니다. 이 벽의 선을 누른 채 끌어 길이를 정해 주세요.` : '클릭만으로는 선이나 영역이 추가되지 않습니다. 마우스를 누른 채 원하는 끝 위치까지 끌어 주세요.');
+        return true;
+      }
+      onDraw?.(draft.start, drawTool === 'point' ? draft.start : end, draft.wallId);
     }
     return true;
   }
 
   function handleStructureSelect(structure: Structure) {
-    if (mode === 'place' && structure.kind === 'wall') onWallSelect?.(structure.id);
+    if (wallDrawing && structure.kind === 'wall') onDrawWallSelect?.(structure.id);
+    else if (mode === 'place' && structure.kind === 'wall') onWallSelect?.(structure.id);
     else onStructureSelect?.(structure.id);
   }
 
   function handleStructureKeyDown(event: KeyboardEvent<SVGGElement>, structure: Structure) {
-    if (structure.kind === 'wall' && structure.geometry.kind === 'segment' && structure.immutable === false && !keepNumbers.has(structure.id) && onStructureMove && (mode === 'view' || mode === 'keep')) {
+    if (!drawTool && structure.geometry.kind === 'segment' && movablePartitions.some((partition) => partition.id === structure.id) && onStructureMove && (mode === 'view' || mode === 'keep')) {
       const step = event.shiftKey ? 0.05 : 0.01;
       const offsets: Record<string, Point> = {
         ArrowLeft: { x: -step, y: 0 }, ArrowRight: { x: step, y: 0 },
@@ -324,6 +366,7 @@ export default function PlanCanvas({
       moved: false, center, wall, structure,
       pointerOffset: pointer && center ? { x: center.x - pointer.x, y: center.y - pointer.y } : undefined,
     };
+    svgRef.current?.focus({ preventScroll: true });
     svgRef.current?.setPointerCapture(event.pointerId);
     if (kind.startsWith('element') || kind === 'wall-element-move') onElementSelect?.(id);
     if (kind.startsWith('camera')) onCameraSelect?.(id);
@@ -390,6 +433,16 @@ export default function PlanCanvas({
     if (last.kind === 'structure-move' && last.structure) onStructureMove?.(last.id, last.structure.start, last.structure.end);
     if (last.kind === 'camera-move' && last.point) onCameraMove?.(last.id, last.point.x, last.point.y);
     if (last.kind === 'camera-rotate' && last.degrees !== undefined) onCameraRotate?.(last.id, last.degrees);
+  }
+
+  function cancelGesture() {
+    const pointerId = drawRef.current?.pointerId ?? dragRef.current?.pointerId;
+    if (pointerId !== undefined && svgRef.current?.hasPointerCapture(pointerId)) svgRef.current.releasePointerCapture(pointerId);
+    drawRef.current = null;
+    dragRef.current = null;
+    previewRef.current = null;
+    setDrawDraft(null);
+    setPreview(null);
   }
 
   function handleMoveKeyDown(event: KeyboardEvent<SVGGElement>, owner: 'element' | 'camera', id: string, point: Point) {
@@ -467,24 +520,26 @@ export default function PlanCanvas({
   }
 
   function renderStructure(structure: Structure) {
-    const selected = structure.id === selectedStructureId;
+    const drawHost = wallDrawing && structure.kind === 'wall' && structure.geometry.kind === 'segment';
+    const selected = drawHost ? structure.id === activeDrawWall?.id : structure.id === selectedStructureId;
     const kept = keepNumbers.has(structure.id);
     const structurePreview = preview?.kind === 'structure-move' && preview.id === structure.id ? preview.structure : undefined;
     const geometry = structurePreview && structure.geometry.kind === 'segment'
       ? { kind: 'segment' as const, start: structurePreview.start, end: structurePreview.end }
       : structure.geometry;
     const center = structureCenter({ ...structure, geometry });
-    const movable = !drawTool && structure.kind === 'wall' && geometry.kind === 'segment' && structure.immutable === false && !kept
+    const movable = !drawTool && movablePartitions.some((partition) => partition.id === structure.id)
       && Boolean(onStructureMove) && (mode === 'view' || mode === 'keep');
-    const selectable = !drawTool && (movable || (mode === 'place' && structure.kind === 'wall'
+    const selectable = drawHost || (!drawTool && (movable || (mode === 'place' && structure.kind === 'wall'
       ? Boolean(onWallSelect)
-      : Boolean(onStructureSelect)));
+      : Boolean(onStructureSelect))));
     const isOpening = structure.kind === 'window' || structure.kind === 'door' || structure.kind === 'entrance';
     const classes = [
       'plan-structure',
       `plan-structure--${structure.kind}`,
       structure.immutable ? 'plan-structure--immutable' : '',
       movable ? 'plan-structure--movable' : '',
+      drawHost ? 'plan-structure--draw-host' : '',
       selected ? 'plan-structure--selected' : '',
       kept ? 'plan-structure--kept' : '',
     ].filter(Boolean).join(' ');
@@ -498,7 +553,7 @@ export default function PlanCanvas({
         {isOpening && <line className="plan-structure__opening-gap" x1={x1} y1={y1} x2={x2} y2={y2} />}
         {kept && <line className="plan-structure__keep-halo" x1={x1} y1={y1} x2={x2} y2={y2} />}
         <line className="plan-structure__shape" x1={x1} y1={y1} x2={x2} y2={y2} />
-        <line className="plan-structure__hit" x1={x1} y1={y1} x2={x2} y2={y2} />
+        <line className="plan-structure__hit" x1={x1} y1={y1} x2={x2} y2={y2} style={movable || drawHost ? { strokeWidth: 40 / contentPixelScale } : undefined} />
       </>;
     } else if (geometry.kind === 'rect') {
       const { bounds } = geometry;
@@ -524,7 +579,7 @@ export default function PlanCanvas({
       className={classes}
       role={selectable ? 'button' : undefined}
       tabIndex={selectable ? 0 : undefined}
-      aria-label={selectable ? `${structure.name}${movable ? ', 이동 가능한 가벽, 끌어서 이동 또는 방향키로 1% 이동' : ', 고정 구조, 선택만 가능'}${kept ? ', Keep 보존 대상' : ''}` : undefined}
+      aria-label={selectable ? `${structure.name}${drawHost ? ', 연결 벽으로 선택, 벽 선을 따라 드래그해 그리기' : movable ? ', 이동 가능한 가벽, 끌어서 이동 또는 방향키로 1% 이동' : ', 고정 구조, 선택만 가능'}${kept ? ', Keep 보존 대상' : ''}` : undefined}
       aria-pressed={selectable ? selected : undefined}
       onClick={selectable ? (event) => { event.stopPropagation(); if (!suppressClickRef.current) handleStructureSelect(structure); } : undefined}
       onKeyDown={selectable ? (event) => handleStructureKeyDown(event, structure) : undefined}
@@ -533,11 +588,35 @@ export default function PlanCanvas({
       <title>{`${structure.name}${kept ? ' · Keep' : ''}`}</title>
       {shape}
       {structure.kind === 'existing-light' && <text className="plan-structure__light-label" x={center.x * width} y={center.y * height + 5} textAnchor="middle" aria-hidden="true">등</text>}
-      {selected && movable && <text className="plan-structure__move-label" x={center.x * width} y={center.y * height + (center.y > 0.8 ? -25 : 35)} textAnchor="middle" aria-hidden="true">가벽 이동</text>}
+      {movable && <g className="plan-structure__move-label" transform={`translate(${center.x * width} ${center.y * height + (center.y > 0.8 ? -24 : 24) / contentPixelScale}) scale(${1 / contentPixelScale})`} aria-hidden="true">
+        <rect x={-(structure.name.length * 7 + 42)} y={-18} width={structure.name.length * 14 + 84} height={36} rx={8} />
+        <text textAnchor="middle" y={5}>{structure.name} · 이동 가능</text>
+      </g>}
       {keepNumber && <g className="plan-keep-label" aria-hidden="true">
         <rect x={center.x * width - 37} y={labelY - 13} width={74} height={22} rx={11} />
         <text x={center.x * width} y={labelY + 2} textAnchor="middle">Keep {keepNumber}</text>
       </g>}
+    </g>;
+  }
+
+  function renderDrawWallLabel(wall: Structure) {
+    const center = structureCenter(wall);
+    const selected = activeDrawWall?.id === wall.id;
+    const horizontal = wall.geometry.kind === 'segment' && Math.abs(wall.geometry.end.x - wall.geometry.start.x) * width >= Math.abs(wall.geometry.end.y - wall.geometry.start.y) * height;
+    const offset = 24 / contentPixelScale;
+    const label = `${wall.name}${selected ? ' · 연결 벽' : ''}`;
+    const labelWidth = label.length * 13 + 20;
+    const x = clamp(center.x * width + (horizontal ? 0 : center.x < .5 ? offset : -offset), (labelWidth / 2 + 4) / contentPixelScale, width - (labelWidth / 2 + 4) / contentPixelScale);
+    const y = clamp(center.y * height + (horizontal ? center.y < .2 ? offset : -offset : 0), 20 / contentPixelScale, height - 20 / contentPixelScale);
+    return <g key={`${wall.id}-name`} className={`plan-wall-label${selected ? ' plan-wall-label--selected' : ''}`}
+      transform={`translate(${x} ${y}) scale(${1 / contentPixelScale})`} role="button" tabIndex={0}
+      aria-label={`${wall.name}을 연결 벽으로 선택`} aria-pressed={selected}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => { event.stopPropagation(); onDrawWallSelect?.(wall.id); setGestureHint(`${wall.name}을 선택했습니다. 이 벽의 선을 누른 채 끌어 길이를 정해 주세요.`); }}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onDrawWallSelect?.(wall.id); } }}>
+      <rect className="plan-wall-label__hit" x={-labelWidth / 2} y={-20} width={labelWidth} height={40} rx={8} />
+      <rect x={-labelWidth / 2} y={-14} width={labelWidth} height={28} rx={8} />
+      <text textAnchor="middle" y={5}>{label}</text>
     </g>;
   }
 
@@ -713,6 +792,7 @@ export default function PlanCanvas({
       </div>
     </div>
     {plan.kind === 'uploaded' && (imageError || !sourceUri) && <p className="plan-canvas__image-status" role="alert">{imageError ?? '등록한 도면 이미지를 찾을 수 없습니다. 다시 등록해 주세요.'}</p>}
+    {validationMessage && <div className="plan-canvas__validation" role="alert"><strong>표시를 저장하지 않았습니다.</strong><p>{validationMessage}</p></div>}
     <div className="plan-canvas__surface">
       <svg
         ref={svgRef}
@@ -728,6 +808,8 @@ export default function PlanCanvas({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
+        onLostPointerCapture={() => { if (drawRef.current || dragRef.current) cancelGesture(); }}
+        onKeyDown={(event) => { if (event.key === 'Escape' && (drawRef.current || dragRef.current)) { event.preventDefault(); cancelGesture(); setGestureHint('그리기를 취소했습니다. 저장된 도면은 그대로 유지됩니다.'); } }}
       >
         <g ref={contentRef} transform={`translate(${width / 2} ${height / 2}) scale(${zoom}) translate(${-width / 2} ${-height / 2})`}>
           <rect className="plan-canvas__backdrop" width={width} height={height} />
@@ -743,6 +825,8 @@ export default function PlanCanvas({
           </g>}
           {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.map(renderElement)}</g>}
           {showCameras && layers.cameras && <g className="plan-canvas__layer plan-canvas__layer--cameras" aria-label="카메라 레이어">{project.cameras.map(renderCamera)}</g>}
+          {wallDrawing && activeDrawWall?.geometry.kind === 'segment' && <line className="plan-canvas__active-wall" x1={activeDrawWall.geometry.start.x * width} y1={activeDrawWall.geometry.start.y * height} x2={activeDrawWall.geometry.end.x * width} y2={activeDrawWall.geometry.end.y * height} style={{ strokeWidth: 6 / contentPixelScale }} />}
+          {wallDrawing && plan.structures.filter((wall) => wall.kind === 'wall' && wall.geometry.kind === 'segment').map(renderDrawWallLabel)}
           {drawDraft && <g className="plan-canvas__draw-preview" aria-hidden="true">
             {drawTool === 'point' && <circle cx={drawDraft.start.x * width} cy={drawDraft.start.y * height} r={15} />}
             {drawTool === 'segment' && <line x1={drawDraft.start.x * width} y1={drawDraft.start.y * height} x2={drawDraft.end.x * width} y2={drawDraft.end.y * height} />}
@@ -752,8 +836,10 @@ export default function PlanCanvas({
       </svg>
     </div>
     <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>
+    {gestureHint && <p className="plan-canvas__gesture-hint" role="status">{gestureHint}</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
       <span><i className="plan-canvas__legend-keep" aria-hidden="true" />고정 구조 / Keep</span>
+      {!drawTool && (mode === 'view' || mode === 'keep') && movablePartitions.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 가벽 {movablePartitions.length}개</span>}
       {showElements && layers.elements && <span><i className="plan-canvas__legend-element" aria-hidden="true" />적용 요소</span>}
       {showCameras && layers.cameras && <span>카메라 본체: 위치 이동 · 바깥 링/회전: 시선 변경</span>}
     </div>

@@ -204,9 +204,12 @@ export interface ValidationIssue {
     | 'pillar-collision'
     | 'door-clearance'
     | 'passage-blocked'
-     | 'opening-overlap'
-     | 'partition-conflict'
-     | 'keep-conflict';
+    | 'opening-overlap'
+    | 'partition-conflict'
+    | 'structure-overlap'
+    | 'area-overlap'
+    | 'element-overlap'
+    | 'keep-conflict';
   message: string;
   severity: 'error' | 'warning';
   elementId?: string;

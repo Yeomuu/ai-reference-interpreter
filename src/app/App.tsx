@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Area, Camera, DesignElement, ElementKind, FloorPlan, PlacementTarget, Project, Rect, Reference, Result, SourceImage, Structure, ValidationIssue } from '../domain'
-import { addCamera, allowedTargetKinds, appendResult, cameraConditionsChanged, createEmptyProject, placeElement, removeKeep, setResultApproved, targetLabel, updateCamera, updateCommon, updateElement, updateKeep, updatePhotoAnchor, upsertKeep, validateCamera, validatePartitionPlacement, validatePreflight, validateStructureOperation } from '../domain'
+import { addCamera, allowedTargetKinds, appendResult, cameraConditionsChanged, createEmptyProject, placeElement, removeKeep, setResultApproved, targetLabel, updateCamera, updateCommon, updateElement, updateKeep, updatePhotoAnchor, upsertKeep, validateAreaDrawing, validateCamera, validatePartitionPlacement, validatePreflight, validateStructureDrawing, validateStructureOperation } from '../domain'
 import { createSampleProject } from '../data/sample'
 import { loadProjects, saveProject } from '../services/persistence'
 import { deleteImageAsset, putImageAsset, resolveImageUri, revokeImageUrl, validateImageFile } from '../services/assets'
@@ -227,16 +227,17 @@ export default function App() {
   const [newConcept, setNewConcept] = useState('')
   const [elementLabel, setElementLabel] = useState('')
   const [elementKind, setElementKind] = useState<ElementKind>('freestanding-fixture')
-  const [structureKind, setStructureKind] = useState<Structure['kind']>('pillar')
+  const [structureKind, setStructureKind] = useState<Structure['kind']>('wall')
   const [structureName, setStructureName] = useState('')
   const [structureX, setStructureX] = useState('50')
   const [structureY, setStructureY] = useState('50')
   const [structureEndX, setStructureEndX] = useState('65')
   const [structureEndY, setStructureEndY] = useState('50')
   const [structureParent, setStructureParent] = useState('')
-  const [structureRole, setStructureRole] = useState<'base' | 'partition'>('base')
+  const [structureRole, setStructureRole] = useState<'base' | 'partition'>('partition')
   const [structureLightTone, setStructureLightTone] = useState('온백색')
   const [planDetailTab, setPlanDetailTab] = useState<'plan' | 'structure' | 'area'>('plan')
+  const [planEditError, setPlanEditError] = useState('')
   const [showWorkspaceLeft, setShowWorkspaceLeft] = useState(true)
   const [showWorkspaceRight, setShowWorkspaceRight] = useState(true)
   const [areaKind, setAreaKind] = useState<Area['kind']>('spatial')
@@ -264,6 +265,36 @@ export default function App() {
   const selectedResult = project.results.find((item) => item.id === selectedResultId) ?? project.results.at(-1)
   const preflight = useMemo(() => validatePreflight(project, selectedCameraId || undefined), [project, selectedCameraId])
   const unknownRetrySeconds = uncertainGenerationAt === null ? 0 : Math.max(0, Math.ceil((uncertainGenerationAt + UNKNOWN_GENERATION_RETRY_MS - generationClock) / 1000))
+
+  function drawingWall() {
+    const walls = project.floorPlan?.structures.filter((item) => item.kind === 'wall' && item.geometry.kind === 'segment') ?? []
+    return walls.find((wall) => wall.id === structureParent) ?? walls.find((wall) => wall.id === selectedStructureId) ?? walls[0]
+  }
+  function selectDrawingWall(id: string) {
+    const wall = project.floorPlan?.structures.find((item) => item.id === id && item.kind === 'wall')
+    if (!wall || wall.geometry.kind !== 'segment') return
+    setStructureParent(id)
+    setSelectedStructureId(id)
+    setPlanEditError('')
+    const start = wall.geometry.start, end = wall.geometry.end
+    const wallPercent = (value: number) => String(Math.round(value * 10_000) / 100)
+    setStructureX(wallPercent(start.x + (end.x - start.x) * .25))
+    setStructureY(wallPercent(start.y + (end.y - start.y) * .25))
+    setStructureEndX(wallPercent(start.x + (end.x - start.x) * .5))
+    setStructureEndY(wallPercent(start.y + (end.y - start.y) * .5))
+  }
+  function chooseStructureTool(kind: Structure['kind'], role: 'base' | 'partition' = 'base') {
+    setStructureKind(kind)
+    setStructureRole(role)
+    setPlanDetailTab('structure')
+    setPlanEditError('')
+    setStructureName('')
+    if (['window', 'door', 'entrance'].includes(kind)) {
+      const wall = drawingWall()
+      if (wall) selectDrawingWall(wall.id)
+    }
+  }
+  function rejectPlanEdit(message: string) { setPlanEditError(message); setError(message) }
 
   function showNotice(message: string) { setNotice(message); setNoticeSerial((value) => value + 1) }
   useEffect(() => {
@@ -333,6 +364,8 @@ export default function App() {
     setError('')
     setAlignmentChecked(false)
     setStructureParent('')
+    setPlanDetailTab('plan')
+    setPlanEditError('')
     setReferenceFocus('')
     setReferenceRegionMode('whole')
     setReferenceRegionDraft(null)
@@ -348,6 +381,7 @@ export default function App() {
     if (!commit(next, '새 프로젝트를 만들었습니다.')) return
     setSelectedStructureId(''); setSelectedElementId(''); setSelectedCameraId(''); setSelectedResultId('')
     setAlignmentChecked(false); setStructureParent(''); setReferenceFocus('')
+    setPlanDetailTab('plan'); setPlanEditError('')
     setReferenceRegionMode('whole'); setReferenceRegionDraft(null); setRegionEditingElementId(null)
     setGenerationExistingPhotoId('')
     setEditingElementId(null)
@@ -449,35 +483,34 @@ export default function App() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : '평면도를 등록하지 못했습니다.') }
     finally { setBusy(false) }
   }
-  function addStructure(coordinates?: { start: { x: number, y: number }, end: { x: number, y: number } }) {
-    if (!project.floorPlan) { setError('먼저 평면도를 등록하거나 개략 도면을 만드세요.'); return }
+  function addStructure(coordinates?: { start: { x: number, y: number }, end: { x: number, y: number }, wallId?: string }) {
+    if (!project.floorPlan) { rejectPlanEdit('먼저 평면도를 등록하거나 개략 도면을 만드세요.'); return }
     const x = coordinates?.start.x ?? fraction(structureX), y = coordinates?.start.y ?? fraction(structureY)
     const endX = coordinates?.end.x ?? fraction(structureEndX), endY = coordinates?.end.y ?? fraction(structureEndY)
-    if ([x,y,endX,endY].some((value) => !Number.isFinite(value) || value < 0 || value > 1)) { setError('좌표는 0–100% 범위로 입력해 주세요.'); return }
-    if (structureKind === 'pillar' && (x > .92 || y > .90)) { setError('기둥의 전체 크기가 도면 안에 들어와야 합니다.'); return }
-    if (structureKind === 'existing-light' && (x < .03 || x > .97 || y < .03 || y > .97)) { setError('기존 조명의 표시가 도면 안에 들어와야 합니다.'); return }
-    if (structureKind !== 'pillar' && structureKind !== 'existing-light' && x === endX && y === endY) { setError('구조의 시작과 끝 위치를 다르게 지정해 주세요.'); return }
+    if ([x,y,endX,endY].some((value) => !Number.isFinite(value) || value < 0 || value > 1)) { rejectPlanEdit('좌표는 0–100% 범위로 입력해 주세요.'); return }
+    if (structureKind === 'pillar' && (x > .92 || y > .90)) { rejectPlanEdit('기둥의 전체 크기가 도면 안에 들어와야 합니다.'); return }
+    if (structureKind === 'existing-light' && (x < .03 || x > .97 || y < .03 || y > .97)) { rejectPlanEdit('기존 조명의 표시가 도면 안에 들어와야 합니다.'); return }
+    if (structureKind !== 'pillar' && structureKind !== 'existing-light' && x === endX && y === endY) { rejectPlanEdit('선의 시작점에서 끝점까지 누른 채 끌어 주세요.'); return }
     const name = structureName.trim() || `${STRUCTURE_LABELS[structureKind]} ${project.floorPlan.structures.filter((item) => item.kind === structureKind).length + 1}`
     const id = makeId('structure')
     const segment = { kind: 'segment' as const, start: { x, y }, end: { x: endX, y: endY } }
     const geometry = structureKind === 'pillar' ? { kind: 'rect' as const, bounds: { x, y, width: .08, height: .10 } } : structureKind === 'existing-light' ? { kind: 'circle' as const, center: { x, y }, radius: .025 } : segment
     const requiresWall = ['window','door','entrance'].includes(structureKind)
-    const parentWallId = requiresWall ? structureParent : undefined
+    const parentWallId = requiresWall ? coordinates?.wallId ?? drawingWall()?.id : undefined
     const wall = project.floorPlan.structures.find((item) => item.id === parentWallId)
-    if (requiresWall && (!wall || wall.kind !== 'wall')) { setError('창·문·출입구를 표시하려면 연결 벽을 선택하세요.'); return }
+    if (requiresWall && (!wall || wall.kind !== 'wall')) { rejectPlanEdit('창·문·출입구를 붙일 벽이 없습니다. 먼저 ‘기존 벽’으로 벽 선을 표시하세요.'); return }
     const wallSpan = requiresWall ? spanOnWall(wall, { x, y }, { x: endX, y: endY }) : undefined
-    if (requiresWall && (!wallSpan || wallSpan.start === wallSpan.end)) { setError('시작과 끝 좌표를 선택한 벽 선 위에 지정해 주세요.'); return }
+    if (requiresWall && (!wallSpan || wallSpan.start === wallSpan.end)) { rejectPlanEdit(`‘${wall?.name ?? '연결 벽'}’ 선을 따라 시작점에서 끝점까지 끌어 주세요. 벽 이름이 도면 위에 표시됩니다.`); return }
     const immutable = structureKind !== 'wall' || structureRole === 'base'
-    if (!immutable) {
-      const checked = validatePartitionPlacement(project, { x, y }, { x: endX, y: endY })
-      if (!checked.valid) { setError(checked.issues.map((issue) => issue.message).join(' ')); return }
-    }
     const structure: Structure = { id, kind: structureKind, name, geometry, immutable, protected: immutable, parentWallId,
       wallSpan, lightTone: structureKind === 'existing-light' ? structureLightTone.trim() || '온백색' : undefined,
       clearance: (structureKind === 'door' || structureKind === 'entrance') && wall ? entranceClearance(project.floorPlan, wall, { x, y }, { x: endX, y: endY }) : undefined }
+    const checked = validateStructureDrawing(project, structure)
+    if (!checked.valid) { rejectPlanEdit(checked.issues.map((issue) => issue.message).join(' ')); return }
     const keep = immutable ? { id: makeId('keep'), structureId: id, intent: 'preserve' as const, description: `${name}의 위치와 형태 보존` } : undefined
     if (!commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: [...project.floorPlan.structures, structure] }, keeps: keep ? [...project.keeps, keep] : project.keeps }), immutable ? '필수 보존 기본 구조를 추가했습니다.' : '수정 가능한 가벽을 추가했습니다.')) return
-    setSelectedStructureId(id); setStructureName('')
+    setSelectedStructureId(id); setStructureName(''); setPlanEditError('')
+    setPlanDetailTab('plan')
   }
   function createSchematicPlan() {
     const plan = newPlan('schematic')
@@ -510,26 +543,29 @@ export default function App() {
     const structure = project.floorPlan?.structures.find((item) => item.id === id)
     if (!project.floorPlan || !structure || structure.kind !== 'wall' || structure.geometry.kind !== 'segment') return
     const checked = validateStructureOperation(project, id, 'move')
-    if (!checked.valid) { setError(checked.issues.map((issue) => issue.message).join(' ')); return }
-    if (project.floorPlan.structures.some((item) => item.parentWallId === id)) { setError('연결된 창·문·출입구가 있습니다. 먼저 연결을 수정해 주세요.'); return }
+    if (!checked.valid) { rejectPlanEdit(checked.issues.map((issue) => issue.message).join(' ')); return }
+    if (project.floorPlan.structures.some((item) => item.parentWallId === id)) { rejectPlanEdit('연결된 창·문·출입구가 있습니다. 먼저 연결을 수정해 주세요.'); return }
     const points = [start.x, start.y, end.x, end.y]
-    if (points.some((value) => !Number.isFinite(value) || value < 0 || value > 1) || Math.hypot(end.x - start.x, end.y - start.y) < .02) { setError('가벽은 도면 안에 길이를 유지하며 배치해 주세요.'); return }
-    const placement = validatePartitionPlacement(project, start, end)
-    if (!placement.valid) { setError(placement.issues.map((issue) => issue.message).join(' ')); return }
-    commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === id ? { ...item, geometry: { kind: 'segment' as const, start, end } } : item) } }), `${structure.name}의 도면 위치를 저장했습니다.`)
+    if (points.some((value) => !Number.isFinite(value) || value < 0 || value > 1) || Math.hypot(end.x - start.x, end.y - start.y) < .02) { rejectPlanEdit('가벽은 도면 안에 길이를 유지하며 배치해 주세요.'); return }
+    const placement = validatePartitionPlacement(project, start, end, id)
+    if (!placement.valid) { rejectPlanEdit(placement.issues.map((issue) => issue.message).join(' ')); return }
+    if (commit(updateCommon(project, { floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map((item) => item.id === id ? { ...item, geometry: { kind: 'segment' as const, start, end } } : item) } }), `${structure.name}의 도면 위치를 저장했습니다.`)) setPlanEditError('')
   }
   function addArea(bounds?: { x: number, y: number, width: number, height: number }) {
-    if (!project.floorPlan) { setError('먼저 평면도를 준비해 주세요.'); return }
+    if (!project.floorPlan) { rejectPlanEdit('먼저 평면도를 준비해 주세요.'); return }
     const x = bounds?.x ?? fraction(areaX), y = bounds?.y ?? fraction(areaY)
     const width = bounds?.width ?? fraction(areaWidth), height = bounds?.height ?? fraction(areaHeight)
     if ([x,y,width,height].some((value) => !Number.isFinite(value)) || x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > 1 || y + height > 1) {
-      setError('영역의 위치와 크기가 도면의 0–100% 범위 안에 들어야 합니다.'); return
+      rejectPlanEdit('영역의 위치와 크기가 도면의 0–100% 범위 안에 들어야 합니다.'); return
     }
     const area: Area = { id: makeId('area'), name: areaName.trim() || `새 ${areaKind === 'spatial' ? '공간' : areaKind === 'passage' ? '동선' : areaKind === 'floor' ? '바닥' : '천장'} 영역`, kind: areaKind, bounds: { x, y, width, height } }
+    const checked = validateAreaDrawing(project, area)
+    if (!checked.valid) { rejectPlanEdit(checked.issues.map((issue) => issue.message).join(' ')); return }
     if (!commit(updateCommon(project, { floorPlan: { ...project.floorPlan, areas: [...project.floorPlan.areas, area] } }), '평면도 영역을 추가했습니다.')) return
-    setAreaName('')
+    setAreaName(''); setPlanEditError('')
+    setPlanDetailTab('plan')
   }
-  function drawStructure(start: { x: number, y: number }, end: { x: number, y: number }) {
+  function drawStructure(start: { x: number, y: number }, end: { x: number, y: number }, wallId?: string) {
     if (structureKind === 'pillar') {
       addStructure({ start: { x: start.x - .04, y: start.y - .05 }, end: start })
       return
@@ -539,14 +575,14 @@ export default function App() {
       return
     }
     if (Math.hypot((end.x - start.x) * (project.floorPlan?.width ?? 1), (end.y - start.y) * (project.floorPlan?.height ?? 1)) < 16) {
-      setError('선을 16픽셀 이상 길이로 그려 주세요.')
+      rejectPlanEdit('선이 너무 짧습니다. 시작점에서 조금 더 길게 끌어 주세요.')
       return
     }
-    addStructure({ start, end })
+    addStructure({ start, end, wallId })
   }
   function drawArea(start: { x: number, y: number }, end: { x: number, y: number }) {
     const bounds = { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(start.x - end.x), height: Math.abs(start.y - end.y) }
-    if (bounds.width < .02 || bounds.height < .02) { setError('영역은 가로와 세로가 도면의 2% 이상이 되게 그려 주세요.'); return }
+    if (bounds.width < .02 || bounds.height < .02) { rejectPlanEdit('범위의 한쪽 모서리에서 대각선 모서리까지 조금 더 크게 끌어 주세요.'); return }
     addArea(bounds)
   }
   function toggleKeep(structure: Structure) {
@@ -584,6 +620,26 @@ export default function App() {
 
   function renderSpace() {
     const existing = project.sourceImages.filter((image) => image.role === 'existing-space')
+    const movablePartitions = project.floorPlan?.structures.filter((item) => item.kind === 'wall' && item.geometry.kind === 'segment' && item.immutable === false && !item.protected && !project.keeps.some((keep) => keep.structureId === item.id) && !project.floorPlan?.structures.some((structure) => structure.parentWallId === item.id)) ?? []
+    const requiresDrawingWall = planDetailTab === 'structure' && ['window', 'door', 'entrance'].includes(structureKind)
+    const hostWall = requiresDrawingWall ? drawingWall() : undefined
+    const structureTools: { kind: Structure['kind'], role: 'base' | 'partition', label: string }[] = [
+      { kind: 'wall', role: 'partition', label: '추가 가벽' },
+      { kind: 'pillar', role: 'base', label: '기존 기둥' },
+      { kind: 'wall', role: 'base', label: '기존 벽' },
+      { kind: 'window', role: 'base', label: '창' },
+      { kind: 'door', role: 'base', label: '문' },
+      { kind: 'entrance', role: 'base', label: '출입구' },
+      { kind: 'existing-light', role: 'base', label: '기존 천장 조명' },
+    ]
+    const currentStructureLabel = structureTools.find((tool) => tool.kind === structureKind && tool.role === structureRole)?.label ?? STRUCTURE_LABELS[structureKind]
+    const areaTools: { kind: Area['kind'], label: string, description: string }[] = [
+      { kind: 'floor', label: '사용 바닥', description: '가구를 놓을 수 있는 범위' },
+      { kind: 'spatial', label: '분위기 영역', description: '특정 연출을 적용할 범위' },
+      { kind: 'ceiling', label: '천장 영역', description: '천장 조명·행잉을 적용할 범위' },
+      { kind: 'passage', label: '통행 동선', description: '가구 없이 비워 둘 통로' },
+    ]
+    const currentAreaTool = areaTools.find((tool) => tool.kind === areaKind)!
     const planOrigin = project.floorPlan?.kind === 'uploaded' ? '사용자 업로드 도면' : project.id === 'aura-popup' ? '사전 준비된 샘플 개략 도면' : '직접 작성하는 개략 도면'
     const planExplanation = project.floorPlan?.kind === 'uploaded'
       ? '업로드한 이미지를 2D 배치 바탕으로 사용합니다. 벽·사용 바닥·동선은 직접 표시해야 하며 사진이나 도면에서 자동으로 추출하지 않습니다.'
@@ -591,54 +647,62 @@ export default function App() {
         ? 'AURA POP-UP 예시를 위해 미리 등록한 개략 배치입니다. 왼쪽 사진을 분석해 만든 도면이나 실측 결과가 아닙니다.'
         : '기본 사각형 윤곽에서 시작해 구조와 사용 바닥을 직접 표시하는 배치 캔버스입니다. 사진 분석이나 실측 결과가 아닙니다.'
     return <>
-      {project.planAlignmentPending && <section className="plan-alignment-alert" aria-labelledby="plan-alignment-title"><div><p className="eyebrow">도면 대응 확인 필요</p><h3 id="plan-alignment-title">새 평면도의 사용 바닥과 배치를 확인하세요</h3><p>업로드한 이미지에서 사용 가능한 바닥 영역을 표시하고 구조·Keep·요소·카메라 좌표가 실제 도면과 맞는지 확인해야 미리보기를 열 수 있습니다. 이전 도면의 표시가 있다면 좌표는 임시로 유지됩니다.</p>{!project.floorPlan?.areas.some((area) => area.kind === 'floor') && <p className="plan-alignment-alert__required">아래 ‘영역과 동선 표시’에서 바닥 영역을 먼저 추가하세요.</p>}</div><div className="plan-alignment-alert__actions"><label className="checkbox-row"><input type="checkbox" checked={alignmentChecked} onChange={(event) => setAlignmentChecked(event.target.checked)} /><span>새 도면의 바닥·구조·배치·시점을 확인했습니다</span></label><Button tone="primary" disabled={!alignmentChecked || !project.floorPlan?.areas.some((area) => area.kind === 'floor')} onClick={() => { commit(updateCommon(project, { planAlignmentPending: false }), '평면도 대응 확인을 저장했습니다.'); setAlignmentChecked(false) }}>도면 대응 확인 완료</Button></div></section>}
-      <div className="space-two-col">
+      {project.planAlignmentPending && <section className="plan-alignment-alert" aria-labelledby="plan-alignment-title"><div><p className="eyebrow">도면 대응 확인 필요</p><h3 id="plan-alignment-title">새 평면도의 사용 바닥과 배치를 확인하세요</h3><p>업로드한 이미지에서 사용 가능한 바닥 영역을 표시하고 구조·Keep·요소·카메라 좌표가 실제 도면과 맞는지 확인해야 미리보기를 열 수 있습니다. 이전 도면의 표시가 있다면 좌표는 임시로 유지됩니다.</p>{!project.floorPlan?.areas.some((area) => area.kind === 'floor') && <p className="plan-alignment-alert__required">아래 ‘영역·동선 그리기’에서 ‘사용 바닥’을 먼저 표시하세요.</p>}</div><div className="plan-alignment-alert__actions"><label className="checkbox-row"><input type="checkbox" checked={alignmentChecked} onChange={(event) => setAlignmentChecked(event.target.checked)} /><span>새 도면의 바닥·구조·배치·시점을 확인했습니다</span></label><Button tone="primary" disabled={!alignmentChecked || !project.floorPlan?.areas.some((area) => area.kind === 'floor')} onClick={() => { commit(updateCommon(project, { planAlignmentPending: false }), '평면도 대응 확인을 저장했습니다.'); setAlignmentChecked(false) }}>도면 대응 확인 완료</Button></div></section>}
+      <div className={`space-two-col ${planDetailTab !== 'plan' ? 'is-editing-plan' : ''}`}>
         <section className="surface-panel" aria-labelledby="existing-title"><div className="panel-heading"><div><p className="eyebrow">01 · 실제 공간</p><h2 id="existing-title">기존 공간 사진</h2></div><FilePick label="사진 추가" onFile={(file) => uploadImage(file, 'existing-space')} /></div>
           {existing.length ? <div className="photo-carousel-wrap"><SwipeCarousel label="기존 공간 사진" variant="photo" items={existing.map((image) => ({ id: image.id, content: <figure><AssetImage uri={image.uri} alt={`${image.name} · 기존 공간 사진`} className="space-photo" /><figcaption>{image.name}<span>현장 외관 참고 · 치수 근거 아님</span></figcaption></figure> }))} /></div> : <Empty>실제 공간 사진을 추가하세요. 분위기 레퍼런스를 대신 사용할 수 없습니다.</Empty>}
         </section>
-        <section className="surface-panel" aria-labelledby="plan-title"><div className="panel-heading"><div><p className="eyebrow">02 · 배치 기준</p><h2 id="plan-title">평면도</h2></div><FilePick label="도면 업로드" onFile={uploadPlan} /></div>
+        <section className={`surface-panel space-plan-panel ${planDetailTab !== 'plan' ? 'is-drawing' : ''}`} aria-labelledby="plan-title"><div className="panel-heading"><div><p className="eyebrow">02 · 배치 기준</p><h2 id="plan-title">평면도</h2></div><FilePick label="도면 업로드" onFile={uploadPlan} /></div>
           {project.floorPlan ? <>
             <div className="plan-origin" role="note">
               <div className="plan-origin__heading"><Badge tone="info">{planOrigin}</Badge><strong>도면은 Keep·요소 배치·시점의 2D 기준입니다.</strong></div>
-              <p>{planExplanation}</p>
+              {planDetailTab === 'plan' ? <p>{planExplanation}</p> : <details><summary>도면 출처 설명</summary><p>{planExplanation}</p></details>}
             </div>
             <div className="plan-detail-tabs" role="group" aria-label="평면도 작업 도구">
-              <button type="button" aria-pressed={planDetailTab === 'plan'} onClick={() => setPlanDetailTab('plan')}>도면 보기</button>
-              <button type="button" aria-pressed={planDetailTab === 'structure'} onClick={() => setPlanDetailTab('structure')}>구조 그리기</button>
-              <button type="button" aria-pressed={planDetailTab === 'area'} onClick={() => setPlanDetailTab('area')}>영역·동선 그리기</button>
+              <button type="button" aria-pressed={planDetailTab === 'plan'} onClick={() => { setPlanDetailTab('plan'); setPlanEditError('') }}>확인·가벽 이동</button>
+              <button type="button" aria-pressed={planDetailTab === 'structure'} onClick={() => chooseStructureTool(structureKind, structureRole)}>구조 그리기</button>
+              <button type="button" aria-pressed={planDetailTab === 'area'} onClick={() => { setPlanDetailTab('area'); setPlanEditError('') }}>영역·동선 그리기</button>
             </div>
+            {planDetailTab !== 'plan' && <div className="plan-editor-focus-heading"><span>사진을 접고 도면을 넓혀 표시했습니다. 구조와 범위를 도면 위에 직접 그립니다.</span><Button tone="quiet" onClick={() => { setPlanDetailTab('plan'); setPlanEditError('') }}>사진·도면 함께 보기</Button></div>}
+            <div className={`plan-editor-body ${planDetailTab !== 'plan' ? 'is-drawing' : ''}`}>
+            {planDetailTab === 'plan' && <div className="plan-task-hint">
+              <div className="plan-task-hint__heading"><strong>선택·이동 모드</strong><Button icon="add" onClick={() => chooseStructureTool('wall', 'partition')}>가벽 추가</Button></div>
+              <p>{movablePartitions.length ? `이동 가능한 가벽 ${movablePartitions.length}개가 있습니다. ‘이동 가능’ 이름표나 가벽 선을 잡고 끌어 주세요.` : '이동 가능한 가벽이 없습니다. 기존 벽·기둥 등은 위치가 고정되어 있습니다.'}</p>
+              {selectedStructure && <p className="plan-selection-status"><strong>선택: {selectedStructure.name}</strong><span>{movablePartitions.some((item) => item.id === selectedStructure.id) ? '이동 가능 · 이름표 또는 선을 끌어 이동' : '위치 고정 · 선택하여 정보 확인만 가능'}</span></p>}
+            </div>}
             {planDetailTab === 'structure' && <div className="plan-edit-tools" aria-label="구조 그리기 도구">
-              <div className="plan-edit-tools__fields">
-                <label className="field"><span>그릴 구조</span><select value={structureKind} onChange={(event) => setStructureKind(event.target.value as Structure['kind'])}>{(['wall','window','pillar','door','entrance','existing-light'] as const).map((kind) => <option key={kind} value={kind}>{STRUCTURE_LABELS[kind]}</option>)}</select></label>
-                <label className="field"><span>이름</span><input value={structureName} onChange={(event) => setStructureName(event.target.value)} placeholder="비우면 자동 이름" /></label>
-                {structureKind === 'wall' && <label className="field"><span>구조 분류</span><select value={structureRole} onChange={(event) => setStructureRole(event.target.value as 'base' | 'partition')}><option value="base">기존 기본 벽 · 필수 보존</option><option value="partition">추가 가벽 · 수정 가능</option></select></label>}
-                {['window','door','entrance'].includes(structureKind) && <label className="field"><span>연결 벽</span><select value={structureParent} onChange={(event) => setStructureParent(event.target.value)}><option value="">벽을 선택하세요</option>{project.floorPlan.structures.filter((item) => item.kind === 'wall').map((wall) => <option key={wall.id} value={wall.id}>{wall.name}</option>)}</select></label>}
-                {structureKind === 'existing-light' && <label className="field"><span>조명 색감</span><input value={structureLightTone} onChange={(event) => setStructureLightTone(event.target.value)} placeholder="예: 온백색" /></label>}
-              </div>
-              <p>{structureKind === 'pillar' || structureKind === 'existing-light' ? '도면에서 위치를 누르세요.' : structureKind === 'window' || structureKind === 'door' || structureKind === 'entrance' ? '연결 벽을 고른 뒤 그 벽 위에서 시작점부터 끝점까지 끌어 주세요.' : '도면에서 시작점부터 끝점까지 끌어 선을 그리세요.'} 기존 구조는 필수 보존되며, 추가 가벽만 이동·제거할 수 있습니다.</p>
+              <h3>1. 표시할 구조 선택</h3>
+              <div className="plan-tool-grid" role="group" aria-label="표시할 구조">{structureTools.map((tool) => <button key={`${tool.kind}-${tool.role}`} type="button" aria-pressed={structureKind === tool.kind && structureRole === tool.role} onClick={() => chooseStructureTool(tool.kind, tool.role)}>{tool.label}</button>)}</div>
+              {requiresDrawingWall && <div className="plan-wall-choice"><label className="field"><span>붙일 벽 · 도면에서 이름으로 확인</span><select value={hostWall?.id ?? ''} onChange={(event) => selectDrawingWall(event.target.value)}>{!hostWall && <option value="">먼저 기존 벽을 표시하세요</option>}{project.floorPlan.structures.filter((item) => item.kind === 'wall' && item.geometry.kind === 'segment').map((wall) => <option key={wall.id} value={wall.id}>{wall.name}</option>)}</select></label>{hostWall && <p><strong>‘{hostWall.name}’이 강조되어 있습니다.</strong> 도면에서 다른 벽을 누르면 붙일 벽을 바꿀 수 있습니다.</p>}</div>}
+              <div className="plan-gesture-cue"><strong>2. {currentStructureLabel} {structureKind === 'pillar' || structureKind === 'existing-light' ? '위치를 한 번 누르세요' : '시작점 → 끝점으로 끌어 주세요'}</strong><p>{requiresDrawingWall ? hostWall ? '이름이 표시된 벽 선 가까이에서 누른 채 끌면, 표시가 그 벽에 맞춰 붙습니다.' : '붙일 벽이 있어야 창·문·출입구를 그릴 수 있습니다.' : structureKind === 'wall' && structureRole === 'partition' ? '공간 안에 선을 그립니다. 저장 후에는 ‘확인·가벽 이동’에서 선을 끌어 옮길 수 있습니다.' : '실제 공간에 있는 구조를 표시합니다. 저장하면 필수 보존되어 위치가 고정됩니다.'}</p></div>
+              <details className="plan-tool-options"><summary>이름{structureKind === 'existing-light' ? '·조명 색감' : ''} 설정 (선택)</summary><div className="plan-edit-tools__fields"><label className="field"><span>이름</span><input value={structureName} onChange={(event) => setStructureName(event.target.value)} placeholder="비우면 자동 이름" /></label>{structureKind === 'existing-light' && <label className="field"><span>조명 색감</span><input value={structureLightTone} onChange={(event) => setStructureLightTone(event.target.value)} placeholder="예: 온백색" /></label>}</div></details>
             </div>}
             {planDetailTab === 'area' && <div className="plan-edit-tools" aria-label="영역과 동선 그리기 도구">
-              <div className="plan-edit-tools__fields">
-                <label className="field"><span>그릴 영역</span><select value={areaKind} onChange={(event) => setAreaKind(event.target.value as Area['kind'])}><option value="spatial">공간 영역</option><option value="floor">사용 바닥</option><option value="ceiling">천장 영역</option><option value="passage">통행 동선</option></select></label>
-                <label className="field"><span>이름</span><input value={areaName} onChange={(event) => setAreaName(event.target.value)} placeholder="비우면 자동 이름" /></label>
-              </div>
-              <p>도면에서 범위의 한쪽 모서리부터 반대쪽 모서리까지 끌어 표시하세요. 영역은 실측 면적이 아닌 배치 범위입니다.</p>
+              <h3>1. 표시할 범위 선택</h3>
+              <div className="plan-tool-grid plan-tool-grid--areas" role="group" aria-label="표시할 범위">{areaTools.map((tool) => <button key={tool.kind} type="button" aria-pressed={areaKind === tool.kind} onClick={() => { setAreaKind(tool.kind); setPlanEditError('') }}><span>{tool.label}</span><small>{tool.description}</small></button>)}</div>
+              <div className="plan-gesture-cue"><strong>2. {currentAreaTool.label}의 한쪽 모서리 → 대각선 모서리로 끌어 주세요</strong><p>사각형 범위를 표시합니다. 영역은 물건이 아니므로 사용 바닥·천장·분위기 범위는 같은 위치에 겹칠 수 있습니다. 같은 종류의 범위를 같은 위치·크기로 중복 표시하거나 가구·기둥·가벽을 가로질러 동선을 그릴 수는 없습니다.</p></div>
+              <details className="plan-tool-options"><summary>영역 이름 설정 (선택)</summary><label className="field"><span>이름</span><input value={areaName} onChange={(event) => setAreaName(event.target.value)} placeholder="비우면 자동 이름" /></label></details>
             </div>}
-            <PlanCanvas project={project} mode="view" selectedStructureId={selectedStructureId} onStructureSelect={setSelectedStructureId} onStructureMove={moveOptionalStructure}
+            <PlanCanvas key={`${project.id}-${planDetailTab}-${structureKind}-${structureRole}-${areaKind}`} project={project} mode="view" selectedStructureId={selectedStructureId} onStructureSelect={setSelectedStructureId} onStructureMove={moveOptionalStructure}
               drawTool={planDetailTab === 'structure' ? (structureKind === 'pillar' || structureKind === 'existing-light' ? 'point' : 'segment') : planDetailTab === 'area' ? 'rect' : undefined}
+              drawWallId={hostWall?.id} onDrawWallSelect={requiresDrawingWall ? selectDrawingWall : undefined}
+              validationMessage={planEditError}
               onDraw={planDetailTab === 'structure' ? drawStructure : planDetailTab === 'area' ? drawArea : undefined} />
+            {planDetailTab !== 'plan' && <div className="plan-drawing-exit"><span>그리기 모드 · 저장 후 선택 모드로 돌아갑니다.</span><Button tone="quiet" onClick={() => { setPlanDetailTab('plan'); setPlanEditError('') }}>그리기 취소</Button></div>}
+            {planDetailTab === 'plan' && movablePartitions.length > 0 && <div className="plan-partitions" aria-label="이동 가능한 가벽 목록"><h3>이동 가능한 가벽</h3>{movablePartitions.map((partition) => <div key={partition.id} className="plan-partition-row"><button type="button" aria-pressed={selectedStructureId === partition.id} onClick={() => setSelectedStructureId(partition.id)}>{partition.name}<span>도면에서 선택</span></button><Button tone="danger" onClick={() => deleteStructure(partition)}>제거</Button></div>)}</div>}
             <div className="plan-caption"><Badge tone="info">{project.floorPlan.geometryConfidence === 'schematic' ? '치수 미확인' : '치수 확인'}</Badge><span>사진은 공간의 모습 참고용이며 도면 좌표와 별도로 보관됩니다.</span></div>
-            {planDetailTab === 'structure' && <details className="plan-numeric-fallback"><summary>키보드로 구조 좌표 입력</summary><div className="structure-form">
+            {planDetailTab === 'structure' && <details className="plan-numeric-fallback"><summary>좌표로 구조 표시 (키보드 대체)</summary><p>도면 왼쪽 위가 0%, 오른쪽 아래가 100%입니다.{hostWall && ` ‘${hostWall.name}’의 한 구간을 미리 입력했습니다. 시작과 끝을 같은 벽 위에 유지하세요.`}</p><div className="structure-form">
               <label className="field compact-field"><span>시작 X (%)</span><input type="number" min="0" max="100" value={structureX} onChange={(event) => setStructureX(event.target.value)} /></label>
               <label className="field compact-field"><span>시작 Y (%)</span><input type="number" min="0" max="100" value={structureY} onChange={(event) => setStructureY(event.target.value)} /></label>
               {!['pillar','existing-light'].includes(structureKind) && <><label className="field compact-field"><span>끝 X (%)</span><input type="number" min="0" max="100" value={structureEndX} onChange={(event) => setStructureEndX(event.target.value)} /></label><label className="field compact-field"><span>끝 Y (%)</span><input type="number" min="0" max="100" value={structureEndY} onChange={(event) => setStructureEndY(event.target.value)} /></label></>}
               <Button icon="add" onClick={() => addStructure()}>입력한 구조 추가</Button>
             </div></details>}
-            {planDetailTab === 'area' && <details className="plan-numeric-fallback"><summary>키보드로 영역 좌표 입력</summary><div className="structure-form">
+            {planDetailTab === 'area' && <details className="plan-numeric-fallback"><summary>좌표로 영역 표시 (키보드 대체)</summary><p>왼쪽 위 모서리의 위치와 사각형의 폭·깊이를 도면 전체에 대한 비율로 입력합니다.</p><div className="structure-form">
               <label className="field compact-field"><span>X (%)</span><input type="number" min="0" max="100" value={areaX} onChange={(event) => setAreaX(event.target.value)} /></label><label className="field compact-field"><span>Y (%)</span><input type="number" min="0" max="100" value={areaY} onChange={(event) => setAreaY(event.target.value)} /></label>
               <label className="field compact-field"><span>폭 (%)</span><input type="number" min="1" max="100" value={areaWidth} onChange={(event) => setAreaWidth(event.target.value)} /></label><label className="field compact-field"><span>깊이 (%)</span><input type="number" min="1" max="100" value={areaHeight} onChange={(event) => setAreaHeight(event.target.value)} /></label>
               <Button icon="add" onClick={() => addArea()}>입력한 영역 추가</Button>
             </div></details>}
+            </div>
           </> : <div className="plan-empty"><p>평면도가 아직 없습니다.</p><p className="muted">도면 이미지가 없다면 치수를 주장하지 않는 개략 도면으로 시작할 수 있습니다.</p><Button icon="layers" onClick={createSchematicPlan}>개략 도면 만들기</Button></div>}
         </section>
       </div>
