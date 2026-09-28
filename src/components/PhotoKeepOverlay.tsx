@@ -6,6 +6,7 @@ import NucleoIcon from './NucleoIcon';
 import './photo-keep-overlay.css';
 
 export interface PhotoKeepOverlayProps {
+  compact?: boolean;
   imageUri: string;
   structures: Structure[];
   keeps: Keep[];
@@ -25,6 +26,7 @@ function clampFraction(value: number): number {
 
 /** Photo annotations are approximate and independent from plan placement coordinates. */
 export default function PhotoKeepOverlay({
+  compact = false,
   imageUri,
   structures,
   keeps,
@@ -39,7 +41,7 @@ export default function PhotoKeepOverlay({
   const selectedStructure = structures.find((structure) => structure.id === selectedStructureId);
   const visibleImage = image?.uri === imageUri ? image : null;
   const keptIds = new Set([...keeps.map((keep) => keep.structureId), ...structures.filter((structure) => structure.immutable).map((structure) => structure.id)]);
-  const markers = structures.filter((structure) => isValidAnchor(structure.photoAnchor));
+  const markers = structures.filter((structure) => isValidAnchor(structure.photoAnchor) && (!compact || structure.id === selectedStructureId));
 
   useEffect(() => {
     let cancelled = false;
@@ -89,14 +91,14 @@ export default function PhotoKeepOverlay({
     onSetAnchor(selectedStructure.id, { x: x / 100, y: y / 100 });
   }
 
-  return <section className="photo-keep-overlay" aria-label="기존 공간 사진의 Keep 표시">
+  return <section className={`photo-keep-overlay${compact ? ' photo-keep-overlay--compact' : ''}`} aria-label="기존 공간 사진의 Keep 표시">
     <div className="photo-keep-overlay__heading">
       <div>
         <strong>기존 공간 사진</strong>
         <p id={instructionId}>사진상의 대략적 표시 · 실제 배치와 치수 판단은 도면에서 확인하세요.</p>
-        {selectedStructure && <p className="photo-keep-overlay__selected-info">선택: {selectedStructure.name} · {selectedStructure.immutable ? '필수 보존' : '수정 가능'} · 사진 라벨만 편집 가능</p>}
+        {!compact && selectedStructure && <p className="photo-keep-overlay__selected-info">선택: {selectedStructure.name} · {selectedStructure.immutable ? '필수 보존' : '수정 가능'} · 사진 라벨만 편집 가능</p>}
       </div>
-      <span className="photo-keep-overlay__count">표시 {markers.length}개</span>
+      {!compact && <span className="photo-keep-overlay__count">표시 {markers.length}개</span>}
     </div>
 
     {visibleImage?.error ? <div className="photo-keep-overlay__empty" role="alert">{visibleImage.error}</div> :
@@ -138,8 +140,8 @@ export default function PhotoKeepOverlay({
 
     <div className="photo-keep-overlay__editor">
       {selectedStructure ? <>
-        <p><strong>선택: {selectedStructure.name}</strong> · {selectedStructure.immutable ? '필수 보존 기본 구조, 실제 위치 고정' : '추가 구조'}</p>
-        <p>사진 위 표시는 구조물 자체가 아닌 설명 라벨입니다. 도면의 위치·형태는 여기서 바뀌지 않습니다.</p>
+        {!compact && <><p><strong>선택: {selectedStructure.name}</strong> · {selectedStructure.immutable ? '필수 보존 기본 구조, 실제 위치 고정' : '추가 구조'}</p>
+        <p>사진 위 표시는 구조물 자체가 아닌 설명 라벨입니다. 도면의 위치·형태는 여기서 바뀌지 않습니다.</p></>}
         <button type="button" className="photo-keep-overlay__edit-toggle" aria-pressed={editingAnchor} onClick={() => setEditingAnchor((value) => !value)}>{editingAnchor ? '라벨 편집 종료' : '사진 라벨 위치 편집'}</button>
         {editingAnchor && <><p>사진에서 라벨을 놓을 지점을 클릭하세요. 숫자 입력은 선택 사항입니다.</p>
         <form

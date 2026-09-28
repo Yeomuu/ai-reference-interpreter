@@ -573,6 +573,19 @@ export default function PlanCanvas({
       : structure.kind === 'door' || structure.kind === 'window' ? (center.y > .75 ? -28 : 28)
         : structure.kind === 'pillar' ? -30 : (center.y > .8 ? 20 : -22);
     const labelY = clamp(center.y * height + nameOffset / contentPixelScale, 14 / contentPixelScale, height - 14 / contentPixelScale);
+    let labelX = clamp(center.x * width, nameWidth / (2 * contentPixelScale), width - nameWidth / (2 * contentPixelScale));
+    if (showCameras && layers.cameras) {
+      // Shift explanation labels only; the saved structure and camera remain untouched.
+      for (const camera of project.cameras) {
+        const position = preview?.kind === 'camera-move' && preview.id === camera.id ? preview.point! : camera;
+        const cameraHalfWidth = (canvasDisplay.narrow ? 32 : 48) / contentPixelScale;
+        if (Math.abs(labelY - position.y * height) < 36 / contentPixelScale && Math.abs(labelX - position.x * width) < cameraHalfWidth + nameWidth / (2 * contentPixelScale)) {
+          const shift = cameraHalfWidth + (nameWidth / 2 + 12) / contentPixelScale;
+          const side = structure.kind === 'door' || center.x < position.x ? -1 : 1;
+          labelX = clamp(position.x * width + side * shift, nameWidth / (2 * contentPixelScale), width - nameWidth / (2 * contentPixelScale));
+        }
+      }
+    }
     return <g
       key={structure.id}
       className={classes}
@@ -591,7 +604,7 @@ export default function PlanCanvas({
         <rect x={-(structure.name.length * 7 + 42)} y={-18} width={structure.name.length * 14 + 84} height={36} rx={8} />
         <text textAnchor="middle" y={5}>{structure.name} · 이동 가능</text>
       </g>}
-      {!movable && !drawHost && <g className={`plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${Math.max(nameWidth / (2 * contentPixelScale), Math.min(width - nameWidth / (2 * contentPixelScale), center.x * width))} ${labelY}) scale(${1 / contentPixelScale})`} aria-hidden="true">
+      {!movable && !drawHost && <g className={`plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${labelX} ${labelY}) scale(${1 / contentPixelScale})`} aria-hidden="true">
         <rect x={-nameWidth / 2} y={-14} width={nameWidth} height={28} rx={8} />
         {kept && <image href="/icons/nucleo/IconLockOutline18.svg" x={-nameWidth / 2 + 8} y={-9} width={18} height={18} />}
         <text x={kept ? 10 : 0} y={5} textAnchor="middle">{structure.name}</text>
@@ -718,22 +731,20 @@ export default function PlanCanvas({
     const left = { x: x + Math.cos(angle - spread) * reach, y: y + Math.sin(angle - spread) * reach };
     const right = { x: x + Math.cos(angle + spread) * reach, y: y + Math.sin(angle + spread) * reach };
     const selected = mode === 'camera' && (camera.id === selectedCameraId || (!selectedCameraId && camera.primary));
-    const mobileUnit = canvasDisplay.narrow ? 1 / contentPixelScale : 0;
-    const bodyWidth = Math.max(104, 64 * mobileUnit);
-    const bodyHeight = Math.max(36, 36 * mobileUnit);
-    const bodyHitWidth = Math.max(bodyWidth, 48 * mobileUnit);
-    const bodyHitHeight = Math.max(bodyHeight, 48 * mobileUnit);
-    const cameraIconSize = Math.max(20, 20 * mobileUnit);
-    const ringRadius = canvasDisplay.narrow
-      ? Math.max(61, Math.hypot(bodyHitWidth / 2, bodyHitHeight / 2) + 18 * mobileUnit)
-      : 61;
-    const handleDistance = canvasDisplay.narrow ? ringRadius + 24 * mobileUnit : 82;
+    const displayUnit = 1 / contentPixelScale;
+    const bodyWidth = (canvasDisplay.narrow ? 64 : 96) * displayUnit;
+    const bodyHeight = 36 * displayUnit;
+    const bodyHitWidth = bodyWidth;
+    const bodyHitHeight = 48 * displayUnit;
+    const cameraIconSize = 20 * displayUnit;
+    const ringRadius = Math.hypot(bodyHitWidth / 2, bodyHitHeight / 2) + 12 * displayUnit;
+    const handleDistance = ringRadius + 28 * displayUnit;
     const handleX = x + Math.cos(angle) * handleDistance;
     const handleY = y + Math.sin(angle) * handleDistance;
-    const handleWidth = Math.max(68, 64 * mobileUnit);
-    const handleHeight = Math.max(28, 36 * mobileUnit);
-    const handleHitHeight = Math.max(handleHeight, 48 * mobileUnit);
-    const handleIconSize = Math.max(18, 18 * mobileUnit);
+    const handleWidth = 64 * displayUnit;
+    const handleHeight = 36 * displayUnit;
+    const handleHitHeight = 48 * displayUnit;
+    const handleIconSize = 18 * displayUnit;
     return <g key={camera.id} className={`plan-camera${selected ? ' plan-camera--selected' : ''}${editable ? ' plan-camera--editable' : ''}`}
       aria-label={`${camera.name}, 방향 ${Math.round(degrees)}도`}>
       <title>{`${camera.name} · ${Math.round(degrees)}°`}</title>
@@ -748,28 +759,28 @@ export default function PlanCanvas({
         <rect className="plan-camera__hit" x={x - bodyHitWidth / 2} y={y - bodyHitHeight / 2} width={bodyHitWidth} height={bodyHitHeight} rx={8} />
         <rect className="plan-camera__body" x={x - bodyWidth / 2} y={y - bodyHeight / 2} width={bodyWidth} height={bodyHeight} rx={8} />
         <image className="plan-camera__icon" href="/icons/nucleo/IconCameraOutline18.svg"
-          x={x - bodyWidth / 2 + (canvasDisplay.narrow ? 8 * mobileUnit : 9)} y={y - cameraIconSize / 2}
+          x={x - bodyWidth / 2 + 8 * displayUnit} y={y - cameraIconSize / 2}
           width={cameraIconSize} height={cameraIconSize} aria-hidden="true" />
-        <text className="plan-camera__label" x={x + (canvasDisplay.narrow ? 14 * mobileUnit : 15)}
-          y={y + (canvasDisplay.narrow ? 5 * mobileUnit : 5)} textAnchor="middle"
-          style={canvasDisplay.narrow ? { fontSize: 13 * mobileUnit } : undefined}>{canvasDisplay.narrow ? index + 1 : `카메라 ${index + 1}`}</text>
+        <text className="plan-camera__label" x={x + 14 * displayUnit}
+          y={y + 5 * displayUnit} textAnchor="middle"
+          style={{ fontSize: 14 * displayUnit }}>{canvasDisplay.narrow ? index + 1 : `카메라 ${index + 1}`}</text>
       </g>
       {selected && editable && <g className="plan-rotation-handle plan-rotation-handle--camera" role="slider" tabIndex={0}
         aria-label={`${camera.name} 시선 회전 손잡이. 이 손잡이나 바깥 링을 끌면 위치는 그대로이고 각도만 바뀝니다.`} aria-valuemin={0} aria-valuemax={359} aria-valuenow={degrees} aria-valuetext={`${degrees}도`}
         onPointerDown={(event) => startDrag(event, 'camera-rotate', camera.id, position)}
         onKeyDown={(event) => handleRotateKeyDown(event, 'camera', camera.id, camera.directionDegrees)}
         onClick={(event) => event.stopPropagation()}>
-        <circle className="plan-rotation-handle__track-hit" cx={x} cy={y} r={ringRadius} strokeWidth={canvasDisplay.narrow ? 18 * mobileUnit : 10} />
-        <circle className="plan-rotation-handle__track" cx={x} cy={y} r={ringRadius} strokeWidth={canvasDisplay.narrow ? 6 * mobileUnit : 10} />
+        <circle className="plan-rotation-handle__track-hit" cx={x} cy={y} r={ringRadius} strokeWidth={12 * displayUnit} />
+        <circle className="plan-rotation-handle__track" cx={x} cy={y} r={ringRadius} strokeWidth={2 * displayUnit} />
         <line x1={x + Math.cos(angle) * (bodyWidth / 2 + 1)} y1={y + Math.sin(angle) * (bodyWidth / 2 + 1)} x2={handleX} y2={handleY} />
         <rect className="plan-rotation-handle__hit" x={handleX - handleWidth / 2} y={handleY - handleHitHeight / 2} width={handleWidth} height={handleHitHeight} rx={14} />
         <rect x={handleX - handleWidth / 2} y={handleY - handleHeight / 2} width={handleWidth} height={handleHeight} rx={14} />
         <image className="plan-rotation-handle__icon" href="/icons/nucleo/IconArrowDottedRotateAnticlockwiseOutline18.svg"
-          x={handleX - handleWidth / 2 + (canvasDisplay.narrow ? 8 * mobileUnit : 8)} y={handleY - handleIconSize / 2}
+          x={handleX - handleWidth / 2 + 8 * displayUnit} y={handleY - handleIconSize / 2}
           width={handleIconSize} height={handleIconSize} aria-hidden="true" />
-        <text x={handleX + (canvasDisplay.narrow ? 14 * mobileUnit : 8)}
-          y={handleY + (canvasDisplay.narrow ? 5 * mobileUnit : 5)} textAnchor="middle"
-          style={canvasDisplay.narrow ? { fontSize: 13 * mobileUnit } : undefined}>회전</text>
+        <text x={handleX + 14 * displayUnit}
+          y={handleY + 5 * displayUnit} textAnchor="middle"
+          style={{ fontSize: 14 * displayUnit }}>회전</text>
       </g>}
     </g>;
   }

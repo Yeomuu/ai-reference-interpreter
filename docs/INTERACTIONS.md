@@ -62,6 +62,15 @@ Informational and success notices begin a gradual fade three seconds after displ
 ## Failure and empty states
 No plan: offer schematic plan editor with unknown geometry indicator. No existing photo: request upload, don't treat mood image as real room. Missing target: block generation with direct link to unplaced element. Unsupported location: plain explanation and highlight eligible zones. No AI credentials: sample preview clearly labeled; do not write 'AI generation complete'. API failure: preserve previous result and allow retry. Failed individual camera: other cameras unaffected. Uploaded files: MIME/size/type checks, revoke object URLs appropriately.
 
+## Final design hierarchy · 2026-09-28
+
+- Use the Korean task names recorded in PRODUCT. At >=1200px the steps occupy the left rail; narrower screens use the existing horizontal step navigation. The title-adjacent previous/next controls become the mobile bottom bar without duplicate buttons. Keep browser History, heading focus and current-step visibility.
+- In 유지할 요소, the plan is the large first surface. The right inspector shows the selected structure's existing-space photo with only its corresponding approximate marker, its real name and its preservation switch. An expandable structure list provides a text alternative to the plan. Selecting a structure never changes its lock.
+- Panel visibility actions sit beside the plan title and expose their pressed state. Collapsing either side expands the real canvas. Scroll padding keeps a focused or scrolled plan control clear of the sticky header.
+- In 시점, camera labels, official icons and rotation controls keep readable CSS-pixel sizes at every zoom. Moving an explanation label to avoid a camera body changes neither saved geometry nor viewpoint. Numeric position input is an explicit expandable keyboard alternative; direct movement, rotation and validation remain unchanged.
+- 생성 전 확인 first presents actual preserved names, each placed element's target, exclusions, selected view and the intended mood. Detailed conditions remain expandable and editable. The separate free sample action is available with the brief; paid generation, costs, shared quota and transmitted data are in the adjacent generation inspector. Only extended crop details are collapsed. Validation issues and cost warnings stay visible.
+- Optional experiment controls follow the workspace. Logging remains opt-in; moving the disclosure never starts a session. Source/condition/target names wrap at readable sizes instead of clipping.
+
 ## Reference deletion and recovery · 2026-09-28
 The selected reference has a text-labeled “이미지 삭제” control. Its inline confirmation names the image and counts all connected applied/excluded elements. Focus the safe cancel control, return focus on cancellation, and support Escape. Confirm removes the current Reference, its unshared SourceImage and its derived elements in one common revision. Cancel changes nothing. A separate element delete cleans extraction links but keeps the source; apply/exclude remains a reversible retained condition, distinct from deletion. Elements provide “원본 레퍼런스 보기”.
 

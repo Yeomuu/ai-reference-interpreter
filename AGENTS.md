@@ -37,3 +37,32 @@ Inspect repository first. Plan minimal route and data model. Implement a fully u
 
 ## User-directed generation update · 2026-09-28
 - Read the API key from server env; require no participant key, access code or invitation link. A durable shared private quota must reserve before paid calls, fail closed on storage faults, and reject replays. Initial maximums are 60 total and 20/day, across Production/Preview. Never reset usage on deploy, failure or a public request.
+
+## Design reference governance · supplied update 2026-09-28
+
+
+The repository may include reference studies for Apple, Toss, Ohouse and The Pinkfong Company.
+They are **reference inspiration only**. Never merge them into a synthetic brand or import their
+exact colors, fonts, logos, proprietary assets, marketing layouts or context-specific component
+geometry.
+
+Apply their useful principles only through the project-owned `docs/DESIGN_SYSTEM.md`:
+
+- Apple: content primacy, restrained chrome, clear action hierarchy, recoverability.
+- Toss: explicit component states, predictable feedback, direct UI language.
+- Ohouse: image-forward white workspace, quiet controls, avoid over-cardification.
+- Pinkfong: strict boundary between identity assets, fonts and actual product UI.
+
+When implementing a screen:
+1. preserve the product invariant first;
+2. use project semantic tokens;
+3. use the shared component/state contract;
+4. keep plan/reference/result imagery visually primary;
+5. add visual polish only if it does not compete with the user's spatial work.
+
+Never copy a reference brand's accent as a new product token. Never substitute its font for Paperlogy /
+Noto Sans KR. Never add another icon library. A new visual token or component variant must be justified
+in `docs/UX_SPEC_CHANGELOG.md`.
+
+
+Latest visual source: Figma active v1.3 section `125:2` and Design System v1.2. Follow the reconciled current docs, not archived examples. Keep existing user-directed preservation, navigation, experiment and quota contracts.

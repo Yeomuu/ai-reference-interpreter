@@ -8,9 +8,10 @@
   --blue-50:#EDF6FA; --blue-700:#3D7693;
   --surface-base:var(--neutral-white); --surface-subtle:var(--neutral-25);
   --surface-workspace:var(--neutral-50); --surface-selected:var(--violet-50);
+  --surface-hover:var(--neutral-50); --surface-pressed:var(--neutral-100);
   --surface-glass:rgb(255 255 255 / 94%); --surface-glass-fallback:var(--neutral-white);
   --text-primary:var(--neutral-900); --text-secondary:var(--neutral-600);
-  --text-inverse:var(--neutral-white); --border-default:var(--neutral-200);
+  --text-inverse:var(--neutral-white); --text-tertiary:var(--neutral-400); --border-default:var(--neutral-200);
   --border-control:#87919C;
   --border-strong:var(--neutral-400); --border-selected:var(--violet-200);
   --action-primary:var(--neutral-900); --action-primary-text:var(--neutral-white);
@@ -19,6 +20,9 @@
   --state-error-bg:var(--red-50); --state-error-fg:var(--red-700);
   --state-info-bg:var(--blue-50); --state-info-fg:var(--blue-700);
   --canvas-structure:var(--neutral-600); --canvas-selection:var(--violet-500);
+  --focus-ring:var(--violet-500);
+  --action-primary-hover:color-mix(in srgb, var(--action-primary), var(--neutral-white) 12%);
+  --action-primary-pressed:color-mix(in srgb, var(--action-primary), black 20%);
   --space-4:4px; --space-8:8px; --space-12:12px; --space-16:16px;
   --space-20:20px; --space-24:24px; --space-32:32px; --space-40:40px; --space-48:48px;
   --radius-4:4px; --radius-8:8px; --radius-12:12px; --radius-16:16px;
@@ -26,6 +30,12 @@
   --shadow-panel:0 2px 12px rgb(23 25 29 / 4%);
   --shadow-footer:0 -2px 12px rgb(23 25 29 / 4%);
   --glass-blur:blur(10px);
+  --motion-fast:150ms; --motion-base:200ms; --motion-slow:220ms;
+  --ease-standard:cubic-bezier(.2, 0, 0, 1);
+  --layout-header-height:64px; --layout-nav-width:176px;
+  --layout-list-width:clamp(220px, 17vw, 260px);
+  --layout-inspector-width:clamp(260px, 20vw, 300px);
+  --layout-reference-list-width:clamp(200px, 16vw, 240px);
   --control-height-32:32px; --control-height-40:40px; --control-height-44:44px; --control-height-48:48px;
   --font-ui:Paperlogy,"Noto Sans KR",system-ui,sans-serif;
 }
