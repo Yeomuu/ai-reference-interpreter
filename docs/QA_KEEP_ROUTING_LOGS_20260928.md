@@ -9,7 +9,7 @@
 | `app/routes.ts`, `vercel.json` | `/projects/:id/:step`, pushState/popstate, 직접 접속·새로고침의 SPA rewrite. 프로젝트별 선택 복구. | 브라우저 뒤로/앞으로 가기와 북마크가 실제로 동작 |
 | `services/experiment.ts`, `ExperimentPanel`, `zip.ts` | 동의 기반 익명 기록·실제 최종 조건·설문·12파일 ZIP·실패 경고. 문서 정의에 따라 의미 이벤트만 계측. | PDF의 실험 데이터 수집·제출을 브라우저 MVP에서 지원 |
 | `api/_lib/generationQuota`, 생성 어댑터/화면 | 키/코드/참여 링크 없이 서버 env 키로 직접 생성. 비공개 Blob 공유 상한 전체 60회·하루 20회, ETag 예약·UUID 재전송 거절. | 사용자 선택에 따른 간단한 생성 UX와 전체 비용 호출량 제한 |
-| `PRODUCT/INTERACTIONS/ARCHITECTURE/QA/ICON_MANIFEST/API_INTEGRATION` | 이전 자동 탭 복귀·사용자 코드 입력 규칙을 새 요청에 맞춰 교체. PDF 근거·구현/미구현 실험 범위 명시. | 코드와 md 규칙이 충돌하지 않도록 유지 |
+| `README/PRODUCT/INTERACTIONS/ARCHITECTURE/QA/ICON_MANIFEST/API_INTEGRATION` | 이전 자동 탭 복귀·사용자 코드 입력 규칙을 새 요청에 맞춰 교체. PDF 근거·구현/미구현 실험 범위 명시. | 코드와 md 규칙이 충돌하지 않도록 유지 |
 
 ## 실행한 검증
 
