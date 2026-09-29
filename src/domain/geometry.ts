@@ -1,4 +1,4 @@
-import type { Area, Point, Rect } from './types';
+import type { Area, Point, Rect } from './types.js';
 
 const EPS = 1e-9;
 const cross = (a: Point, b: Point, c: Point) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);

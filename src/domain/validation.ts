@@ -1,5 +1,5 @@
-import { areaContainsPoint, areaContainsRect, areaContainsSegment, areaIntersectsRect, areaIntersectsSegment, areaIntersectsCircle, outlineBounds, validOutline } from './geometry';
-import { isDisplaySupport } from './display';
+import { areaContainsPoint, areaContainsRect, areaContainsSegment, areaIntersectsRect, areaIntersectsSegment, areaIntersectsCircle, outlineBounds, validOutline } from './geometry.js';
+import { isDisplaySupport } from './display.js';
 import type {
   Area,
   DesignElement,
@@ -12,7 +12,7 @@ import type {
   StructureGeometry,
   ValidationIssue,
   ValidationResult,
-} from './types';
+} from './types.js';
 
 export type TargetKind = PlacementTarget['kind'];
 

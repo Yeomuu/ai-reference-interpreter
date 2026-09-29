@@ -1,4 +1,4 @@
-import type { DesignElement, PlacementTarget, Project, Rect, StructureGeometry } from '../domain/types';
+import type { DesignElement, PlacementTarget, Project, Rect, StructureGeometry } from '../domain/types.js';
 
 /** One low-quality draft, with no automatic variants or hidden model calls. */
 export const GENERATION_MODEL = 'gpt-image-1-mini' as const;

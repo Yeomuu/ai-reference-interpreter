@@ -1,4 +1,4 @@
-import type { DesignElement, Point, Project, Rect } from './types';
+import type { DesignElement, Point, Project, Rect } from './types.js';
 
 export function isDisplaySupport(element: DesignElement): boolean {
   return element.status === 'apply' && (element.kind === 'freestanding-fixture' || element.kind === 'furniture');

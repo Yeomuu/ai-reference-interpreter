@@ -50,3 +50,7 @@
 ## 증거 파일
 
 `qa-screens/`는 Git·배포에서 제외하는 로컬 검증 폴더다. 실제 보고서는 `spatial-report.json`, `interaction-report.json`, `viewport-final/qa.json`, `experiment-routing-report.json`; 화면은 `spatial-placement-1440.png`, `spatial-outline-1440.png`, `spatial-outline-1113.png`, `spatial-outline-390.png` 등에 저장했다. 비밀 env와 사용자 폰트도 Git/배포에서 제외했다.
+
+## 배포 환경에서 발견한 추가 오류
+
+첫 프로덕션 업로드의 웹 빌드는 통과했지만 Vercel 서버 번들에서 ESM 확장자 누락과 기본 library 설정 진단이 발생했다. 실제 잘못된 입력 POST도 500을 반환하여 검증 실패로 처리했다. API가 참조하는 도메인/서비스 import를 `.js` 명시 ESM 경로로 수정하고 API 타입 검사도 NodeNext로 맞췄으며, 기본 library에서 지원하지 않는 배열 `at()`를 제거했다. 수정 후 lint/타입 검사/131개 테스트/프로덕션 빌드를 다시 실행해 모두 통과했다. 이 오류 확인에는 모델 호출이 필요 없는 잘못된 입력만 사용했다.

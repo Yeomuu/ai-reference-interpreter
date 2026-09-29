@@ -1,5 +1,5 @@
-import { outlineBounds, validOutline } from '../domain/geometry';
-import type { FloorPlan, Project } from '../domain/types';
+import { outlineBounds, validOutline } from '../domain/geometry.js';
+import type { FloorPlan, Project } from '../domain/types.js';
 
 const STORAGE_KEY = 'ai-reference-interpreter:projects:v1';
 const SCHEMA_VERSION = 1;

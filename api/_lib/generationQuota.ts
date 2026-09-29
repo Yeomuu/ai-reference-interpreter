@@ -27,7 +27,8 @@ export function validateQuota(value: unknown): QuotaState {
   const old = value as { version?: number; totalLimit?: number; dailyLimit?: number; reservations?: {id:string;day:string;at:number}[]; active?: {id:string;until:number}|null };
   if (old.version === 1) {
     if (!Number.isInteger(old.totalLimit) || old.totalLimit! < 1 || old.totalLimit! > TOTAL_LIMIT || !Number.isInteger(old.dailyLimit) || old.dailyLimit! < 1 || old.dailyLimit! > DAILY_LIMIT || !Array.isArray(old.reservations) || old.reservations.length > old.totalLimit! || old.reservations.some(r => !r || !validRequestId(r.id) || !validDay(r.day) || !Number.isSafeInteger(r.at) || r.at < 0) || new Set(old.reservations.map(r => r.id)).size !== old.reservations.length || old.active !== null && (!old.active || !validRequestId(old.active.id) || !Number.isSafeInteger(old.active.until) || !old.reservations.some(r => r.id === old.active?.id))) throw new Error('Invalid quota');
-    const day = old.reservations.map(r => r.day).sort().at(-1) ?? '1970-01-01';
+    const previousDays = old.reservations.map(r => r.day).sort();
+    const day = previousDays[previousDays.length - 1] ?? '1970-01-01';
     return { version:2, totalLimit:old.totalLimit!, dailyLimit:old.dailyLimit!, day, legacyIds:old.reservations.map(r=>r.id), reservations:old.reservations.filter(r=>r.day===day).map(r=>({id:r.id,at:r.at,userId:'0'.repeat(64)})),active:old.active! };
   }
   const state = value as QuotaState;
