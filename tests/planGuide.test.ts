@@ -63,6 +63,9 @@ describe('saved plan guide and scoped visual transfer', () => {
       { role: 'inspiration', sourceId: 'photo-atmosphere', dataUrl: '' }];
     const prompt = buildGenerationPrompt(project, 'camera-entrance', images);
     expect(prompt).toContain('authoritative 2D layout');
+    expect(prompt).toContain('room footprint is a RECTANGLE');
+    expect(prompt).toContain('curvature must not deform the room shell');
+    expect(prompt).toContain('Architectural curves, arches, niches');
     expect(prompt).toContain('white walls and unlit surfaces remain neutral white');
     expect(prompt).toContain('not a room-filling counter');
     expect(prompt).toContain('do not transfer this element to a side wall');
@@ -73,8 +76,18 @@ describe('saved plan guide and scoped visual transfer', () => {
     expect(prompt).toContain('at whole space');
     expect(prompt).toContain('input image 3');
     expect(prompt).toContain('in front, camera-right');
+    const wall = project.floorPlan!.structures.find(item => item.id === 'wall-north')!;
+    if (wall.geometry.kind === 'segment') {
+      wall.geometry.end.y += .05;
+      expect(buildGenerationPrompt(project, 'camera-entrance', images)).not.toContain('room footprint is a RECTANGLE');
+      wall.geometry.end.y -= .05;
+    }
     project.elements[1].kind = 'global-palette';
     expect(buildGenerationPrompt(project, 'camera-entrance', images)).not.toContain('Transfer illumination only');
     expect(buildGenerationPrompt(project, 'camera-entrance', images)).toContain('deliberately selected color/material treatment');
+    project.floorPlan!.areas.find(area => area.kind === 'floor')!.outline = [{ x: .1, y: .1 }, { x: .9, y: .1 }, { x: .9, y: .6 }, { x: .6, y: .9 }, { x: .1, y: .9 }];
+    const irregular = buildGenerationPrompt(project, 'camera-entrance', images);
+    expect(irregular).not.toContain('room footprint is a RECTANGLE');
+    expect(irregular).toContain('actual registered room outline');
   });
 });

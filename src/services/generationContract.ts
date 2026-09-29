@@ -192,6 +192,7 @@ function transferIntent(element: DesignElement): string {
   if (element.kind === 'ambient-light') return 'Transfer illumination only: light warmth, softness, direction, falloff and indirect bounce within the specified target. Keep the existing paint, material albedo, room geometry and neutral whites. A warm light reference is NOT a yellow wall/floor color reference or a global yellow image filter. Use plausible concealed strips, coves or wall wash where appropriate; do not copy unrelated furniture or the reference room. ';
   if (['ceiling-light', 'wall-light', 'standing-light'].includes(element.kind)) return 'Transfer the selected light fixture and its localized illumination, mounted on the specified ceiling/wall/floor target. Preserve unrelated room materials and avoid a global color cast. ';
   if (['global-palette', 'floor-material', 'wall-material'].includes(element.kind)) return 'Transfer only the deliberately selected color/material treatment to its saved area or surface; do not import the reference room layout or unrelated objects. ';
+  if (element.kind === 'wall-graphic') return 'Transfer this graphic as a removable print/lettering treatment on the saved wall plane. Architectural curves, arches, niches, sculpted walls and room corners in its reference photo are NOT part of this graphic and must not become room geometry. Keep the underlying wall plane intact. ';
   if (['freestanding-fixture', 'furniture', 'display-product', 'photozone', 'wall-mounted-product', 'wall-graphic'].includes(element.kind)) return 'Transfer only this named object/graphic, not the reference background or room layout. Preserve its recognizable form/material; use physical support, contact shadows and a plausible installed scale. ';
   return 'Transfer only the named design attribute within its saved target, never the reference room geometry. ';
 }
@@ -207,6 +208,22 @@ function relativeToCamera(project: Project, element: DesignElement): string {
   const right = -x * Math.sin(radians) + y * Math.cos(radians);
   const tolerance = Math.min(plan.width, plan.height) * .025;
   return `Relative to this camera: ${forward >= 0 ? 'in front' : 'behind the camera; do not force it into view'}, ${Math.abs(right) < tolerance ? 'near the sight line' : right > 0 ? 'camera-right' : 'camera-left'}. `;
+}
+
+function hasRectangularRoomShell(project: Project): boolean {
+  const plan = project.floorPlan;
+  const floors = plan?.areas.filter(area => area.kind === 'floor') ?? [];
+  if (!plan || plan.kind !== 'schematic' || floors.length !== 1 || floors[0].outline) return false;
+  const bounds = floors[0].bounds;
+  const corners = [{ x: bounds.x, y: bounds.y }, { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height }, { x: bounds.x, y: bounds.y + bounds.height }];
+  const walls = plan.structures.filter(item => item.kind === 'wall' && item.role !== 'partition');
+  const same = (a: typeof corners[number], b: typeof corners[number]) => Math.abs(a.x - b.x) < .001 && Math.abs(a.y - b.y) < .001;
+  return walls.length === 4 && corners.every((start, index) => {
+    const end = corners[(index + 1) % corners.length];
+    return walls.some(wall => wall.geometry.kind === 'segment' &&
+      (same(wall.geometry.start, start) && same(wall.geometry.end, end) || same(wall.geometry.start, end) && same(wall.geometry.end, start)));
+  });
 }
 
 /** Builds model guidance from user-saved conditions; it does not claim geometric guarantees. */
@@ -233,12 +250,15 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const editable = plan.structures.filter((item) => !item.immutable && !item.protected);
   const applied = project.elements.filter((item) => item.status === 'apply');
   const excluded = project.elements.filter((item) => item.status === 'exclude');
+  const rectangularRoom = hasRectangularRoomShell(project);
   const prompt = [
     'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
     'Color fidelity: match the existing-space photo paint and material colors. With warm indirect lighting, use balanced daylight/neutral general illumination and exposure; show warmth locally around light emitters and nearby bounce, while white walls and unlit surfaces remain neutral white. Do not give the entire room an amber, brown or sepia wash. An explicit saved palette/material element may change only its own target.',
     'Input image roles, in order:',
     ...imageLines,
     'The existing-space photograph supplies the current room appearance and visible architectural character. The saved top-down plan guide supplies the authoritative 2D layout: room outline/aspect, wall openings, pillars, fixture footprints and selected camera arrow. Reconcile the photograph with those saved positions. Inspiration and product images supply ONLY the named design attributes and are NEVER spatial geometry. Follow the plan layout before styling; do not substitute any reference-room composition.',
+    rectangularRoom ? 'The saved room footprint is a RECTANGLE: preserve four straight vertical wall planes, square room corners and straight floor/ceiling junctions. Do not bow or curve the room walls, round its corners, or turn the room into an oval. A curved display fixture is a separate object inside this rectangular room; its curvature must not deform the room shell.' : 'Preserve the actual registered room outline and its corners from the saved plan guide. Do not simplify a traced irregular/curved outline into a default rectangle or import a new outline from an inspiration image.',
+    'All saved straight structural wall segments must remain straight planar surfaces at their registered positions. Add curved architectural geometry only where the saved plan actually specifies it. Keep existing ceiling/wall/floor geometry; lighting and wall graphics do not create new bowed walls, niches, arches or sculpted architectural edges.',
     `Project: ${boundedText(project.name)}. Space type: ${boundedText(project.spaceType)}. Intended concept: ${boundedText(project.concept, 500)}.`,
     `Plan source: ${plan.kind}. Geometry confidence: ${plan.geometryConfidence}. Plan coordinates are normalized: x increases to the right and y increases downward. Do not invent precise dimensions from a schematic plan or any photograph.`,
     'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, occlude openings or replace protected geometry. Compatible removable decoration may be mounted on a kept wall without changing its geometry. Keep door circulation, windows and pillars clear. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
