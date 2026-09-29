@@ -1,0 +1,14 @@
+{
+  "result": "passed",
+  "checks": [
+    "pointer button / SVG element / canvas focus has no native black outline",
+    "keyboard focus stays visible and clicked text/number input keeps editing focus",
+    "new-tab guide, A/B anchor, actual PDF download, mobile guide without page-width overflow",
+    "A complete → B start selects B backup, reload resumes B, completion/six answers/real B ZIP",
+    "header/help and workspace stay inside 1440/1280/1113/768/390 viewports",
+    "keyboard focus remains visible with forced colors",
+    "new empty project reference screen and reload remain usable without null draft crash"
+  ],
+  "errors": [],
+  "actualPaidCalls": 0
+}

@@ -1,0 +1,25 @@
+{
+  "result": "passed",
+  "checks": [
+    "production uses verified client asset hashes",
+    "live status: 60 global/day, 20 anonymous browser/day, Korea midnight reset; signed private cookie flags",
+    "anonymous identity and live quota stable on repeated read-only status",
+    "malformed and cross-origin requests rejected without consuming quota",
+    "separate anonymous browser receives a distinct signed identity",
+    "seven direct routes, service logo/favicon and official lock SVG reachable"
+  ],
+  "status": {
+    "available": true,
+    "quota": {
+      "totalLimit": 60,
+      "used": 3,
+      "remaining": 57,
+      "dailyLimit": 20,
+      "dailyRemaining": 20,
+      "busy": false,
+      "resetsAt": "2026-09-29T15:00:00.000Z"
+    }
+  },
+  "actualPaidCalls": 0,
+  "credentialsPrinted": false
+}
