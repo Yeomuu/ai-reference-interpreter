@@ -7,6 +7,7 @@ import { loadProjects, saveProject } from '../services/persistence'
 import { deleteImageAsset, putImageAsset, resolveImageUri, revokeImageUrl, validateImageFile } from '../services/assets'
 import { GenerationOutcomeUnknownError, OFFLINE_DEMO_NOTICE, createApiImageProvider, getGenerationStatus, offlineDemoProvider } from '../services/imageProvider'
 import type { GenerationStatus } from '../services/imageProvider'
+import { waitForGenerationSlot } from '../services/generationQueue'
 import { referencePreparationFor } from '../services/generationContract'
 import AssetImage from '../components/AssetImage'
 import PlanCanvas from '../components/PlanCanvas'
@@ -1229,10 +1230,16 @@ export default function App() {
       sourceProject.sourceImages.find((image) => image.role === 'existing-space')?.id
     generationInFlightRef.current = true
     setBusy(true); setError(''); setNotice('')
-    let requestId = '', cameraId = '', generationStarted = 0, completed = 0
+    let requestId = '', cameraId = '', generationStarted = 0, completed = 0, persistenceFailed = false
     try {
       for (const id of cameraIds) {
-      cameraId = id; requestId = crypto.randomUUID(); generationStarted = Date.now()
+      cameraId = id
+      if (completed) {
+        requestId = ''
+        setGenerationProgress(`${completed} / ${cameraIds.length} 완료 · ${sourceProject.cameras.find(camera => camera.id === id)?.name ?? '다음 시점'} 생성 준비 중…`)
+        await waitForGenerationSlot(setGenerationStatus)
+      }
+      requestId = crypto.randomUUID(); generationStarted = Date.now()
       setGenerationProgress(`${completed + 1} / ${cameraIds.length} · ${sourceProject.cameras.find(camera => camera.id === id)?.name ?? '시점'} 생성 중`)
       experiment.record('generation_request', 'camera', cameraId, { origin: 'ai', request_id: requestId, common_revision: sourceProject.commonRevision })
       const result = await createApiImageProvider(requestId).createResult(sourceProject, cameraId, existingPhotoId)
@@ -1250,6 +1257,7 @@ export default function App() {
         setSaveFailed(false)
         persisted = true
       } catch {
+        persistenceFailed = true
         setSaveFailed(true)
         setError('AI 이미지는 생성됐고 비용이 발생했을 수 있으나 프로젝트 기록 저장에 실패했습니다. 결과는 현재 탭에만 남아 있습니다. 새로고침하거나 다른 프로젝트로 이동하기 전에 이미지를 내보내고 저장 공간을 확인한 뒤 저장을 다시 시도해 주세요.')
       }
@@ -1263,7 +1271,7 @@ export default function App() {
       completed++
       if (!persisted) break
       }
-      if (completed) { go('results'); if (!saveFailed) showNotice(`AI 이미지 ${completed}장을 만들었습니다. 각 시점의 구조와 조건을 직접 대조해 주세요.`) }
+      if (completed) { go('results'); if (!persistenceFailed) showNotice(`AI 이미지 ${completed}장을 만들었습니다. 각 시점의 구조와 조건을 직접 대조해 주세요.`) }
     } catch (cause) {
       if (cause instanceof GenerationOutcomeUnknownError) {
         experiment.record('generation_fail', 'camera', cameraId, { request_id: requestId, outcome_unknown: true, duration_ms: Date.now() - generationStarted }, 'failure')
@@ -1271,7 +1279,7 @@ export default function App() {
         setUncertainGenerationAt(now)
         setGenerationClock(now)
         try { sessionStorage.setItem(UNKNOWN_GENERATION_SESSION_KEY, String(now)) } catch { /* Page state still blocks retry. */ }
-      } else experiment.record('generation_fail', 'camera', cameraId, { request_id: requestId, outcome_unknown: false, duration_ms: Date.now() - generationStarted }, 'failure')
+      } else if (requestId) experiment.record('generation_fail', 'camera', cameraId, { request_id: requestId, outcome_unknown: false, duration_ms: Date.now() - generationStarted }, 'failure')
       setError(`${completed ? `${completed}장은 저장했습니다. 나머지 생성은 중단했습니다. ` : ''}${cause instanceof Error ? cause.message : 'AI 이미지를 생성하지 못했습니다. 이전 결과는 보관됩니다.'}`)
       if (completed) go('results')
     }

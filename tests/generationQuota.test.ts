@@ -79,6 +79,15 @@ describe('durable daily browser and service quotas', () => {
     await expect(quota.reserve(uuid(1),userA,now+1000)).rejects.toMatchObject({status:409});
     expect(state().reservations).toHaveLength(0);
   });
+  it('reports failed lease release and keeps the reservation and active lock after write races', async () => {
+    const { store, state } = memoryStore(), quota = new GenerationQuota(store);
+    await quota.reserve(uuid(1), userA, now);
+    store.compareAndSwap = async () => false;
+    await expect(quota.finish(uuid(1))).rejects.toMatchObject({ status: 503 });
+    expect(state().reservations).toHaveLength(1);
+    expect(state().active?.id).toBe(uuid(1));
+    await expect(quota.reserve(uuid(2), userB, now + 1000)).rejects.toMatchObject({ status: 409 });
+  });
   it('rejects corrupt, duplicate or expanded state', () => {
     const {state}=memoryStore();
     expect(()=>validateQuota({...state(),totalLimit:61})).toThrow();

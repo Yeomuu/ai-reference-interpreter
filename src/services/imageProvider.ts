@@ -71,9 +71,9 @@ const unavailableStatus: GenerationStatus = {
 };
 
 /** A read-only availability check; it never triggers model usage or billing. */
-export async function getGenerationStatus(): Promise<GenerationStatus> {
+export async function getGenerationStatus(timeoutMs = 8_000): Promise<GenerationStatus> {
   try {
-    const response = await fetch('/api/status', { method: 'GET', cache: 'no-store', credentials: 'same-origin' });
+    const response = await fetch('/api/status', { method: 'GET', cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(timeoutMs) });
     if (!response.ok) return unavailableStatus;
     const data: unknown = await response.json();
     if (!data || typeof data !== 'object' || !('available' in data) || typeof data.available !== 'boolean') {

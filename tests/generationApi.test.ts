@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import generate from '../api/generate';
 import status from '../api/status';
 import { IDENTITY_COOKIE, signedIdentity } from '../api/_lib/generationIdentity';
-import { generationQuota, quotaConfigured, QuotaError } from '../api/_lib/generationQuota';
+import { generationQuota, quotaConfigured, QuotaError, GenerationQuota, dayInKorea, type QuotaState, type QuotaStore } from '../api/_lib/generationQuota';
 vi.mock('../api/_lib/generationQuota', async (original) => { const actual = await original<typeof import('../api/_lib/generationQuota')>(); return { ...actual, quotaConfigured: vi.fn(), generationQuota: { status: vi.fn(), reserve: vi.fn(), finish: vi.fn() } }; });
 import { createSampleProject } from '../src/data/sample';
 import { buildGenerationPrompt, referenceSheetGroups, type GenerationImage, type GenerationRequest } from '../src/services/generationContract';
@@ -57,11 +57,100 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
 describe('image generation API boundary', () => {
+  it('does not expose a finished image until its active server lease is released', async () => {
+    let release!: () => void, entered!: () => void;
+    const releaseGate = new Promise<void>(resolve => { release = resolve; });
+    const enteredFinish = new Promise<void>(resolve => { entered = resolve; });
+    vi.mocked(generationQuota.finish).mockImplementationOnce(async () => { entered(); await releaseGate; });
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ data: [{ b64_json: jpeg }] }) })));
+    const { response, values } = responseStub();
+    const running = generate(requestStub(sampleRequest()), response);
+    await enteredFinish;
+    const beforeRelease = values.body;
+    release();
+    await running;
+    expect(beforeRelease).toBe('');
+    expect(values.statusCode).toBe(200);
+    expect(JSON.parse(values.body).imageDataUrl).toBe(dataUrl);
+  });
+  it('accepts the next view immediately on receipt of the previous response with a real quota ledger', async () => {
+    let state: QuotaState = { version: 2, totalLimit: 60, dailyLimit: 20, day: dayInKorea(Date.now()), reservations: [], legacyIds: [], active: null };
+    let revision = 0;
+    const claims = new Set<string>();
+    const store: QuotaStore = {
+      async read() { return { state: structuredClone(state), etag: String(revision) }; },
+      async compareAndSwap(next, etag) { if (etag !== String(revision)) return false; state = structuredClone(next); revision++; return true; },
+      async claimRequest(id) { if (claims.has(id)) return false; claims.add(id); return true; },
+    };
+    const quota = new GenerationQuota(store);
+    vi.mocked(generationQuota.reserve).mockImplementation((id, userId) => quota.reserve(id, userId));
+    vi.mocked(generationQuota.finish).mockImplementation(async id => {
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await quota.finish(id);
+    });
+    const upstream = vi.fn(async () => ({ ok: true, json: async () => ({ data: [{ b64_json: jpeg }] }) }));
+    vi.stubGlobal('fetch', upstream);
+    const nextRequestId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const nextInput = sampleRequest();
+    nextInput.project.cameras.push({ ...nextInput.project.cameras[0], id: 'camera-side', name: '추가 시점', x: 0.75, y: 0.7, primary: false });
+    nextInput.cameraId = 'camera-side';
+    const next = responseStub();
+    let nextRunning: Promise<void> | undefined;
+    const first = responseStub();
+    const finishResponse = first.response.end.bind(first.response);
+    first.response.end = ((body: string) => {
+      finishResponse(body);
+      nextRunning = generate(requestStub(nextInput, nextRequestId), next.response);
+    }) as ServerResponse['end'];
+    await generate(requestStub(sampleRequest()), first.response);
+    await nextRunning;
+    expect(first.values.statusCode).toBe(200);
+    expect(next.values.statusCode).toBe(200);
+    expect(upstream).toHaveBeenCalledTimes(2);
+    expect(state.active).toBeNull();
+    expect(state.reservations.map(item => item.id)).toEqual([requestId, nextRequestId]);
+    const replay = responseStub();
+    await generate(requestStub(sampleRequest()), replay.response);
+    expect(replay.values.statusCode).toBe(409);
+    expect(upstream).toHaveBeenCalledTimes(2);
+  });
+  it('retains the paid image response if completion storage is unavailable without another provider call', async () => {
+    vi.mocked(generationQuota.finish).mockRejectedValueOnce(new Error('storage unavailable'));
+    const upstream = vi.fn(async () => ({ ok: true, json: async () => ({ data: [{ b64_json: jpeg }] }) }));
+    vi.stubGlobal('fetch', upstream);
+    const { response, values } = responseStub();
+    await generate(requestStub(sampleRequest()), response);
+    expect(values.statusCode).toBe(200);
+    expect(JSON.parse(values.body).imageDataUrl).toBe(dataUrl);
+    expect(upstream).toHaveBeenCalledTimes(1);
+    expect(generationQuota.reserve).toHaveBeenCalledTimes(1);
+    expect(generationQuota.finish).toHaveBeenCalledTimes(1);
+  });
+  it('bounds stalled completion storage so an already paid image still reaches the client', async () => {
+    vi.useFakeTimers();
+    let release!: () => void, entered!: () => void;
+    const releaseGate = new Promise<void>(resolve => { release = resolve; });
+    const enteredFinish = new Promise<void>(resolve => { entered = resolve; });
+    vi.mocked(generationQuota.finish).mockImplementationOnce(async () => { entered(); await releaseGate; });
+    const upstream = vi.fn(async () => ({ ok: true, json: async () => ({ data: [{ b64_json: jpeg }] }) }));
+    vi.stubGlobal('fetch', upstream);
+    const { response, values } = responseStub();
+    const running = generate(requestStub(sampleRequest()), response);
+    await enteredFinish;
+    await vi.advanceTimersByTimeAsync(8_000);
+    await running;
+    release();
+    expect(values.statusCode).toBe(200);
+    expect(JSON.parse(values.body).imageDataUrl).toBe(dataUrl);
+    expect(upstream).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('requires the anonymous cookie before reserving or calling the provider', async () => {
     const call=vi.fn(); vi.stubGlobal('fetch',call);
     const request=requestStub(sampleRequest()); delete request.headers.cookie;

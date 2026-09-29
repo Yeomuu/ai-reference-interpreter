@@ -95,6 +95,11 @@ Generation includes the saved geometry of both preserved and released structures
 - Applied source count is unrestricted. More than three sources use numbered contact sheets, retaining every source and crop/grid in a validated manifest. Images/body/prompt remain bounded and smaller panels may lose visual detail. Preparing a sheet has no model call.
 - The batch locks both generation controls until every selected view finishes or the batch stops. Save each result on arrival; later failure never discards earlier images. Capacity is checked for the chosen count in UI and each request reserves atomically server-side; another browser may consume shared capacity between requests. Never automatically retry a failed/uncertain paid request. Free sample remains a single clearly preloaded sample.
 
+### 여러 시점의 연속 생성 · 2026-09-29
+- 서버는 이미지 응답 전에 해당 요청의 진행 중 잠금 해제를 기다린다. 저장소 오류/지연 때문에 이미 생성한 이미지가 전달되지 않는 일을 막도록 해제 대기는 최대 8초 및 함수의 남은 시간 이내로 제한한다. 미해제 잠금과 예약 기록은 유지한다.
+- 첫 시점 이후에는 다음 시점 이름과 완료 수를 표시하고 읽기 전용 상태 GET으로 다음 요청 가능 여부를 확인한다. 처리 중이면 2초 간격으로 최대 20초 대기한다. 이 확인은 생성 호출이나 횟수 예약이 아니다. 다음 시점의 유료 POST는 준비 상태가 확인된 뒤 새 UUID로 한 번만 실행한다.
+- 한도 소진·상태 조회 실패·대기 시간 초과에서는 먼저 완성한 이미지를 보관하고 남은 시점을 중단한 이유를 표시한다. 아직 보내지 않은 시점에 생성 실패 이벤트나 불확실한 과금 표시를 만들지 않는다. 실제 전송한 요청의 실패/불확실 결과는 기존 재요청 보호를 따른다.
+
 ## 위치 연결과 영역 표시 · 2026-09-29
 - References: 요소 이름 버튼으로 선택한다. 등록 폼에서 조명 분위기 등 적용 범위를 바로 지정할 수 있으며 ‘배치에서 나중에 지정’도 가능하다. 저장된 선택 요소에서는 같은 선택기로 위치를 수정한다. 이미지 크롭은 출처 선택이며 공간 범위 연결과 혼동하지 않는다.
 - Placement: 오른쪽 ‘적용 위치 연결’ 또는 도면 영역 이름/목록으로 현재 요소를 연결한다. 등록과 배치가 같은 실제 영역 ID를 저장한다. 유형이 다른 위치는 비활성이고, 점유 등 충돌은 도메인 검증으로 거절한다. 전체 공간 조명과 다른 레퍼런스의 특정 영역 조명은 동시에 유지할 수 있다.

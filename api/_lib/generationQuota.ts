@@ -77,6 +77,13 @@ export class GenerationQuota {
     }
     throw new QuotaError('다른 생성 요청이 접수 중입니다. 잠시 후 상태를 확인해 주세요.',409);
   }
-  async finish(id:string):Promise<void> { for(let attempt=0;attempt<6;attempt++){const {state,etag}=await this.store.read();if(state.active?.id!==id)return;if(await this.store.compareAndSwap({...state,active:null},etag))return;} }
+  async finish(id: string): Promise<void> {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const { state, etag } = await this.store.read();
+      if (state.active?.id !== id) return;
+      if (await this.store.compareAndSwap({ ...state, active: null }, etag)) return;
+    }
+    throw new QuotaError('생성 완료 상태를 저장하지 못했습니다. 잠시 후 생성 가능 여부를 확인해 주세요.', 503);
+  }
 }
 export const generationQuota = new GenerationQuota(blobStore);
