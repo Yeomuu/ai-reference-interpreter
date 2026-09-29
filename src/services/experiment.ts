@@ -182,6 +182,7 @@ export class ExperimentRecorder {
       if (!old) {
         this.record('element_create', 'element', element.id, { element_type: element.kind, region_used: !!element.sourceRegion, apply_state: element.status })
         if (element.sourceRegion) this.record('reference_region_select', 'element', element.id, { region_used: true })
+        if (element.target) this.record('placement_commit', 'element', element.id, { ...targetPayload(element.target), common_revision: after.commonRevision })
       }
       else {
         if (old.status !== element.status) this.record(element.status === 'apply' ? 'element_apply' : 'element_exclude', 'element', element.id, { apply_state: element.status })

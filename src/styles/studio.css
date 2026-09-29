@@ -140,6 +140,9 @@ html { scroll-padding-top: calc(var(--layout-header-height) + var(--space-16)); 
   .app-shell--project .main-content { padding: var(--space-20) 0 calc(var(--space-48) + var(--space-48)); }
   .app-shell--project .content-wrap, .app-shell--project .step-nav-inner { width: calc(100% - var(--space-32)); }
   .header-right .save-status { display: none; }
+  .header-inner, .header-right { gap: var(--space-8); }
+  .header-right .project-switch { max-width: 64px; }
+  .header-right .help-link { padding-inline: var(--space-4); }
   .page-intro-right { align-items: flex-start; margin-top: var(--space-8); }
   .page-actions { position: fixed; inset: auto 0 0; z-index: 30; min-height: 64px; padding: var(--space-12) var(--space-16); border-top: 1px solid var(--border-default); background: var(--surface-glass); backdrop-filter: var(--glass-blur); }
   .page-actions .button { flex: 1; min-height: var(--control-height-44); }

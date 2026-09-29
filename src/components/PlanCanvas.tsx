@@ -701,7 +701,7 @@ export default function PlanCanvas({
     const nameWidth = packed?.width ?? labelName.length * 13 + 50;
     const labelX = (packed?.x ?? center.x * width * contentPixelScale) / contentPixelScale;
     const labelY = (packed?.y ?? center.y * height * contentPixelScale) / contentPixelScale;
-    return <g key={structure.id} className={labelsOnly ? `plan-label-wrapper${selected ? ' is-selected' : ''}` : classes}>
+    return <g key={structure.id} className={labelsOnly ? `plan-label-wrapper${selected ? ' is-selected' : ''}${drawTool ? ' is-read-only' : ''}` : classes}>
     {!labelsOnly && <g
       role={selectable ? 'button' : undefined}
       tabIndex={selectable ? 0 : undefined}

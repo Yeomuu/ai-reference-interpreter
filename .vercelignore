@@ -1,5 +1,7 @@
 .env*
 private/
 qa-screens/
+output/
+tmp/
 Paperlogy/
 .git/

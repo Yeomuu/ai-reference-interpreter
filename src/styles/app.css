@@ -10,6 +10,7 @@ h1 { font-size: 28px; line-height: 40px; font-weight: 700; letter-spacing: -.025
 h2 { font-size: 18px; line-height: 28px; font-weight: 700; letter-spacing: -.018em; }
 h3 { font-size: 14px; line-height: 22px; font-weight: 700; }
 p { line-height: 1.65; }
+:focus:not(:focus-visible) { outline: none; }
 :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .app-header { height: 64px; flex: none; border-bottom: 1px solid var(--border-default); background: var(--surface-glass); backdrop-filter: var(--glass-blur); }
@@ -60,7 +61,7 @@ p { line-height: 1.65; }
 .button[aria-busy="true"] { color: var(--text-secondary); cursor: progress; }
 .file-pick { position: relative; overflow: hidden; cursor: pointer; }
 .file-pick input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0,0,0,0); }
-.file-pick:focus-within { outline: 2px solid var(--violet-700); outline-offset: 2px; }
+.file-pick:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .field { display: flex; flex-direction: column; gap: var(--space-8); min-width: 0; color: var(--text-primary); font-size: 14px; font-weight: 500; }
 .field input:not([type=range]), .field select, .field textarea { width: 100%; min-width: 0; min-height: var(--control-height-40); padding: var(--space-8) var(--space-12); border: 1px solid var(--border-control); border-radius: var(--radius-12); background: var(--surface-subtle); color: var(--text-primary); font-size: 14px; font-weight: 400; }
 .field textarea { resize: vertical; line-height: 1.5; }

@@ -75,6 +75,17 @@ describe('opt-in experiment journal', () => {
     recorder.complete(final)
     expect(experimentMetrics(recorder.getSnapshot().sessions[0]).camera_modification_count).toBe(1)
   })
+  it('records the committed target when an element is created with its location already assigned', () => {
+    const { recorder } = setup(), project = createSampleProject()
+    recorder.start('P03', 'B', project, 'references')
+    const mapped = { ...project.elements[1], id: 'new-scoped-light', target: { kind: 'named-area' as const, areaId: 'zone-rear' } }
+    const changed = updateCommon(project, { elements: [...project.elements, mapped] })
+    recorder.changes(project, changed)
+    recorder.complete(changed)
+    const events = recorder.getSnapshot().sessions[0].events.filter(event => event.object_id === mapped.id)
+    expect(events.map(event => event.event_name)).toEqual(['element_create', 'placement_commit'])
+    expect(events[1].payload).toMatchObject({ target_type: 'named-area', target_id: 'zone-rear' })
+  })
   it('escapes spreadsheet formulas and emits a ZIP with UTF-8 file flags', async () => {
     expect(csv([['=CMD()', '정상']])).toContain("'=CMD()")
     const bytes = new Uint8Array(await textZip({ 'events.csv': '한글\n', 'manifest.json': '{}' }).arrayBuffer())

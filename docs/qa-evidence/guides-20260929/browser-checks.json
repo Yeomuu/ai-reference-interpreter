@@ -1,0 +1,210 @@
+{
+  "actualPaidCalls": 0,
+  "reports": [
+    {
+      "file": "focus-guide-study-report.json",
+      "checks": [
+        "pointer button / SVG element / canvas focus has no native black outline",
+        "keyboard focus stays visible and clicked text/number input keeps editing focus",
+        "new-tab guide, A/B anchor, actual PDF download, mobile guide without page-width overflow",
+        "A complete → B start selects B backup, reload resumes B, completion/six answers/real B ZIP",
+        "header/help and workspace stay inside 1440/1280/1113/768/390 viewports",
+        "keyboard focus remains visible with forced colors",
+        "new empty project reference screen and reload remain usable without null draft crash"
+      ]
+    },
+    {
+      "file": "spatial-report.json",
+      "checks": [
+        "only selected reference elements shown",
+        "product upload and type default, source scoped card",
+        "explicit basic support, product rests on support",
+        "moving support carries product",
+        "canvas support selection does not move support",
+        "lock badge pointer and keyboard toggles without dragging",
+        "fresh upload has no imposed rectangle; undo restores plan and placements",
+        "explicit retain choice preserves old annotations",
+        "portrait uploaded outline trace saves actual polygon without tool switch",
+        "outline and new data survive reload",
+        "vertical wall drawing corrects incidental diagonal gesture",
+        "released wall endpoint correction and vertical action",
+        "round pillar with user size",
+        "1113px no outer overflow",
+        "390px no outer overflow"
+      ]
+    },
+    {
+      "file": "area-mapping-report.json",
+      "checks": [
+        "registration maps the second reference to a named space while original lighting remains whole-space",
+        "selected reference mapping edits persist across reload; unrelated fixture retains its floor-point placement",
+        "placement list connects eligible named regions and rejects passages/ceilings for ambient light; only selected scope is highlighted",
+        "ceiling fixture registration offers ceiling zones only; occupied zone disabled with a plain reason",
+        "wall-mounted light retains wall-specific mapping rather than incorrectly offering whole-space",
+        "explicit add-area action opens drawing; gesture auto-saves without tab switch; new scope becomes a mapping option",
+        "20 overlapping regions show one selected scope name plus protected passage, dim others, and display filters retain saved geometry/revision",
+        "selected scope remains visible under its own disabled filter; Tab/Shift+Tab and Escape enter/exit the floating settings",
+        "opt-in name labels are packed without intersecting labels; actual full names remain in the list",
+        "1070px area controls remain reachable, keyboard selection works, and outer viewport does not scroll",
+        "390px area controls remain reachable, keyboard selection works, and outer viewport does not scroll"
+      ]
+    },
+    {
+      "file": "movement-visibility-report.json",
+      "checks": [
+        "space: protected circulation, door clearance and actual fixture bounds visible before moving; no unrelated editable cameras",
+        "keep: protected circulation, door clearance and actual fixture bounds visible before moving; no unrelated editable cameras",
+        "placement: protected circulation, door clearance and actual fixture bounds visible before moving; no unrelated editable cameras",
+        "camera: protected circulation, door clearance and actual fixture bounds visible before moving; no unrelated editable cameras",
+        "visible range labels do not capture pointer gestures while drawing",
+        "Keep drag reports the named passage conflict before release; invalid release retains saved geometry and an absolute reason",
+        "valid released-pillar movement commits once; relevant camera obstruction appears as a read-only marker",
+        "fixture footprint is checked during drag; own previous footprint does not masquerade as an obstacle; invalid release is unchanged",
+        "hiding decorative layers cannot hide active circulation/clearance/occupancy restrictions; protected passage filter explains always-visible state",
+        "camera can move onto a protected passage, matching viewpoint semantics",
+        "camera drag checks a real pillar during preview and keeps the saved viewpoint on invalid release",
+        "1070px protected ranges remain present in all four canvas modes with no document scroll",
+        "390px protected ranges remain present in all four canvas modes with no document scroll"
+      ]
+    },
+    {
+      "file": "multi-view-report.json",
+      "checks": [
+        "first image is saved before read-only busy waiting; then views 2 and 3 proceed once each with unique IDs and stored assets",
+        "progress names the next view; image/status buttons and viewpoint choices remain locked through waiting",
+        "completed batch decrements both daily counters by exactly three",
+        "exhausted: completed image retained; next paid request never sent",
+        "unavailable: completed image retained; next paid request never sent",
+        "persistent busy status stops after bounded waiting, retaining first image with a clear error and no repeated paid call",
+        "uncertain second response retains first image and blocks automatic third request and immediate paid retry"
+      ]
+    },
+    {
+      "file": "plan-guide-report.json",
+      "checks": [
+        "actual client sends existing photo + saved plan guide + 3 references within image/body limits",
+        "rendered JPEG has decoded structure, fixture, camera and annotation pixels",
+        "result offers a readable nonmodal saved-plan comparison",
+        "comparison uses saved geometry and saved camera after current geometry changes and camera deletion",
+        "1070 and 390px result comparison stays within viewport with internal scrolling",
+        "uploaded background is retained in a portrait guide rather than overwritten by a sample rectangle",
+        "no browser runtime errors"
+      ]
+    },
+    {
+      "file": "viewport-final/qa.json",
+      "checks": [
+        "1440×900: seven routes bounded, body has no scroll",
+        "1280×800: seven routes bounded, body has no scroll",
+        "1113×697: seven routes bounded, body has no scroll",
+        "768×900: seven routes bounded, body has no scroll",
+        "390×844: seven routes bounded, body has no scroll",
+        "success overlay leaves plan unchanged, persists three seconds, fades, closes immediately",
+        "invalid location alert persists and never moves the plan",
+        "project information and study details open without displacing the canvas, inputs remain reachable",
+        "responsive reference preview retains image aspect ratio and normalized pointer/keyboard crop geometry",
+        "narrow screens scroll only active workspace; sample action is keyboard reachable and page remains fixed"
+      ]
+    },
+    {
+      "file": "drawing-report.json",
+      "checks": [
+        "empty movable-partition state truthful",
+        "partition saved without tab jump, explicitly selected movement mode",
+        "partition label drag and keyboard preserve length/no initial jump",
+        "duplicate partition refused without geometry loss",
+        "canvas wall label selection and near-line drag snap onto named wall",
+        "occupied wall opening refused",
+        "off-wall click provides local guidance",
+        "duplicate pillar refused",
+        "passage over physical display refused",
+        "identical named scope refused",
+        "intentional ceiling/floor layers accepted",
+        "point saved on click while preserving drawing tool",
+        "two point drawings save consecutively without reselecting the tool",
+        "two area drawings save consecutively without reselecting the tool",
+        "Escape cancels unfinished geometry",
+        "switching structure kind cancels pending drag",
+        "viewport 1280px: no horizontal overflow, screenshot captured",
+        "viewport 900px: no horizontal overflow, screenshot captured",
+        "viewport 390px: no horizontal overflow, screenshot captured"
+      ]
+    },
+    {
+      "file": "reference-keep-qa.json",
+      "checks": [
+        "actual file upload stored in IndexedDB and selected immediately",
+        "delete cancellation keeps source and linked conditions",
+        "keyboard Escape cancels deletion confirmation",
+        "persistent undo restores an uploaded image after success notice fades",
+        "uploaded original remains available for canvas undo history after delete banner dismissal",
+        "linked applied and excluded elements cascade while result and historical attribution remain",
+        "standalone element delete and undo retain its source",
+        "element points back to its original reference",
+        "Space toggles required preservation; canvas displays movement affordance immediately",
+        "released original pillar can be dragged and keyboard-moved in Placement",
+        "invalid numeric edit resets display and retains prior geometry",
+        "invalid structural collision keeps prior position and explains the reason",
+        "sample migration and reload preserve explicit unlock and edited geometry",
+        "re-lock removes movement affordance and blocks dragging",
+        "connected locked opening explains why its released wall still cannot move",
+        "released window slides along parent wall without floating into room",
+        "last reference deletion produces usable empty state and can be undone",
+        "1440px: reference and structure inspector screenshots, six-step overflow check",
+        "1070px: reference and structure inspector screenshots, six-step overflow check",
+        "768px: reference and structure inspector screenshots, six-step overflow check",
+        "390px: reference and structure inspector screenshots, six-step overflow check",
+        "deleted historical condition stays readable and cannot open an unrelated element"
+      ]
+    },
+    {
+      "file": "experiment-routing-report.json",
+      "checks": [
+        "structure names and official lock icons replace Keep numbering",
+        "click navigation, browser Back/Forward and reload preserve project routes",
+        "consented logging persists preservation, condition edits/cancel, invalid placement and review loops across reload",
+        "explicit completion, six saved survey responses and real ZIP download",
+        "direct server-key generation, no invitation or credential input, in-flight generation disabled across navigation (mocked; no paid provider)",
+        "shared quota exhaustion and server busy disable generation while the free sample remains usable",
+        "custom project deep-route reload and cross-project browser history restore the correct project"
+      ]
+    },
+    {
+      "file": "design-final/qa.json",
+      "checks": [
+        "1440×900: seven screens, canvas hierarchy, overflow and navigation",
+        "1280×800: seven screens, canvas hierarchy, overflow and navigation",
+        "768×900: seven screens, canvas hierarchy, overflow and navigation",
+        "390×844: seven screens, canvas hierarchy, overflow and navigation",
+        "camera rotation changes heading only, separate body and labeled handle",
+        "camera body drag retains angle and initial grab offset",
+        "empty plan click retains camera",
+        "independent panel collapse enlarges canvas and restores controls",
+        "primary hover and pressed colors, explicit next-task navigation",
+        "route heading focus, keyboard outline, readable wrapping source names",
+        "photos and approved results: first/middle/last centered, counter, arrows, keyboard, drag, hidden scrollbar",
+        "forced colors and reduced motion retain opaque controls"
+      ]
+    },
+    {
+      "file": "interaction-report.json",
+      "checks": [
+        "camera deletion retains images; Ctrl+Z/Shift+Z restores and redoes cameras",
+        "three views = three distinct requests/results; generation button stays locked for the batch",
+        "batch usage updates both visible daily allowances",
+        "partial batch failure keeps its completed image and stops remaining views",
+        "kept wall accepts removable graphic movement without repeated confirmation",
+        "canvas Ctrl+Z and Ctrl+Shift+Z recover actual placement",
+        "wall graphic transfers around the corner onto a preserved adjacent wall",
+        "collision alert is absolute and dismissible; saved geometry and canvas bounds stay unchanged",
+        "reference heading stays pinned; selected element is first and other sources are hidden",
+        "reference deletion and persistent undo remain functional",
+        "ten references have no count restriction; packing creates one model request per view",
+        "1440px: all seven steps remain within viewport with working scroll owners",
+        "1070px: all seven steps remain within viewport with working scroll owners",
+        "390px: all seven steps remain within viewport with working scroll owners"
+      ]
+    }
+  ],
+  "total": 144
+}

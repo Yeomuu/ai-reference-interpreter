@@ -712,6 +712,7 @@
 
 /* Quiet drawing annotations; their transparent hit areas remain 40px. */
 .plan-label-wrapper .plan-label-hit { fill: transparent; stroke: none; pointer-events: all; }
+.plan-label-wrapper.is-read-only .plan-label-hit { pointer-events: none; }
 .plan-label-wrapper .plan-label-surface { fill: var(--surface-base); fill-opacity: .9; stroke: none; }
 .plan-label-wrapper.is-selected .plan-label-surface,
 .plan-label-wrapper:has(:focus-visible) .plan-label-surface { fill: var(--surface-selected); stroke: var(--canvas-selection); stroke-width: 1; }
