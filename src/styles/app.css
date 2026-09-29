@@ -544,3 +544,13 @@ p { line-height: 1.65; }
   .step-link.is-current, .plan-detail-tabs button[aria-pressed="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
   :focus-visible { outline-color: Highlight; }
 }
+.area-target-picker { display: grid; gap: var(--space-8); }
+.area-target-picker > p { margin: 0; }
+.area-target-picker > .button { justify-self: start; }
+.area-target-reasons > summary { min-height: var(--control-height-40); padding-block: var(--space-8); cursor: pointer; font-size: 14px; }
+.area-target-reasons p { font-size: 14px; line-height: 22px; margin-top: var(--space-8); }
+.area-target-error { color: var(--state-error-fg); font-size: 14px; line-height: 22px; }
+.reference-location { margin-top: var(--space-12); padding-top: var(--space-12); border-top: 1px solid var(--border-default); }
+.element-card-select { flex: 1; min-width: 0; min-height: var(--control-height-40); padding: 0; border: 0; border-radius: var(--radius-4); background: transparent; color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+.element-card-select:hover { color: var(--action-selected); }
+.element-card-select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

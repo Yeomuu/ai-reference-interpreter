@@ -1057,3 +1057,9 @@ manipulation principles only. Do not import their branding, accounts or extra 2D
 새 도면 대응 안내는 40px summary와 기존 popover 계층의 overlaid content로 구성한다. 그리기 도구는 독립 내부 스크롤, 캔버스는 남은 높이를 사용한다. 충돌 알림/배치 경고는 canvas/workspace의 absolute overlay로 렌더링하여 좌표 변환과 도형 크기를 바꾸지 않는다. 생성할 시점은 fieldset/checkbox의 기존 component states를 사용하고 `n / total · 시점명 생성 중`은 실제 요청 순서 안내이며 가상의 모델 진행률이 아니다.
 
 그리기 중에는 중복 패널 제목·업로드 안내를 접고 좌표 대체 입력/영역 관리를 왼쪽 도구 패널의 내부 스크롤에 둔다. 오른쪽은 캔버스와 명시적 그리기 종료만 사용한다. 저장·제스처 안내도 캔버스 안 absolute status로 렌더링하며 클릭을 가로채지 않는다. 업로드와 사진은 그리기 종료 후 원래 위치에서 사용할 수 있다.
+
+## 영역 표시와 적용 범위 선택 컴포넌트 · 2026-09-29
+AreaTargetPicker는 기존 field/select/quiet button과 문장형 검증을 재사용한다. 선택 범위는 실제 영역 이름+종류로 표시하며 UI에 데이터 ID나 좌표를 먼저 노출하지 않는다. 바닥 점 배치와 선택적 바닥 영역 배치를 구분한다. 요소 카드 제목은 40px 이상 선택 버튼이고 pressed/focus 상태를 갖는다.
+PlanAreaControls는 기존 240px 도구 폭, 8/12/16px 간격, radius-4/8/12, surface-base/selected, border-control/default/selected, shadow-float와 popover 레이어를 사용한다. 설정은 45dvh 이하 내부 스크롤과 투명 트랙을 갖고 화면 안으로 위치를 보정한다. portal의 fixed 표시가 부모 패널에 잘리거나 캔버스를 밀지 않도록 한다. 새 색/폰트/아이콘 자산은 추가하지 않는다.
+도면의 비선택 영역은 채움 없이 서로 다른 선 패턴, 선택 영역은 기존 선택색 경계+옅은 채움, 선택 이외 영역은 낮은 불투명도로 표시한다. 이름표는 기존 14px/40px 화면 픽셀 규칙과 충돌 회피 배치를 사용한다. 선택 영역·구조 이름을 추가 이름표보다 먼저 배치한다. 여유가 없는 이름은 전체 목록으로 읽는다. 선택하지 않은 공간 연출 조건의 큰 중복 윤곽과 번호는 숨기되 실제 진열대 등 물리적 요소는 유지한다.
+짧은 데스크톱(800px 이하 높이)·좁은 화면(1000px 미만)은 공간 준비 작업 영역 자체를 스크롤 주체로 사용하고 기존 캔버스 최소 높이 280px를 유지한다. 100dvh 프레임·바깥 overflow:hidden 계약은 유지한다.

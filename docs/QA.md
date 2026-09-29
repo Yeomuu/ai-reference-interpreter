@@ -50,3 +50,11 @@
 32. Signed anonymous browser cookie makes its quota stable across status/reload, distinct between browsers, and requires no participant key/code/login. Both counts reset at KST midnight based on server time; deployment does not reset records, requests never replay across days, old current-day usage remains shared. Strong-storage faults stop before any model call. Verify actual production read-only status/cookie separately from mocked provider tests.
 
 Actual current results are recorded in QA_SPATIAL_BATCH_20260929.md; older dated QA files describe their original versions.
+
+## 적용 범위 연결 / 다수 영역 가시성 수용 기준 · 2026-09-29
+- 등록 시 두 번째 조명 분위기를 특정 영역에 연결하고 기존 전체 공간 조명이 그대로 유지되어야 한다. 참고 이미지와 배치의 선택기가 같은 위치를 저장하며 새로고침·조건 snapshot·생성 프롬프트에서 실제 영역 연결을 유지한다.
+- 천장 조명은 천장 영역만, 벽 조명은 벽만, 스탠드 조명은 바닥 점만 허용한다. 동선은 조명 분위기 연결 대상이 아니다. 점유된 천장 영역은 선택 불가 이유를 제공하고 미지정 상태를 임의로 전체 공간으로 바꾸지 않는다.
+- 영역 추가 버튼은 해당 그리기 도구를 명시적으로 연다. 실제 드래그 저장 후 탭/도구가 유지되며 새 영역이 위치 연결 옵션으로 나타난다.
+- 20개 이상의 중첩 영역에서 기본 이름표는 선택 하나, 선택한 적용 범위만 강조, 나머지는 흐리게 표시한다. 전체 이름표 옵션의 표시 이름 간 충돌을 회피하고 모든 실제 이름은 목록으로 읽는다. 종류 필터는 저장된 프로젝트/수정 버전/연결을 바꾸지 않는다.
+- 1440/1070/390px에서 팝업 경계와 모든 목록 컨트롤이 화면 안에 있고 바깥 페이지 스크롤이 없어야 한다. 표시 팝업은 Escape/바깥 클릭으로 닫고 키보드 진입/복귀를 지원한다. 짧은 공간 준비에서도 캔버스 전체를 내부 작업 스크롤로 확인할 수 있어야 한다.
+- 기존 Keep·단축키·배치·카메라 삭제·다중 시점 생성·참고 이미지 삭제/되돌리기·실험 ZIP 회귀를 확인한다. 실제 유료 모델 호출 없이 브라우저 요청을 모의 응답으로 검사한 결과는 실제 이미지 품질 검증으로 기록하지 않는다.

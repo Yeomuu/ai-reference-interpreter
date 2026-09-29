@@ -55,3 +55,7 @@ Optional experiment collection lives separately from project records at `ai-refe
 - Review's sequential multi-camera loop captures one common configuration, creates a unique UUID per camera, persists each result, marks asynchronously outdated snapshots stale and stops on failure. Its ref-based lock spans the whole batch and final status refresh. Optional camera snapshot names preserve attribution after deletion without invalidating old snapshots.
 
 API와 API에서 참조하는 도메인/서비스 모듈은 NodeNext 타입 검사와 `.js` 명시 상대 import를 사용한다. Vite bundler 검사만으로 Vercel Node 함수가 정상이라고 판단하지 않으며, 서버 빌드 진단과 프로덕션의 잘못된 입력 거부 경로도 확인한다.
+
+## 적용 범위 연결 / 표시 전용 상태 · 2026-09-29
+`domain/areaTargets.ts`는 기존 PlacementTarget으로 whole-space/named-area/floor-area/ceiling-zone 선택지, 표시 키, 영역 ID를 계산한다. passage는 요소의 적용 범위로 연결하지 않는다. `AreaTargetPicker`가 등록/선택 레퍼런스/배치에 같은 옵션과 도메인 validatePlacement를 사용한다. 등록 시 위치를 같이 선택하면 요소+참조 extraction 링크+target을 한 번의 공통 조건 변경으로 저장한다. 기존 데이터 스키마와 서버 생성 입력을 추가로 바꾸지 않는다. 기존 조건 snapshot·프롬프트·선택적 실험 기록에 실제 영역 ID/이름이 포함된다.
+`PlanAreaControls`와 PlanCanvas의 지역 상태는 종류별 표시·전체 이름표·다른 영역 흐리기만 관리한다. 프로젝트 저장과 무관하며 새로고침/도구 변경에서 기본 보기로 초기화된다. 적용 위치 자체는 프로젝트에 저장하고 다시 불러온다. 선택된 범위의 표시와 공통 조건 변경을 분리한다. DOM pixel label packing은 선택 영역→구조 이름→추가 영역 이름 순서로 배치한다. 표시 설정은 body portal에 fixed로 렌더링하고 화면/스크롤에 따라 위치를 보정한다. 유형이 같은 조명 분위기의 영역 중첩은 물리 점유 충돌과 구별하며 기존 도메인 검증이 천장 등기구/진열대 등의 불가능한 중복을 계속 거절한다.

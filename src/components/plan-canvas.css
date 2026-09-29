@@ -657,3 +657,32 @@
 .plan-validation-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); }
 .plan-validation-heading button { flex: none; min-height: var(--control-height-40); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-4); background: transparent; color: inherit; cursor: pointer; font: inherit; }
 .plan-validation-heading button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Scope layers are a view preference. Selection and line patterns carry the meaning. */
+.plan-canvas { position: relative; }
+.plan-area-controls { position: relative; font-size: 14px; }
+.plan-area-controls > summary { cursor: pointer; min-height: var(--control-height-40); padding: var(--space-8); border: 1px solid var(--border-control); border-radius: var(--radius-8); color: var(--text-secondary); }
+.plan-area-controls > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.plan-area-controls__panel { position: fixed; z-index: var(--layer-popover); width: min(var(--layout-drawing-tools-width), calc(100vw - var(--space-32))); max-height: 45dvh; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-12); border: 1px solid var(--border-default); border-radius: var(--radius-12); background: var(--surface-base); box-shadow: var(--shadow-float); font-size: 14px; }
+.plan-area-controls__panel p { margin: var(--space-8) 0; font-size: 14px; line-height: 22px; color: var(--text-secondary); }
+.plan-area-controls__filters { padding-bottom: var(--space-8); margin-bottom: var(--space-8); border-bottom: 1px solid var(--border-default); }
+.plan-area-choice { width: 100%; min-height: var(--control-height-40); padding: var(--space-8); display: flex; flex-direction: column; text-align: left; gap: var(--space-4); border: 1px solid transparent; border-bottom-color: var(--border-default); border-radius: var(--radius-4); background: var(--surface-base); color: var(--text-primary); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.plan-area-choice span { color: var(--text-secondary); }
+.plan-area-choice:hover { background: var(--surface-hover); }
+.plan-area-choice:active { background: var(--surface-pressed); }
+.plan-area-choice:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.plan-area-choice.is-selected { background: var(--surface-selected); border-color: var(--border-selected); }
+.plan-area-choice:disabled { color: var(--text-tertiary); cursor: default; background: var(--surface-subtle); }
+.plan-canvas__area > .plan-area-geometry { fill: none; stroke: var(--border-strong); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.plan-canvas__area--floor > .plan-area-geometry { stroke-dasharray: none; }
+.plan-canvas__area--ceiling > .plan-area-geometry { stroke-dasharray: 2 5; }
+.plan-canvas__area--spatial > .plan-area-geometry { stroke-dasharray: 7 5; }
+.plan-canvas__area--passage > .plan-area-geometry { stroke: var(--state-info-fg); stroke-dasharray: 12 5; }
+.plan-canvas__area.is-dimmed { opacity: .3; }
+.plan-canvas__area.is-selected > .plan-area-geometry { stroke: var(--canvas-selection); stroke-width: 3; fill: var(--surface-selected); fill-opacity: .18; }
+.plan-canvas__area.is-pickable > .plan-area-geometry { pointer-events: stroke; cursor: pointer; }
+.plan-area-label { cursor: pointer; }
+.plan-area-label rect { fill: var(--surface-base); stroke: var(--border-control); vector-effect: non-scaling-stroke; }
+.plan-area-label text { font-family: var(--font-ui); font-size: 14px; font-weight: 500; fill: var(--text-primary); pointer-events: none; }
+.plan-area-label.is-selected rect, .plan-area-label:focus-visible rect { stroke: var(--canvas-selection); stroke-width: 2; fill: var(--surface-selected); }
+.plan-area-label:focus-visible { outline: none; }

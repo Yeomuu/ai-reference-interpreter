@@ -94,3 +94,11 @@ Generation includes the saved geometry of both preserved and released structures
 - Reference list is scoped to focused source; selecting an element moves it to the first row and scrolls its panel to the top under a sticky heading. Shape markers distinguish camera, fixture and product while keeping the official icon manifest.
 - Applied source count is unrestricted. More than three sources use numbered contact sheets, retaining every source and crop/grid in a validated manifest. Images/body/prompt remain bounded and smaller panels may lose visual detail. Preparing a sheet has no model call.
 - The batch locks both generation controls until every selected view finishes or the batch stops. Save each result on arrival; later failure never discards earlier images. Capacity is checked for the chosen count in UI and each request reserves atomically server-side; another browser may consume shared capacity between requests. Never automatically retry a failed/uncertain paid request. Free sample remains a single clearly preloaded sample.
+
+## 위치 연결과 영역 표시 · 2026-09-29
+- References: 요소 이름 버튼으로 선택한다. 등록 폼에서 조명 분위기 등 적용 범위를 바로 지정할 수 있으며 ‘배치에서 나중에 지정’도 가능하다. 저장된 선택 요소에서는 같은 선택기로 위치를 수정한다. 이미지 크롭은 출처 선택이며 공간 범위 연결과 혼동하지 않는다.
+- Placement: 오른쪽 ‘적용 위치 연결’ 또는 도면 영역 이름/목록으로 현재 요소를 연결한다. 등록과 배치가 같은 실제 영역 ID를 저장한다. 유형이 다른 위치는 비활성이고, 점유 등 충돌은 도메인 검증으로 거절한다. 전체 공간 조명과 다른 레퍼런스의 특정 영역 조명은 동시에 유지할 수 있다.
+- 새 공간/천장/바닥 영역 추가는 명시적 버튼으로 공간 준비의 해당 도구를 연다. 저장은 즉시 수행하되 사용자가 그리기를 마친다.
+- ‘영역·동선 N개’는 화면 안에 뜨는 표시 설정이다. 종류별 개수·필터와 전체 이름 목록을 제공하며 선택 영역은 필터와 관계없이 표시한다. 기본 이름표는 선택 영역 하나이고, 나머지는 옅게 표시한다. 이름표 전체 표시는 선택적으로 켜며 여유가 없는 이름은 실제 이름 목록으로 접근한다. 경계 패턴으로 바닥/천장/공간/동선을 구분한다.
+- 도면 경계 선택은 그리기 중 새 제스처를 가로채지 않는다. 표시 설정의 클릭은 도면 치수/연결/수정 버전에 영향을 주지 않는다. 팝업은 바깥 클릭·Escape로 닫는다. Escape는 열기 컨트롤로 초점을 복원한다. 열기 컨트롤에서 Tab으로 첫 설정에 들어가고 설정 마지막 Tab은 도면으로, 첫 설정 Shift+Tab은 열기 컨트롤로 이동한다.
+- 높이가 짧거나 폭이 좁은 공간 준비에서는 해당 작업 영역 하나가 내부 스크롤을 가지며 캔버스 전체의 최소 작업 높이를 보장한다. 작은 별도 스크롤 구간에 캔버스를 가두지 않는다. 앱 바깥 페이지는 스크롤하지 않는다.

@@ -11,7 +11,7 @@ describe('plan canvas floor layers', () => {
       id: 'floor-secondary', name: '보조 바닥', kind: 'floor',
       bounds: { x: .10, y: .91, width: .20, height: .07 },
     });
-    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place' }));
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', selectedElementId: 'element-warm-light' }));
     expect(html.match(/class="plan-canvas__floor"/g)).toHaveLength(2);
     expect(html.match(/class="plan-element__area"/g)).toHaveLength(2);
   });
@@ -19,9 +19,24 @@ describe('plan canvas floor layers', () => {
   it('still depicts a whole-space ambience when a floor has not been marked yet', () => {
     const project = createSampleProject();
     project.floorPlan!.areas = project.floorPlan!.areas.filter((area) => area.kind !== 'floor');
-    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place' }));
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', selectedElementId: 'element-warm-light' }));
     expect(html).not.toContain('class="plan-canvas__floor"');
     expect(html.match(/class="plan-element__area"/g)).toHaveLength(1);
+  });
+});
+
+describe('area readability', () => {
+  it('shows only the selected scope condition and one selected area name in a dense plan', () => {
+    const project = createSampleProject();
+    for (let i = 0; i < 20; i++) project.floorPlan!.areas.push({ id: `zone-${i}`, name: `작업 영역 ${i}`, kind: 'spatial', bounds: { x: .2, y: .2, width: .2, height: .2 } });
+    project.elements.push({ ...project.elements.find(item => item.kind === 'ambient-light')!, id: 'second-ambience', label: '부분 조명', target: { kind: 'named-area', areaId: 'zone-0' } });
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', selectedElementId: 'second-ambience', selectedAreaId: 'zone-0' }));
+    expect(html.match(/class="plan-element__area"/g)).toHaveLength(1);
+    expect(html.match(/class="plan-area-label is-selected"/g)).toHaveLength(1);
+    expect(html).not.toContain('>작업 영역 1</text>');
+    expect(html).toContain('영역·동선 25개');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('통행 동선');
   });
 });
 

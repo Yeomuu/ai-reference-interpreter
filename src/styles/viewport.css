@@ -189,3 +189,15 @@ html { scroll-padding: 0; }
 *::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
 *::-webkit-scrollbar-thumb { background: var(--border-strong); border: 2px solid transparent; background-clip: padding-box; border-radius: var(--radius-8); }
 *::-webkit-scrollbar-thumb:hover { background-color: var(--text-secondary); }
+
+/* Short/narrow space preparation scrolls as one task, keeping the full plan usable. */
+@media (max-width: 999px), (min-width: 1000px) and (max-height: 800px) {
+  .page-workspace--space { overflow-y: auto; overscroll-behavior: contain; }
+  .space-screen { height: auto; min-height: 100%; }
+  .space-screen > .space-two-col { flex: none; align-items: start; }
+  .space-two-col > .surface-panel, .space-two-col > .surface-panel:first-child { height: auto; }
+  .space-screen .plan-panel-content, .space-screen .plan-editor-body { flex: none; overflow: visible; }
+  .space-plan-panel .plan-canvas__surface, .space-plan-panel .plan-editor-body.is-drawing .plan-canvas__surface { flex: none; height: var(--layout-canvas-min-height); min-height: var(--layout-canvas-min-height); }
+  .photo-carousel-wrap .swipe-carousel, .photo-carousel-wrap .swipe-carousel__slide, .photo-carousel-wrap figure { height: auto; }
+  .photo-carousel-wrap .space-photo { height: var(--layout-canvas-min-height); flex: none; }
+}

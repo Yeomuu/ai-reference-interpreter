@@ -6,6 +6,9 @@ import type { DesignElement, FloorPlan, Point, Project, Structure } from '../dom
 import { resolveImageUri, revokeImageUrl } from '../services/assets';
 import { projectOntoWall, wallNearPointer, adjacentWallAtPointer } from './plan-drawing';
 import { previewStructureTranslation, structureMovementReason } from '../domain/structureEditing';
+import { AREA_LABELS, targetForArea } from '../domain/areaTargets';
+import PlanAreaControls from './PlanAreaControls';
+import type { AreaLayers } from './PlanAreaControls';
 import './plan-canvas.css';
 
 export interface PlanCanvasProps {
@@ -16,6 +19,8 @@ export interface PlanCanvasProps {
   selectedElementId?: string;
   selectedStructureId?: string;
   selectedCameraId?: string;
+  selectedAreaId?: string;
+  onAreaSelect?: (id: string) => void;
   mode: 'view' | 'keep' | 'place' | 'camera';
   drawTool?: 'point' | 'segment' | 'rect' | 'polygon';
   lineConstraint?: 'snap' | 'horizontal' | 'vertical' | 'free';
@@ -127,6 +132,8 @@ export default function PlanCanvas({
   selectedElementId,
   selectedStructureId,
   selectedCameraId,
+  selectedAreaId,
+  onAreaSelect,
   mode,
   drawTool,
   lineConstraint = 'free',
@@ -166,6 +173,10 @@ export default function PlanCanvas({
   const [outlineDraft, setOutlineDraft] = useState<Point[]>([]);
   const [gestureHint, setGestureHint] = useState<string | null>(null);
   const [layers, setLayers] = useState({ structures: true, elements: true, cameras: true });
+  const [areaLayers, setAreaLayers] = useState<AreaLayers>({ floor: true, ceiling: true, spatial: true, passage: true });
+  const [showAreaNames, setShowAreaNames] = useState(false);
+  const [dimOtherAreas, setDimOtherAreas] = useState(true);
+  const [localAreaId, setLocalAreaId] = useState<string>();
   const [imageState, setImageState] = useState<{ sourceUri: string; url?: string; error?: string } | null>(null);
   const [canvasDisplay, setCanvasDisplay] = useState({ scale: 1, narrow: false });
   const plan = project.floorPlan;
@@ -258,14 +269,25 @@ export default function PlanCanvas({
   const showCameras = mode === 'camera';
   const showStructureLayer = Boolean(drawTool) || layers.structures;
   const contentPixelScale = Math.max(0.01, canvasDisplay.scale * zoom);
+  const selectedArea = plan.areas.find(area => area.id === (selectedAreaId ?? localAreaId));
+  const showAreas = mode === 'view' || mode === 'place';
+  const visibleAreas = showAreas ? plan.areas.filter(area => areaLayers[area.kind] || area.id === selectedArea?.id) : [];
+  const areaLabels = visibleAreas.filter(area => showAreaNames || area.id === selectedArea?.id);
+  const selectedDesignElement = project.elements.find(element => element.id === selectedElementId);
+  const linkableAreaIds = mode === 'place' && onAreaSelect && selectedDesignElement ? new Set(plan.areas.filter(area => targetForArea(selectedDesignElement.kind, area)).map(area => area.id)) : undefined;
+  function selectArea(id: string) {
+    if (onAreaSelect) onAreaSelect(id);
+    else setLocalAreaId(id);
+  }
 
-  const labels = arrangePlanLabels([...(showCameras && layers.cameras ? project.cameras.map(camera => ({ id: `camera-${camera.id}`, x: camera.x * width * contentPixelScale, y: camera.y * height * contentPixelScale, width: 108, height: 52 })) : []), ...(showElements && layers.elements ? activeElements.flatMap(element => { const position = element.target?.kind === 'floor-point' ? element.target : displayPosition(project, element); return position ? [{ id: `element-${element.id}`, x: position.x * width * contentPixelScale, y: position.y * height * contentPixelScale, width: 48, height: 48 }] : [] }) : []), ...[...plan.structures].sort((a, b) => Number(b.id === selectedStructureId) - Number(a.id === selectedStructureId)).map(structure => {
+  const areaLabelCandidates = areaLabels.map(area => ({ id: `area-${area.id}`, x: (area.bounds.x + area.bounds.width / 2) * width * contentPixelScale, y: (area.bounds.y + area.bounds.height / 2) * height * contentPixelScale, width: Math.min(220, area.name.length * 14 + 32), height: 40 }));
+  const labels = arrangePlanLabels([...(showCameras && layers.cameras ? project.cameras.map(camera => ({ id: `camera-${camera.id}`, x: camera.x * width * contentPixelScale, y: camera.y * height * contentPixelScale, width: 108, height: 52 })) : []), ...(showElements && layers.elements ? activeElements.flatMap(element => { const position = element.target?.kind === 'floor-point' ? element.target : displayPosition(project, element); return position ? [{ id: `element-${element.id}`, x: position.x * width * contentPixelScale, y: position.y * height * contentPixelScale, width: 48, height: 48 }] : [] }) : []), ...areaLabelCandidates.filter(label => label.id === `area-${selectedArea?.id}`), ...[...plan.structures].sort((a, b) => Number(b.id === selectedStructureId) - Number(a.id === selectedStructureId)).map(structure => {
     const moved = preview?.kind === 'structure-move' && preview.structure ? previewStructureTranslation(project, preview.id, preview.structure).find(item => item.id === structure.id) : undefined;
     const center = structureCenter(moved ?? structure);
     const moving = !drawTool && movableStructures.some(item => item.id === structure.id) && mode !== 'camera';
     const name = structure.name.length > 12 ? `${structure.name.slice(0, 11)}…` : structure.name;
     return { id: structure.id, x: center.x * width * contentPixelScale, y: center.y * height * contentPixelScale + (center.y > .8 ? -26 : 26), width: name.length * 13 + (moving ? 100 : 50), height: 40 };
-  })], width * contentPixelScale, height * contentPixelScale);
+  }), ...areaLabelCandidates.filter(label => label.id !== `area-${selectedArea?.id}`)], width * contentPixelScale, height * contentPixelScale);
   function constrainedEnd(start: Point, end: Point): Point {
     if (drawTool !== 'segment' || wallDrawing || lineConstraint === 'free') return end;
     const dx = Math.abs((end.x - start.x) * width), dy = Math.abs((end.y - start.y) * height);
@@ -686,6 +708,8 @@ export default function PlanCanvas({
     const target = element.target;
     if (!target) return null;
     const selected = mode === 'place' && element.id === selectedElementId;
+    // Scope conditions are not separate physical objects: focus one instead of stacking every outline.
+    if (['whole-space', 'named-area', 'ceiling-zone', 'floor-area'].includes(target.kind) && !['freestanding-fixture', 'furniture'].includes(element.kind) && !selected) return null;
     const supportPicking = mode === 'place' && project.elements.find(item => item.id === selectedElementId)?.kind === 'display-product' && ['freestanding-fixture', 'furniture'].includes(element.kind);
     const editable = mode === 'place' && target.kind === 'floor-point' && Boolean(onElementMove) && !supportPicking;
     const classes = `plan-element${supportPicking ? ' plan-element--support-picking' : ''}${selected ? ' plan-element--selected' : ''}${editable ? ' plan-element--editable' : ''}`;
@@ -865,6 +889,7 @@ export default function PlanCanvas({
         <button type="button" aria-pressed={showStructureLayer} disabled={Boolean(drawTool)} onClick={() => setLayers((current) => ({ ...current, structures: !current.structures }))}>구조 {showStructureLayer ? '표시' : '숨김'}</button>
         {showElements && <button type="button" aria-pressed={layers.elements} onClick={() => setLayers((current) => ({ ...current, elements: !current.elements }))}>요소 {layers.elements ? '표시' : '숨김'}</button>}
         {showCameras && <button type="button" aria-pressed={layers.cameras} onClick={() => setLayers((current) => ({ ...current, cameras: !current.cameras }))}>카메라 {layers.cameras ? '표시' : '숨김'}</button>}
+        {showAreas && <PlanAreaControls areas={plan.areas} layers={areaLayers} selectedId={selectedArea?.id} showNames={showAreaNames} dimOthers={dimOtherAreas} linkableIds={linkableAreaIds} onLayersChange={setAreaLayers} onNamesChange={setShowAreaNames} onDimChange={setDimOtherAreas} onSelect={selectArea} />}
       </div>
     </div>
     {plan.kind === 'uploaded' && (imageError || !sourceUri) && <p className="plan-canvas__image-status" role="alert">{imageError ?? '등록한 도면 이미지를 찾을 수 없습니다. 다시 등록해 주세요.'}</p>}
@@ -890,11 +915,16 @@ export default function PlanCanvas({
         <g ref={contentRef} transform={`translate(${width / 2} ${height / 2}) scale(${zoom}) translate(${-width / 2} ${-height / 2})`}>
           <rect className="plan-canvas__backdrop" width={width} height={height} />
           {imageUri && <image className="plan-canvas__image" href={imageUri} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid meet" />}
-          {floorAreas.map((area) => area.outline ? <polygon key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />)}
-          {mode === 'view' && plan.areas.filter((area) => area.kind !== 'floor').map((area) => <g key={area.id} className={`plan-canvas__area plan-canvas__area--${area.kind}`} aria-label={`${area.name} 영역`}>
-            {area.outline ? <polygon points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />}
-            <text x={area.bounds.x * width + 10} y={area.bounds.y * height + 22}>{area.name}</text>
-          </g>)}
+          {floorAreas.filter(area => !showAreas || areaLayers.floor || area.id === selectedArea?.id).map((area) => area.outline ? <polygon key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />)}
+          {visibleAreas.map(area => {
+            const selected = area.id === selectedArea?.id;
+            const pickable = !drawTool && (mode === 'view' || linkableAreaIds?.has(area.id));
+            return <g key={area.id} className={`plan-canvas__area plan-canvas__area--${area.kind}${selected ? ' is-selected' : selectedArea && dimOtherAreas ? ' is-dimmed' : ''}${pickable ? ' is-pickable' : ''}`} aria-label={`${area.name} · ${AREA_LABELS[area.kind]}${selected ? ' · 선택됨' : ''}`} data-area-id={area.id}
+              onClick={pickable ? event => { event.stopPropagation(); selectArea(area.id); } : undefined} onPointerDown={pickable ? event => event.stopPropagation() : undefined}>
+              <title>{`${area.name} · ${AREA_LABELS[area.kind]}`}</title>
+              {area.outline ? <polygon className="plan-area-geometry" points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect className="plan-area-geometry" x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />}
+            </g>;
+          })}
           {showStructureLayer && <g className="plan-canvas__layer plan-canvas__layer--structures" aria-label="기존 구조 레이어">
             {mode === 'place' && plan.structures.filter((structure) => structure.clearance).map((structure) => <rect key={`${structure.id}-clearance`} className="plan-canvas__clearance" x={structure.clearance!.x * width} y={structure.clearance!.y * height} width={structure.clearance!.width * width} height={structure.clearance!.height * height} />)}
             {plan.structures.map(structure => renderStructure(structure))}
@@ -902,6 +932,18 @@ export default function PlanCanvas({
           {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.filter(item => item.kind !== 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}{activeElements.filter(item => item.kind === 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}</g>}
           {showCameras && layers.cameras && <g className="plan-canvas__layer plan-canvas__layer--cameras" aria-label="카메라 레이어">{project.cameras.map(renderCamera)}</g>}
           {showStructureLayer && <g aria-label="구조 이름표"><g aria-hidden="true">{plan.structures.map(structure => { const packed = labels.get(structure.id); const center = structureCenter(structure); return packed && <line key={structure.id} className="plan-label-leader" x1={center.x * width} y1={center.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} />; })}</g>{plan.structures.map(structure => renderStructure(structure, true))}</g>}
+          {showAreas && <g aria-label="영역 이름표">{areaLabels.map(area => {
+            const packed = labels.get(`area-${area.id}`); if (!packed) return null;
+            const selected = area.id === selectedArea?.id;
+            const selectable = mode === 'view' || linkableAreaIds?.has(area.id);
+            const name = area.name.length > 13 ? `${area.name.slice(0, 12)}…` : area.name;
+            return <g key={area.id} className={`plan-area-label${selected ? ' is-selected' : ''}`} transform={`translate(${packed.x / contentPixelScale} ${packed.y / contentPixelScale}) scale(${1 / contentPixelScale})`}
+              role={selectable ? 'button' : undefined} tabIndex={selectable ? 0 : undefined} aria-label={`${area.name} · ${AREA_LABELS[area.kind]}${mode === 'place' && selectable ? ' · 이 영역에 연결' : ' · 도면에서 선택'}`} aria-pressed={selectable ? selected : undefined}
+              onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); if (selectable) selectArea(area.id); }}
+              onKeyDown={selectable ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); selectArea(area.id); } } : undefined}>
+              <title>{`${area.name} · ${AREA_LABELS[area.kind]}`}</title><rect x={-packed.width / 2} y={-20} width={packed.width} height={40} rx={8} /><text x={0} y={5} textAnchor="middle">{name}</text>
+            </g>;
+          })}</g>}
           {wallDrawing && activeDrawWall?.geometry.kind === 'segment' && <line className="plan-canvas__active-wall" x1={activeDrawWall.geometry.start.x * width} y1={activeDrawWall.geometry.start.y * height} x2={activeDrawWall.geometry.end.x * width} y2={activeDrawWall.geometry.end.y * height} style={{ strokeWidth: 6 / contentPixelScale }} />}
           {wallDrawing && plan.structures.filter((wall) => wall.kind === 'wall' && wall.geometry.kind === 'segment').map(renderDrawWallLabel)}
           {outlineDraft.length > 0 && <g className="plan-canvas__draw-preview" aria-hidden="true"><polyline points={outlineDraft.map(p => `${p.x * width},${p.y * height}`).join(' ')} />{outlineDraft.map((p, i) => <circle key={i} cx={p.x * width} cy={p.y * height} r={6 / contentPixelScale} />)}</g>}
