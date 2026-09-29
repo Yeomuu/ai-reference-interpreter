@@ -235,7 +235,9 @@
 }
 
 .plan-structure--wall .plan-structure__shape {
-  stroke-width: 8;
+  stroke: var(--canvas-wall);
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
 }
 
 .plan-structure--window .plan-structure__shape {
@@ -689,7 +691,7 @@
 .plan-movement-overlay, .plan-constraint-names { pointer-events: none; }
 .plan-movement-floor > rect, .plan-movement-floor > polygon { fill: none; stroke: var(--canvas-structure); stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .plan-movement-zone > rect, .plan-movement-zone > polygon { stroke: var(--state-info-fg); stroke-width: 2; stroke-dasharray: 8 4; vector-effect: non-scaling-stroke; }
-.plan-movement-hatch { fill: none; stroke: var(--state-info-fg); stroke-opacity: .5; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.plan-movement-hatch { fill: none; stroke: var(--state-info-fg); stroke-opacity: .24; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .plan-movement-occupancy rect { fill: var(--surface-pressed); fill-opacity: .6; stroke: var(--canvas-structure); stroke-width: 1.5; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
 .plan-movement-camera circle { fill: var(--surface-base); stroke: var(--canvas-structure); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .plan-movement-zone--clearance > rect { stroke-dasharray: 2 4; }
@@ -707,3 +709,19 @@
 
 .plan-area-label--constraint.is-occupancy rect { stroke: var(--canvas-structure); }
 .plan-area-label.is-read-only { cursor: default; pointer-events: none; }
+
+/* Quiet drawing annotations; their transparent hit areas remain 40px. */
+.plan-label-wrapper .plan-label-hit { fill: transparent; stroke: none; pointer-events: all; }
+.plan-label-wrapper .plan-label-surface { fill: var(--surface-base); fill-opacity: .9; stroke: none; }
+.plan-label-wrapper.is-selected .plan-label-surface,
+.plan-label-wrapper:has(:focus-visible) .plan-label-surface { fill: var(--surface-selected); stroke: var(--canvas-selection); stroke-width: 1; }
+.plan-label-wrapper .plan-label-hit:focus-visible { outline: none; }
+.plan-area-label--constraint rect { fill: var(--surface-base); stroke: none; }
+.plan-structure--pillar .plan-structure__shape { fill: var(--surface-pressed); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.plan-movement-floor > rect, .plan-movement-floor > polygon { stroke: var(--border-strong); stroke-width: 1; }
+.plan-movement-zone > rect, .plan-movement-zone > polygon { stroke-width: 1; }
+
+.plan-canvas__help { flex: none; font-size: 14px; color: var(--text-secondary); }
+.plan-canvas__help summary { cursor: pointer; min-height: var(--control-height-32); padding: var(--space-4) 0; }
+.plan-canvas__help summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.plan-canvas__help .plan-canvas__instruction { margin: var(--space-8) 0; }

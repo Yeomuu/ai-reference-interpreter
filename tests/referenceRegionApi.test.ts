@@ -1,3 +1,4 @@
+import { planGuideManifest } from '../src/services/planGuide';
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import generate from '../api/generate'
@@ -14,6 +15,7 @@ function requestAndResponse(project = createSampleProject()) {
     project, cameraId: 'camera-entrance',
     images: [
       { role: 'existing-space', sourceId: 'photo-existing', dataUrl },
+    { role: 'floor-plan', sourceId: 'floor-plan', dataUrl, planGuide: planGuideManifest(project, 'camera-entrance') },
       { role: 'inspiration', sourceId: 'photo-atmosphere', dataUrl },
       { role: 'inspiration', sourceId: 'photo-graphic', dataUrl },
       { role: 'product', sourceId: 'photo-product', dataUrl },
@@ -56,7 +58,7 @@ describe('reference crop API gate', () => {
       target: { kind: 'floor-point', x: .75, y: .55, footprint: { width: .17, height: .12 } },
       sourceRegion: { x: 0.6, y: 0.5, width: 0.2, height: 0.2 } })
     const preparation = referencePreparationFor(body.project, 'photo-product')!
-    body.images[3] = { ...body.images[3], referencePreparation: { ...preparation, regions: [...preparation.regions].reverse() } }
+    body.images[4] = { ...body.images[4], referencePreparation: { ...preparation, regions: [...preparation.regions].reverse() } }
     await generate(request, response)
     expect(result.statusCode).toBe(400)
     expect(result.body).toContain('일치하지 않습니다')
@@ -70,7 +72,7 @@ describe('reference crop API gate', () => {
       const prompt = String((options.body as FormData).get('prompt'))
       expect(prompt).toContain('upper-left panel')
       expect(prompt).toContain('upper-right panel')
-      expect((options.body as FormData).getAll('image[]')).toHaveLength(4)
+      expect((options.body as FormData).getAll('image[]')).toHaveLength(5)
       return { ok: true, json: async () => ({ data: [{ b64_json: dataUrl.split(',')[1] }] }) }
     })
     vi.stubGlobal('fetch', providerCall)
@@ -79,7 +81,7 @@ describe('reference crop API gate', () => {
     body.project.elements.push({ ...body.project.elements[0], id: 'second-display',
       target: { kind: 'floor-point', x: .75, y: .55, footprint: { width: .17, height: .12 } },
       sourceRegion: { x: 0.6, y: 0.5, width: 0.2, height: 0.2 } })
-    body.images[3] = { ...body.images[3], referencePreparation: referencePreparationFor(body.project, 'photo-product') }
+    body.images[4] = { ...body.images[4], referencePreparation: referencePreparationFor(body.project, 'photo-product') }
     await generate(request, response)
     expect(result.statusCode).toBe(200)
     expect(providerCall).toHaveBeenCalledTimes(1)

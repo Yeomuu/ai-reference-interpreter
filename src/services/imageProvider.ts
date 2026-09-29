@@ -2,6 +2,8 @@ import type { Project, Result } from '../domain/types';
 import { createConditionsSnapshot } from '../domain/revisions';
 import { validatePreflight } from '../domain/validation';
 import { getImageAssetBlob, putImageAsset } from './assets';
+import { rasterizePlanGuide } from './planGuideImage';
+import { planGuideManifest } from './planGuide';
 import {
   GENERATION_MODEL, GENERATION_OUTPUT_PRICE_USD, GENERATION_PRICING_NOTE,
   GENERATION_QUALITY, GENERATION_SIZE, MAX_GENERATION_BODY_BYTES,
@@ -183,6 +185,12 @@ export async function compactImage(uri: string, preparation?: ReferencePreparati
   throw new Error('이미지 용량을 줄일 수 없습니다. 더 작은 이미지를 등록해 주세요.');
 }
 
+export async function preparePlanGuideImage(project: Project, cameraId: string): Promise<string> {
+  const background = project.floorPlan?.kind === 'uploaded' && project.floorPlan.imageUri
+    ? await compactImage(project.floorPlan.imageUri) : undefined;
+  return rasterizePlanGuide(project, cameraId, background);
+}
+
 export async function compactReferenceSheet(project: Project, sheet: SheetSource[]): Promise<string> {
   const edge = 1536, columns = Math.ceil(Math.sqrt(sheet.length)), rows = Math.ceil(sheet.length / columns);
   const canvas = document.createElement('canvas'); canvas.width = edge; canvas.height = edge;
@@ -213,9 +221,6 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
   const sources: { role: GenerationImageRole; sourceId: string; uri: string; referencePreparation?: ReferencePreparation }[] = [
     { role: 'existing-space', sourceId: existing.id, uri: existing.uri },
   ];
-  if (project.floorPlan?.kind === 'uploaded' && project.floorPlan.imageUri) {
-    sources.push({ role: 'floor-plan', sourceId: 'floor-plan', uri: project.floorPlan.imageUri });
-  }
   const sheets = referenceSheetGroups(project);
   if (!sheets.length) sources.push(...references.map((image) => ({ role: image.role, sourceId: image.id, uri: image.uri,
     referencePreparation: referencePreparationFor(project, image.id) })));
@@ -225,6 +230,7 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
       dataUrl: await compactImage(source.uri, source.referencePreparation),
       ...(source.referencePreparation ? { referencePreparation: source.referencePreparation } : {}) });
   }
+  images.splice(1, 0, { role: 'floor-plan', sourceId: 'floor-plan', planGuide: planGuideManifest(project, cameraId), dataUrl: await preparePlanGuideImage(project, cameraId) });
   for (let index = 0; index < sheets.length; index++) images.push({ role: 'reference-sheet', sourceId: `reference-sheet-${index}`, sheet: sheets[index], dataUrl: await compactReferenceSheet(project, sheets[index]) });
   const body: GenerationRequest = { project: { ...project, results: [] }, cameraId, images };
   const serialized = JSON.stringify(body);

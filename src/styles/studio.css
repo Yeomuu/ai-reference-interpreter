@@ -163,3 +163,7 @@ html { scroll-padding-top: calc(var(--layout-header-height) + var(--space-16)); 
 @media (prefers-reduced-transparency: reduce) { .page-actions { background: var(--surface-glass-fallback); backdrop-filter: none; } }
 @supports not (backdrop-filter: blur(10px)) { .page-actions { background: var(--surface-glass-fallback); backdrop-filter: none; } }
 @media (forced-colors: active) { .page-actions { background: Canvas; border-color: CanvasText; backdrop-filter: none; } .step-link.is-current { outline: 2px solid Highlight; outline-offset: -2px; } }
+
+.plan-guide-preview { margin: var(--space-16) 0; }
+.plan-guide-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--border-default); background: var(--surface-base); }
+.plan-guide-preview figcaption { margin-top: var(--space-12); font-size: 14px; line-height: 22px; color: var(--text-secondary); }

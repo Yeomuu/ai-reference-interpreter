@@ -73,3 +73,8 @@ API와 API에서 참조하는 도메인/서비스 모듈은 NodeNext 타입 검�
 - `api/generate.ts`는 결과/오류를 먼저 구성하고 `generationQuota.finish(requestId)` 후 응답을 종료한다. 정상 완료의 응답과 다음 예약 사이에 이전 active lease가 남지 않게 한다. 완료 기록 대기는 최대 8초로 제한하며 모델 요청은 함수의 남은 시간에서 정리/응답 여유를 제외한 범위 안에 둔다. 저장소 오류/대기 초과는 이미 받은 이미지를 폐기하거나 예약 횟수를 반환하지 않는다.
 - 완료 CAS가 모두 충돌하면 `GenerationQuota.finish`가 오류를 반환한다. 다른 요청 ID의 잠금은 해제하지 않는다. 지연 중인 해제도 동일 ID/ETag 검사를 유지한다.
 - `generationQueue.ts`는 첫 결과 저장 이후 다음 시점 전에 읽기 전용 GET 상태를 검사한다. 최대 20초/2초 간격으로 active lease 종료를 기다리고, 각 GET은 남은 대기 시간 또는 8초 중 짧은 시간으로 제한한다. 준비 상태/횟수를 확인할 수 없으면 유료 POST를 보내지 않는다. 유료 재시도, 서버 큐, 저장 스키마 변경은 추가하지 않는다.
+
+## 저장 도면의 시각 가이드 · 2026-09-29
+`services/planGuide.ts`는 저장 좌표/형상, typed anchor, 진열대 위 제품 위치, 선택 카메라에서 순수 SVG를 구성한다. 측정/자동 추정/3D 엔진은 없다. `planGuideImage.ts`는 프로젝트 의미 토큰과 기존 Nucleo 카메라 SVG를 사용해 로컬 SVG를 JPEG로 변환한다. `imageProvider`는 업로드 도면을 압축해 가이드 배경으로 포함하고 두 번째 입력 슬롯에 가이드를 넣는다. 기존 공간 1 + 가이드 1 + 레퍼런스 최대 3 슬롯 = 최대 5장, 한 시점당 모델 요청 1번, 입력 550KB/전체 4MB 제한은 유지한다.
+`GenerationImage.planGuide`는 version/commonRevision/cameraId/planKind/width/height/includesUploadedPlan이다. API는 현재 저장 조건/시점과 일치하는 manifest를 quota 예약 전에 요구한다. 이 메타데이터는 전송 조건의 일관성 확인이며 픽셀의 진위나 결과 공간 정확도 인증이 아니다. 오래된 클라이언트의 가이드 누락 요청은 비용 차감 전 거절한다.
+`PlanGuidePreview`는 결과의 common/camera 스냅샷을 렌더링한다. 현재 카메라 삭제/배치 변경 이후에도 과거 기록을 유지한다. schemaVersion 1, 결과 이미지/이력/자산 보존 규칙은 유지한다.

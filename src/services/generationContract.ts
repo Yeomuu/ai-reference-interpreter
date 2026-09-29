@@ -1,11 +1,12 @@
 import type { DesignElement, PlacementTarget, Project, Rect, StructureGeometry } from '../domain/types.js';
+import { elementPlanPosition, type PlanGuideManifest } from './planGuide.js';
 
 /** One low-quality draft, with no automatic variants or hidden model calls. */
 export const GENERATION_MODEL = 'gpt-image-1-mini' as const;
 export const GENERATION_QUALITY = 'low' as const;
 export const GENERATION_SIZE = '1536x1024' as const;
 export const GENERATION_OUTPUT_PRICE_USD = 0.006;
-// Input slots after the room photo and optional plan; applied source count is unrestricted.
+// Input slots after the room photo and saved plan guide; applied source count is unrestricted.
 export const REFERENCE_IMAGE_SLOTS = 3;
 export const MAX_REFERENCE_REGIONS_PER_IMAGE = 4;
 export const MAX_GENERATION_IMAGES = 5;
@@ -19,6 +20,8 @@ export interface GenerationImage {
   role: GenerationImageRole;
   sourceId: string;
   dataUrl: string;
+  /** Which saved revision/view the manually rendered plan guide represents. */
+  planGuide?: PlanGuideManifest;
   /** The pixels in dataUrl were prepared from these user-selected source regions. */
   referencePreparation?: ReferencePreparation;
   sheet?: SheetSource[];
@@ -163,7 +166,28 @@ function elementText(project: Project, element: DesignElement, images: Generatio
   return `${boundedText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` +
     (element.origin === 'basic-support' ? 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
     `Appearance: ${boundedText(element.appearance ?? 'not specified')}. ` +
-    `Conditions: ${boundedText(element.conditions ?? 'none')}.`;
+    `Conditions: ${boundedText(element.conditions ?? 'none')}. ` + transferIntent(element) + relativeToCamera(project, element);
+}
+
+function transferIntent(element: DesignElement): string {
+  if (element.kind === 'ambient-light') return 'Transfer illumination only: light warmth, softness, direction, falloff and indirect bounce within the specified target. Keep the existing paint, material albedo, room geometry and neutral whites. A warm light reference is NOT a yellow wall/floor color reference or a global yellow image filter. Use plausible concealed strips, coves or wall wash where appropriate; do not copy unrelated furniture or the reference room. ';
+  if (['ceiling-light', 'wall-light', 'standing-light'].includes(element.kind)) return 'Transfer the selected light fixture and its localized illumination, mounted on the specified ceiling/wall/floor target. Preserve unrelated room materials and avoid a global color cast. ';
+  if (['global-palette', 'floor-material', 'wall-material'].includes(element.kind)) return 'Transfer only the deliberately selected color/material treatment to its saved area or surface; do not import the reference room layout or unrelated objects. ';
+  if (['freestanding-fixture', 'furniture', 'display-product', 'photozone', 'wall-mounted-product', 'wall-graphic'].includes(element.kind)) return 'Transfer only this named object/graphic, not the reference background or room layout. Preserve its recognizable form/material; use physical support, contact shadows and a plausible installed scale. ';
+  return 'Transfer only the named design attribute within its saved target, never the reference room geometry. ';
+}
+
+function relativeToCamera(project: Project, element: DesignElement): string {
+  const camera = project.cameras[0], point = elementPlanPosition(project, element), plan = project.floorPlan;
+  if (!camera || !point || !plan) return '';
+  // The caller narrows cameras to the chosen output view. Directions use physical
+  // plan aspect, rather than treating a portrait plan as a square.
+  const radians = camera.directionDegrees * Math.PI / 180;
+  const x = (point.x - camera.x) * plan.width, y = (point.y - camera.y) * plan.height;
+  const forward = x * Math.cos(radians) + y * Math.sin(radians);
+  const right = -x * Math.sin(radians) + y * Math.cos(radians);
+  const tolerance = Math.min(plan.width, plan.height) * .025;
+  return `Relative to this camera: ${forward >= 0 ? 'in front' : 'behind the camera; do not force it into view'}, ${Math.abs(right) < tolerance ? 'near the sight line' : right > 0 ? 'camera-right' : 'camera-left'}. `;
 }
 
 /** Builds model guidance from user-saved conditions; it does not claim geometric guarantees. */
@@ -180,7 +204,7 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   }
   const imageLines = images.map((image, index) => {
     const source = project.sourceImages.find((entry) => entry.id === image.sourceId);
-    const label = image.role === 'floor-plan' ? 'uploaded floor plan' : boundedText(source?.name ?? image.role);
+    const label = image.role === 'floor-plan' ? 'saved top-down plan guide with the selected camera arrow (registered plan background included when uploaded)' : boundedText(source?.name ?? image.role);
     const sheetDescription = image.sheet ? ` numbered panels: ${image.sheet.map((source, i) => `${i + 1} = ${boundedText(project.sourceImages.find(item => item.id === source.sourceId)?.name ?? source.sourceId)}`).join('; ')}` : '';
     const prepared = image.referencePreparation?.mode === 'crop' ? ' (user-selected crop)' :
       image.referencePreparation?.mode === 'grid' ? ` (${image.referencePreparation.regions.length} user-selected crops in reading-order grid panels)` : '';
@@ -191,13 +215,13 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const applied = project.elements.filter((item) => item.status === 'apply');
   const excluded = project.elements.filter((item) => item.status === 'exclude');
   const prompt = [
-    'Create ONE realistic interior spatial concept draft from the provided existing-space photograph and separately labeled references.',
+    'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
     'Input image roles, in order:',
     ...imageLines,
-    'The existing-space photograph shows the current room. Inspiration and product images are visual references only and are NEVER measured spatial geometry. The uploaded floor plan, when provided, is the 2D placement guide.',
+    'The existing-space photograph supplies the current room appearance and visible architectural character. The saved top-down plan guide supplies the authoritative 2D layout: room outline/aspect, wall openings, pillars, fixture footprints and selected camera arrow. Reconcile the photograph with those saved positions. Inspiration and product images supply ONLY the named design attributes and are NEVER spatial geometry. Follow the plan layout before styling; do not substitute any reference-room composition.',
     `Project: ${boundedText(project.name)}. Space type: ${boundedText(project.spaceType)}. Intended concept: ${boundedText(project.concept, 500)}.`,
     `Plan source: ${plan.kind}. Geometry confidence: ${plan.geometryConfidence}. Plan coordinates are normalized: x increases to the right and y increases downward. Do not invent precise dimensions from a schematic plan or any photograph.`,
-    'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, cover, or replace protected geometry. Keep surface decorations are allowed only when the saved condition permits removable treatment. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
+    'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, occlude openings or replace protected geometry. Compatible removable decoration may be mounted on a kept wall without changing its geometry. Keep door circulation, windows and pillars clear. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
     `Protected structures (${fixed.length}):`,
     ...fixed.map((item) => `- ${boundedText(item.name)} [${item.kind}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Existing light tone: ${boundedText(item.lightTone)}.` : ''}`),
     'Saved preservation conditions:',
@@ -207,12 +231,12 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     'Registered plan areas and circulation:',
     ...plan.areas.map((area) => area.outline ? `- ${boundedText(area.name)} [${area.kind}] manually traced polygon: ${area.outline.map(p => `(${percent(p.x)}, ${percent(p.y)})`).join(' → ')}.` : `- ${boundedText(area.name)} [${area.kind}] rectangle (${percent(area.bounds.x)}, ${percent(area.bounds.y)}), width ${percent(area.bounds.width)}, height ${percent(area.bounds.height)}.`),
     'Applied design elements and their compatible targets:',
-    ...applied.map((element) => `- ${elementText(project, element, images)}`),
+    ...applied.map((element) => `- ${elementText({ ...project, cameras: [camera] }, element, images)}`),
     'Excluded design elements and appearance:',
     ...(excluded.length ? excluded.map((element) => `- Do not add ${boundedText(element.label)}. ${boundedText(element.conditions ?? '')}`) : ['- None specified.']),
     ...project.references.flatMap((reference) => reference.exclusions.map((excludedNote) => `- Do not add ${boundedText(excludedNote)} from reference ${boundedText(project.sourceImages.find((image) => image.id === reference.imageId)?.name ?? reference.imageId)}.`)),
     `Viewpoint: camera at (${percent(camera.x)}, ${percent(camera.y)}), direction ${Math.round(camera.directionDegrees)} degrees, where 0 degrees points right, 90 down, 180 left and 270 up. Field of view: ${camera.fovPreset ?? 'standard'}. Compose from this approximate viewpoint.`,
-    'Prioritize legible spatial layout and the existing room identity. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Avoid text labels, technical overlays and multiple image panels. The result is a concept visualization, not a verified architectural drawing.',
+    'Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible eye-level perspective, realistic commercial display scale, product supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.',
   ].join('\n');
   if (prompt.length > 16_000) throw new Error('생성 조건이 너무 길어 요청할 수 없습니다. 구조와 조건을 정리해 주세요.');
   return prompt;

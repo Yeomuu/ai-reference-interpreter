@@ -55,7 +55,7 @@ export const sampleProject: Project = {
   ],
   elements: [
     { id: 'element-display', sourceReferenceId: 'ref-product', label: '곡선형 독립 진열대', kind: 'freestanding-fixture', status: 'apply', target: { kind: 'floor-point', x: 0.53, y: 0.51, rotationDegrees: 0, footprint: { width: 0.17, height: 0.12 } }, appearance: '밝은 아이보리 톤의 곡선형 제품 진열', conditions: '이동 가능한 독립형 구조' },
-    { id: 'element-warm-light', sourceReferenceId: 'ref-atmosphere', label: '추가 분위기 · 따뜻한 간접 조명', kind: 'ambient-light', status: 'apply', target: { kind: 'whole-space' }, appearance: '부드러운 온백색', conditions: '기존 벽·창 위치 유지' },
+    { id: 'element-warm-light', sourceReferenceId: 'ref-atmosphere', label: '추가 분위기 · 따뜻한 간접 조명', kind: 'ambient-light', status: 'apply', target: { kind: 'whole-space' }, appearance: '부드러운 온백색 간접 조명과 자연스러운 반사광', conditions: '기존 벽·창 위치와 중립색 마감 유지. 조명의 온기만 적용하고 벽·바닥을 노란색으로 바꾸지 않음' },
     { id: 'element-graphic', sourceReferenceId: 'ref-graphic', label: '탈착식 포토존 그래픽', kind: 'wall-graphic', status: 'apply', target: { kind: 'wall-segment', wallId: 'wall-north', start: 0.68, end: 0.90 }, appearance: '브랜드 문구 중심 그래픽', conditions: '벽 손상 없이 탈착 가능' },
     { id: 'element-cool-light', sourceReferenceId: 'ref-atmosphere', label: '차가운 청색 조명', kind: 'ambient-light', status: 'exclude', target: null, conditions: '선택한 분위기에서 제외' },
   ],

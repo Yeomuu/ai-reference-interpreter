@@ -1,3 +1,4 @@
+import { planGuideManifest } from '../src/services/planGuide';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import generate from '../api/generate';
@@ -42,6 +43,7 @@ function sampleRequest(): GenerationRequest {
   project.results = [];
   const images: GenerationImage[] = [
     { role: 'existing-space', sourceId: 'photo-existing', dataUrl },
+    { role: 'floor-plan', sourceId: 'floor-plan', dataUrl, planGuide: planGuideManifest(project, 'camera-entrance') },
     { role: 'inspiration', sourceId: 'photo-atmosphere', dataUrl },
     { role: 'inspiration', sourceId: 'photo-graphic', dataUrl },
     { role: 'product', sourceId: 'photo-product', dataUrl },
@@ -63,6 +65,20 @@ afterEach(() => {
 });
 
 describe('image generation API boundary', () => {
+  it('rejects a missing, stale or different-view plan guide before reserving paid quota', async () => {
+    const upstream = vi.fn(); vi.stubGlobal('fetch', upstream);
+    for (const defect of ['missing', 'revision', 'camera'] as const) {
+      const input = sampleRequest();
+      if (defect === 'missing') input.images.splice(1, 1);
+      else if (defect === 'revision') input.images[1].planGuide!.commonRevision++;
+      else input.images[1].planGuide!.cameraId = 'another-view';
+      const { response, values } = responseStub();
+      await generate(requestStub(input), response);
+      expect(values.statusCode).toBe(400);
+      expect(generationQuota.reserve).not.toHaveBeenCalled();
+      expect(upstream).not.toHaveBeenCalled();
+    }
+  });
   it('does not expose a finished image until its active server lease is released', async () => {
     let release!: () => void, entered!: () => void;
     const releaseGate = new Promise<void>(resolve => { release = resolve; });
@@ -100,6 +116,7 @@ describe('image generation API boundary', () => {
     const nextInput = sampleRequest();
     nextInput.project.cameras.push({ ...nextInput.project.cameras[0], id: 'camera-side', name: '추가 시점', x: 0.75, y: 0.7, primary: false });
     nextInput.cameraId = 'camera-side';
+    nextInput.images[1].planGuide = planGuideManifest(nextInput.project, nextInput.cameraId);
     const next = responseStub();
     let nextRunning: Promise<void> | undefined;
     const first = responseStub();
@@ -166,7 +183,7 @@ describe('image generation API boundary', () => {
     }
     const sheets=referenceSheetGroups(input.project);
     expect(sheets.flat()).toHaveLength(10); expect(sheets.length).toBeLessThanOrEqual(3);
-    input.images=[input.images[0],...sheets.map((sheet,i)=>({role:'reference-sheet' as const,sourceId:`reference-sheet-${i}`,sheet,dataUrl}))];
+    input.images=[input.images[0],input.images[1],...sheets.map((sheet,i)=>({role:'reference-sheet' as const,sourceId:`reference-sheet-${i}`,sheet,dataUrl}))];
     const call=vi.fn(async (_url:string,options:RequestInit)=>{
       const form=options.body as FormData;
       expect(form.getAll('image[]')).toHaveLength(input.images.length);
@@ -175,7 +192,7 @@ describe('image generation API boundary', () => {
     }); vi.stubGlobal('fetch',call);
     const {response,values}=responseStub(); await generate(requestStub(input),response);
     expect(values.statusCode).toBe(200); expect(call).toHaveBeenCalledTimes(1);
-    vi.clearAllMocks(); input.images[1].sheet!.pop();
+    vi.clearAllMocks(); input.images[2].sheet!.pop();
     await generate(requestStub(input),response);
     expect(values.statusCode).toBe(400); expect(call).not.toHaveBeenCalled(); expect(generationQuota.reserve).not.toHaveBeenCalled();
   });
@@ -251,7 +268,7 @@ describe('image generation API boundary', () => {
       expect(form.get('size')).toBe('1536x1024');
       expect(form.get('n')).toBe('1');
       expect(form.get('input_fidelity')).toBe('low');
-      expect(form.getAll('image[]')).toHaveLength(4);
+      expect(form.getAll('image[]')).toHaveLength(5);
       return { ok: true, json: async () => ({ data: [{ b64_json: jpeg }] }) };
     });
     vi.stubGlobal('fetch', call);

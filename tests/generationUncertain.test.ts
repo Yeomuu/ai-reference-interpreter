@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSampleProject } from '../src/data/sample'
 import { createApiImageProvider, GenerationOutcomeUnknownError } from '../src/services/imageProvider'
 
+vi.mock('../src/services/planGuideImage', () => ({ rasterizePlanGuide: async () => 'data:image/jpeg;base64,c21hbGw=' }))
+
 afterEach(() => vi.unstubAllGlobals())
 
 function stubImagePreparation(post: () => Promise<unknown>) {

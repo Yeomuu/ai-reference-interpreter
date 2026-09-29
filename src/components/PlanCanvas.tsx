@@ -1,5 +1,6 @@
 import { displayPosition } from '../domain/display';
 import { arrangePlanLabels } from './plan-labels';
+import { elementPlanPosition } from '../services/planGuide';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import type { DesignElement, FloorPlan, Point, Project, Structure } from '../domain/types';
@@ -171,13 +172,13 @@ export default function PlanCanvas({
   const [outlineDraft, setOutlineDraft] = useState<Point[]>([]);
   const [gestureHint, setGestureHint] = useState<string | null>(null);
   const [layers, setLayers] = useState({ structures: true, elements: true, cameras: true });
-  const [areaLayers, setAreaLayers] = useState<AreaLayers>({ floor: true, ceiling: true, spatial: true, passage: true });
+  const [areaLayers, setAreaLayers] = useState<AreaLayers>({ floor: true, ceiling: false, spatial: false, passage: true });
   const [showAreaNames, setShowAreaNames] = useState(false);
   const [dimOtherAreas, setDimOtherAreas] = useState(true);
   const [localAreaId, setLocalAreaId] = useState<string>();
   const movementPatternId = useId();
   const [imageState, setImageState] = useState<{ sourceUri: string; url?: string; error?: string } | null>(null);
-  const [canvasDisplay, setCanvasDisplay] = useState({ scale: 1, narrow: false });
+  const [canvasDisplay, setCanvasDisplay] = useState({ scale: 1, narrow: false, width: 0, height: 0 });
   const plan = project.floorPlan;
   const planWidth = plan?.width;
   const planHeight = plan?.height;
@@ -193,8 +194,8 @@ export default function PlanCanvas({
       const narrow = typeof window.matchMedia === 'function'
         ? window.matchMedia('(max-width: 767px)').matches
         : window.innerWidth <= 767;
-      setCanvasDisplay((current) => current.narrow === narrow && Math.abs(current.scale - scale) < 0.001
-        ? current : { scale, narrow });
+      setCanvasDisplay((current) => current.narrow === narrow && Math.abs(current.scale - scale) < 0.001 && Math.abs(current.width - bounds.width) < 1 && Math.abs(current.height - bounds.height) < 1
+        ? current : { scale, narrow, width: bounds.width, height: bounds.height });
     };
     update();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
@@ -284,9 +285,14 @@ export default function PlanCanvas({
   const movedStructures = preview?.kind === 'structure-move' && preview.structure ? previewStructureTranslation(project, preview.id, preview.structure) : plan.structures;
   const editingStructure = drawStructureKind ?? plan.structures.find(item => item.id === (preview?.kind === 'structure-move' ? preview.id : selectedStructureId))?.kind;
   const showCameraOccupancy = !showCameras && (editingStructure === 'wall' || editingStructure === 'pillar') && (Boolean(drawStructureKind) || movableStructures.some(item => item.id === selectedStructureId));
-  const clearanceNames = movedStructures.filter(item => item.clearance).map(item => ({ id: `clearance-${item.id}`, name: `${item.name} · 여닫이`, hint: `${item.name} · 출입·여닫이 여유 공간`, x: item.clearance!.x + item.clearance!.width / 2, y: item.clearance!.y + item.clearance!.height / 2 }));
+  const clearanceNames = movedStructures.filter(item => item.clearance && (showAreaNames || item.id === selectedStructureId)).map(item => ({ id: `clearance-${item.id}`, name: `${item.name} · 여닫이`, hint: `${item.name} · 출입·여닫이 여유 공간`, x: item.clearance!.x + item.clearance!.width / 2, y: item.clearance!.y + item.clearance!.height / 2 }));
   const occupancyNames = !showElements || !layers.elements ? activeElements.flatMap(element => { const bounds = physicalFloorBounds(project, element); return bounds ? [{ id: `occupancy-${element.id}`, name: element.label, hint: `${element.label} · 배치 점유 범위`, x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }] : []; }) : [];
-  const constraintNames = [...clearanceNames, ...occupancyNames];
+  const elementNames = showElements && layers.elements && !preview ? activeElements.flatMap(element => {
+    if (!element.target || !['floor-point', 'fixture-surface', 'wall-segment'].includes(element.target.kind)) return [];
+    const point = elementPlanPosition(project, element);
+    return point ? [{ id: `element-name-${element.id}`, name: element.label, hint: element.label, x: point.x, y: point.y }] : [];
+  }) : [];
+  const constraintNames = [...elementNames.sort((a, b) => Number(b.id === `element-name-${selectedElementId}`) - Number(a.id === `element-name-${selectedElementId}`)), ...clearanceNames, ...occupancyNames];
 
   const areaLabelCandidates = areaLabels.map(area => ({ id: `area-${area.id}`, x: (area.bounds.x + area.bounds.width / 2) * width * contentPixelScale, y: (area.bounds.y + area.bounds.height / 2) * height * contentPixelScale, width: Math.min(220, area.name.length * 14 + 32), height: 40 }));
   const structureLabelCandidates = (showStructureLayer ? [...plan.structures] : []).map(structure => {
@@ -294,7 +300,14 @@ export default function PlanCanvas({
     const center = structureCenter(moved ?? structure);
     const moving = !drawTool && movableStructures.some(item => item.id === structure.id) && mode !== 'camera';
     const name = structure.name.length > 12 ? `${structure.name.slice(0, 11)}…` : structure.name;
-    return { id: structure.id, x: center.x * width * contentPixelScale, y: center.y * height * contentPixelScale + (center.y > .8 ? -26 : 26), width: name.length * 13 + (moving ? 100 : 50), height: 40 };
+    const edgeWall = structure.kind === 'wall';
+    const horizontal = structure.geometry.kind === 'segment' && Math.abs(structure.geometry.end.x - structure.geometry.start.x) * width > Math.abs(structure.geometry.end.y - structure.geometry.start.y) * height;
+    const nearBottom = center.y > .8;
+    const openingOffset = structure.kind === 'door' ? -70 : structure.kind === 'entrance' ? 70 : 0;
+    return { id: structure.id,
+      x: center.x * width * contentPixelScale + openingOffset + (edgeWall && !horizontal ? center.x < .5 ? -24 : 24 : 0),
+      y: center.y * height * contentPixelScale + (edgeWall ? horizontal ? nearBottom ? 24 : -24 : 0 : nearBottom ? -26 : 26),
+      width: name.length * 13 + (moving ? 100 : 50), height: 40 };
   });
   const movementBounds = [
     ...plan.areas.filter(area => area.kind === 'passage').map(area => ({ id: `range-${area.id}`, bounds: area.bounds })),
@@ -312,14 +325,21 @@ export default function PlanCanvas({
     }),
     ...(showElements && layers.elements ? activeElements.flatMap(element => { const position = element.target?.kind === 'floor-point' ? element.target : displayPosition(project, element); return position ? [{ id: `element-${element.id}`, x: position.x * width * contentPixelScale, y: position.y * height * contentPixelScale, width: 48, height: 48 }] : []; }) : []),
   ];
-  const labels = arrangePlanLabels([
+  // Use the entire visible SVG surface, including the side margins left by
+  // preserveAspectRatio. Labels need not squeeze into the physical plan box.
+  const labelWidth = canvasDisplay.width || width * contentPixelScale;
+  const labelHeight = canvasDisplay.height || height * contentPixelScale;
+  const labelOffset = { x: (labelWidth - width * contentPixelScale) / 2, y: (labelHeight - height * contentPixelScale) / 2 };
+  const inSurface = (item: { id: string; x: number; y: number; width: number; height: number }) => ({ ...item, x: item.x + labelOffset.x, y: item.y + labelOffset.y });
+  const packedLabels = arrangePlanLabels([
     ...areaLabelCandidates.filter(label => label.id === `area-${selectedArea?.id}`),
     ...structureLabelCandidates.filter(label => label.id === selectedStructureId),
     ...areaLabelCandidates.filter(label => label.id !== `area-${selectedArea?.id}` && plan.areas.find(area => `area-${area.id}` === label.id)?.kind === 'passage'),
-    ...constraintNames.map(label => ({ ...label, x: label.x * width * contentPixelScale, y: label.y * height * contentPixelScale, width: Math.min(220, label.name.length * 14 + 32), height: 40 })),
-    ...structureLabelCandidates.filter(label => label.id !== selectedStructureId),
+    ...constraintNames.map(label => ({ ...label, x: label.x * width * contentPixelScale, y: label.y * height * contentPixelScale, width: Math.min(220, label.name.length * 14 + 16), height: 24 })),
+    ...structureLabelCandidates.filter(label => label.id !== selectedStructureId).sort((a, b) => Number(plan.structures.find(item => item.id === a.id)?.kind === 'wall') - Number(plan.structures.find(item => item.id === b.id)?.kind === 'wall')),
     ...areaLabelCandidates.filter(label => label.id !== `area-${selectedArea?.id}` && plan.areas.find(area => `area-${area.id}` === label.id)?.kind !== 'passage'),
-  ], width * contentPixelScale, height * contentPixelScale, [...movementBounds, ...markerObstacles]);
+  ].map(inSurface), labelWidth, labelHeight, [...movementBounds, ...markerObstacles].map(inSurface));
+  const labels = new Map([...packedLabels].map(([id, item]) => [id, { ...item, x: item.x - labelOffset.x, y: item.y - labelOffset.y }]));
   const movingStructure = preview?.kind === 'structure-move' ? movedStructures.find(item => item.id === preview.id) : undefined;
   const movingPosition = preview?.point ?? (movingStructure ? structureCenter(movingStructure) : undefined);
   function constrainedEnd(start: Point, end: Point): Point {
@@ -681,7 +701,7 @@ export default function PlanCanvas({
     const nameWidth = packed?.width ?? labelName.length * 13 + 50;
     const labelX = (packed?.x ?? center.x * width * contentPixelScale) / contentPixelScale;
     const labelY = (packed?.y ?? center.y * height * contentPixelScale) / contentPixelScale;
-    return <g key={structure.id} className={labelsOnly ? 'plan-label-wrapper' : classes}>
+    return <g key={structure.id} className={labelsOnly ? `plan-label-wrapper${selected ? ' is-selected' : ''}` : classes}>
     {!labelsOnly && <g
       role={selectable ? 'button' : undefined}
       tabIndex={selectable ? 0 : undefined}
@@ -701,7 +721,7 @@ export default function PlanCanvas({
           onPointerDown={movable ? event => startStructureDrag(event, structure) : event => event.stopPropagation()}
           onClick={selectable ? event => { event.stopPropagation(); if (!suppressClickRef.current) handleStructureSelect(structure); } : undefined}
           onKeyDown={selectable ? event => handleStructureKeyDown(event, structure) : undefined}>
-          <title>{structure.name}</title><rect x={-nameWidth / 2} y={-20} width={nameWidth} height={40} rx={8} />
+          <title>{structure.name}</title><rect className="plan-label-hit" x={-nameWidth / 2} y={-20} width={nameWidth} height={40} rx={8} /><rect className="plan-label-surface" x={-nameWidth / 2} y={-14} width={nameWidth} height={28} rx={4} />
           <>{kept && (!onStructureLockToggle || drawTool) && <image href="/icons/nucleo/IconLockOutline18.svg" x={-nameWidth / 2 + 8} y={-9} width={18} height={18} aria-hidden="true" />}</><text x={kept || onStructureLockToggle && !drawTool ? 18 : 0} y={5} textAnchor="middle">{labelName}{movable ? ' · 이동 가능' : ''}</text>
         </g>
         {!drawTool && onStructureLockToggle && <g className={`plan-lock-toggle${kept ? ' is-kept' : ''}`} transform={`translate(${labelX - (nameWidth / 2 - 20) / contentPixelScale} ${labelY}) scale(${1 / contentPixelScale})`}
@@ -768,9 +788,7 @@ export default function PlanCanvas({
         onKeyDown={supportPicking ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSupportSelect?.(element.id); } } : editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
         onClick={supportPicking ? event => { event.stopPropagation(); onSupportSelect?.(element.id); } : editable ? (event) => event.stopPropagation() : undefined}>
         <title>{element.label}</title>
-        <rect className="plan-element__footprint" x={x - footprint.width * width / 2} y={y - footprint.height * height / 2} width={footprint.width * width} height={footprint.height * height} rx={Math.min(14, footprint.height * height / 4)} transform={`rotate(${degrees} ${x} ${y})`} />
-        <circle className="plan-element__number-bg" cx={x} cy={y} r={14} />
-        <text className="plan-element__number" x={x} y={y + 5} textAnchor="middle">{number}</text>
+        <rect className="plan-element__footprint" data-constraint-id={!preview ? element.id : undefined} x={x - footprint.width * width / 2} y={y - footprint.height * height / 2} width={footprint.width * width} height={footprint.height * height} rx={Math.min(14, footprint.height * height / 4)} transform={`rotate(${degrees} ${x} ${y})`} />
         {selected && editable && <g className="plan-rotation-handle" role="slider" tabIndex={0}
           aria-label={`${element.label} 회전 각도`} aria-valuemin={0} aria-valuemax={359} aria-valuenow={degrees}
           onPointerDown={(event) => startDrag(event, 'element-rotate', element.id, position)}
@@ -815,8 +833,6 @@ export default function PlanCanvas({
           onKeyDown={wallEditable ? (event) => handleWallElementKeyDown(event, element, wall) : undefined}
           onClick={wallEditable ? (event) => event.stopPropagation() : undefined}>
           <line className="plan-element__wall" x1={start.x * width} y1={start.y * height} x2={end.x * width} y2={end.y * height} />
-          <circle className="plan-element__number-bg" cx={middle.x * width} cy={middle.y * height + 20} r={14} />
-          <text className="plan-element__number" x={middle.x * width} y={middle.y * height + 25} textAnchor="middle">{number}</text>
         </g>
         {selected && wallEditable && <text className="plan-element__wall-hint" x={middle.x * width} y={middle.y * height + (middle.y > 0.75 ? -35 : 52)} textAnchor="middle" aria-hidden="true">벽 따라 이동</text>}
       </g>;
@@ -952,8 +968,8 @@ export default function PlanCanvas({
           <rect className="plan-canvas__backdrop" width={width} height={height} />
           {imageUri && <image className="plan-canvas__image" href={imageUri} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid meet" />}
           {floorAreas.filter(area => !showAreas || areaLayers.floor || area.id === selectedArea?.id).map((area) => area.outline ? <polygon key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />)}
-          <PlanMovementOverlay project={project} structures={movedStructures} width={width} height={height} unit={1 / contentPixelScale} patternId={movementPatternId} showCameraOccupancy={showCameraOccupancy} showStructureObstacles={!showStructureLayer} ignoredElementId={preview?.kind === 'element-move' || preview?.kind === 'element-rotate' ? preview.id : undefined} />
-          {visibleAreas.filter(area => area.kind !== 'passage').map(area => {
+          <PlanMovementOverlay project={project} structures={movedStructures} width={width} height={height} unit={1 / contentPixelScale} patternId={movementPatternId} showCameraOccupancy={showCameraOccupancy} showStructureObstacles={!showStructureLayer} showElementOccupancy={!showElements || !layers.elements || Boolean(preview)} ignoredElementId={preview?.kind === 'element-move' || preview?.kind === 'element-rotate' ? preview.id : undefined} />
+          {visibleAreas.filter(area => area.kind !== 'passage' && (area.kind !== 'floor' || area.id === selectedArea?.id)).map(area => {
             const selected = area.id === selectedArea?.id;
             const pickable = !drawTool && (mode === 'view' || linkableAreaIds?.has(area.id));
             return <g key={area.id} className={`plan-canvas__area plan-canvas__area--${area.kind}${selected ? ' is-selected' : selectedArea && dimOtherAreas ? ' is-dimmed' : ''}${pickable ? ' is-pickable' : ''}`} aria-label={`${area.name} · ${AREA_LABELS[area.kind]}${selected ? ' · 선택됨' : ''}`} data-area-id={area.id}
@@ -967,8 +983,8 @@ export default function PlanCanvas({
           </g>}
           {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.filter(item => item.kind !== 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}{activeElements.filter(item => item.kind === 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}</g>}
           {showCameras && layers.cameras && <g className="plan-canvas__layer plan-canvas__layer--cameras" aria-label="카메라 레이어">{project.cameras.map(renderCamera)}</g>}
-          {showStructureLayer && <g aria-label="구조 이름표"><g aria-hidden="true">{plan.structures.map(structure => { const packed = labels.get(structure.id); const center = structureCenter(structure); return packed && <line key={structure.id} className="plan-label-leader" x1={center.x * width} y1={center.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} />; })}</g>{plan.structures.map(structure => renderStructure(structure, true))}</g>}
-          <g className="plan-constraint-names" aria-label="보호·점유 범위 이름">{constraintNames.map(label => { const packed = labels.get(label.id); if (!packed) return null; return <g key={label.id}><line className="plan-label-leader" x1={label.x * width} y1={label.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} /><g className={`plan-area-label plan-area-label--constraint${label.id.startsWith('occupancy-') ? ' is-occupancy' : ''}`} transform={`translate(${packed.x / contentPixelScale} ${packed.y / contentPixelScale}) scale(${1 / contentPixelScale})`} aria-label={label.hint}><title>{label.hint}</title><rect x={-packed.width / 2} y={-20} width={packed.width} height={40} rx={8} /><text x={0} y={5} textAnchor="middle">{label.name.length > 13 ? `${label.name.slice(0, 12)}…` : label.name}</text></g></g>; })}</g>
+          {showStructureLayer && <g aria-label="구조 이름표"><g aria-hidden="true">{plan.structures.map(structure => { const packed = labels.get(structure.id); const center = structureCenter(movedStructures.find(item => item.id === structure.id) ?? structure); return packed && <line key={structure.id} className="plan-label-leader" x1={center.x * width} y1={center.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} />; })}</g>{plan.structures.map(structure => renderStructure(structure, true))}</g>}
+          <g className="plan-constraint-names" aria-label="보호·점유 범위 이름">{constraintNames.map(label => { const packed = labels.get(label.id); if (!packed) return null; return <g key={label.id}><line className="plan-label-leader" x1={label.x * width} y1={label.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} /><g className={`plan-area-label plan-area-label--constraint${label.id.startsWith('occupancy-') ? ' is-occupancy' : ''}`} transform={`translate(${packed.x / contentPixelScale} ${packed.y / contentPixelScale}) scale(${1 / contentPixelScale})`} aria-label={label.hint}><title>{label.hint}</title><rect x={-packed.width / 2} y={-12} width={packed.width} height={24} rx={4} /><text x={0} y={5} textAnchor="middle">{label.name.length > 13 ? `${label.name.slice(0, 12)}…` : label.name}</text></g></g>; })}</g>
           <g aria-label="영역 이름표">{areaLabels.map(area => {
             const packed = labels.get(`area-${area.id}`); if (!packed) return null;
             const selected = area.id === selectedArea?.id;
@@ -995,8 +1011,7 @@ export default function PlanCanvas({
     {movementValidation ? <div className={`plan-canvas__movement-feedback${previewBlocked ? ' is-blocked' : ''}${movingPosition && movingPosition.y > .5 ? ' is-top' : ''}`} role="status"><strong>{previewBlocked ? '놓을 수 없는 위치' : '놓을 수 있는 위치'}</strong><span>{movementReason ?? '놓으면 이 위치로 저장합니다.'}</span></div> : gestureHint ? <p className="plan-canvas__gesture-hint" role="status">{gestureHint}</p> : null}
     </div>
     {drawTool === 'polygon' && <div className="plan-outline-actions"><span aria-live="polite">윤곽 {outlineDraft.length}점</span><button type="button" disabled={outlineDraft.length < 3} onClick={finishOutline}>윤곽 저장</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft(points => points.slice(0, -1))}>마지막 점 취소</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft([])}>윤곽 취소</button></div>}
-    <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>
-    {!drawTool && <p className="muted small">이름표는 겹침을 피해 표시하며, 공간이 부족하면 일부를 접습니다.</p>}
+    {!drawTool && (mode === 'place' || mode === 'camera') ? <details className="plan-canvas__help"><summary>도면 조작 안내</summary><p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p></details> : <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
       <span><i className="plan-canvas__legend-keep" aria-hidden="true" />고정 구조 / Keep</span>
       {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}

@@ -3,6 +3,7 @@ import { generationQuota, quotaConfigured, validRequestId, QuotaError } from './
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { validatePreflight } from '../src/domain/validation.js';
 import { isProject } from '../src/services/persistence.js';
+import { matchesPlanGuide } from '../src/services/planGuide.js';
 import {
   buildGenerationPrompt, GENERATION_MODEL, GENERATION_QUALITY,
   GENERATION_SIZE, MAX_GENERATION_BODY_BYTES, MAX_GENERATION_IMAGES,
@@ -104,14 +105,15 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
   for (const image of images) {
     if (seen.has(image.sourceId)) throw new RequestError('같은 이미지를 여러 번 보낼 수 없습니다.', 400);
     seen.add(image.sourceId);
+    if (image.role !== 'floor-plan' && image.planGuide !== undefined) throw new RequestError('도면 정보는 도면 입력에만 지정할 수 있습니다.', 400);
     if (image.role === 'reference-sheet') {
       const index = Number(image.sourceId.replace('reference-sheet-', ''));
       if (!/^reference-sheet-[0-2]$/.test(image.sourceId) || !matchesReferenceSheet(referenceSheetGroups(project)[index], image.sheet) || image.referencePreparation !== undefined) throw new RequestError('레퍼런스 모음과 적용 자료가 일치하지 않습니다.', 400);
       for (const part of image.sheet!) { if (seen.has(part.sourceId)) throw new RequestError('같은 참고 이미지를 여러 번 보낼 수 없습니다.', 400); seen.add(part.sourceId); }
     } else if (image.role === 'floor-plan') {
-      if (image.referencePreparation !== undefined) throw new RequestError('도면에는 레퍼런스 선택 영역을 지정할 수 없습니다.', 400);
-      if (image.sourceId !== 'floor-plan' || project.floorPlan?.kind !== 'uploaded' || !project.floorPlan.imageUri) {
-        throw new RequestError('등록된 업로드 도면만 입력할 수 있습니다.', 400);
+      if (image.referencePreparation !== undefined || image.sheet !== undefined) throw new RequestError('도면에는 레퍼런스 선택 영역을 지정할 수 없습니다.', 400);
+      if (image.sourceId !== 'floor-plan' || !matchesPlanGuide(project, body.cameraId, image.planGuide)) {
+        throw new RequestError('현재 도면과 시점의 배치 가이드가 필요합니다. 페이지를 새로고침해 주세요.', 400);
       }
     } else {
       const source = project.sourceImages.find((entry) => entry.id === image.sourceId && entry.role === image.role);
@@ -133,8 +135,8 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
   if ([...appliedImageIds].some((id) => !seen.has(id))) {
     throw new RequestError('적용된 레퍼런스 이미지가 생성 입력에서 빠졌습니다.', 400);
   }
-  if (project.floorPlan?.kind === 'uploaded' && project.floorPlan.imageUri && !images.some((image) => image.role === 'floor-plan')) {
-    throw new RequestError('업로드한 도면 이미지를 생성 입력에 포함해 주세요.', 400);
+  if (images[1]?.role !== 'floor-plan') {
+    throw new RequestError('저장한 도면과 선택 시점의 배치 가이드를 두 번째 입력에 포함해 주세요.', 400);
   }
   const decoded = images.map((image) => decodeImage(image.dataUrl));
   return { body: body as GenerationRequest, decoded };
