@@ -67,7 +67,7 @@ export default function PlanAreaControls({ areas, layers, selectedId, showNames,
       }
     }}>
       <strong>영역·동선 표시</strong><p>표시만 바뀌며 저장한 영역과 연결은 유지됩니다.</p>
-      <div className="plan-area-controls__filters" role="group" aria-label="영역 종류별 표시">{(Object.keys(AREA_LABELS) as Area['kind'][]).map(kind => <label className="checkbox-row" key={kind}><input type="checkbox" checked={layers[kind]} onChange={event => onLayersChange({ ...layers, [kind]: event.target.checked })} /><span>{AREA_LABELS[kind]} · {areas.filter(area => area.kind === kind).length}개</span></label>)}</div>
+      <div className="plan-area-controls__filters" role="group" aria-label="영역 종류별 표시">{(Object.keys(AREA_LABELS) as Area['kind'][]).map(kind => <label className="checkbox-row" key={kind}><input type="checkbox" checked={kind === 'passage' || layers[kind]} disabled={kind === 'passage'} onChange={event => onLayersChange({ ...layers, [kind]: event.target.checked })} /><span>{AREA_LABELS[kind]} · {areas.filter(area => area.kind === kind).length}개{kind === 'passage' ? ' · 항상 표시' : ''}</span></label>)}</div>
       <label className="checkbox-row"><input type="checkbox" checked={showNames} onChange={event => onNamesChange(event.target.checked)} /><span>이름표 모두 표시</span></label>
       <label className="checkbox-row"><input type="checkbox" checked={dimOthers} onChange={event => onDimChange(event.target.checked)} /><span>다른 영역 옅게 표시</span></label>
       <p>{linkableIds ? '아래에서 영역을 선택하면 현재 요소와 연결합니다.' : '목록에서 선택한 영역을 도면에 강조합니다.'} 선택한 영역은 표시 설정과 관계없이 보입니다.</p>

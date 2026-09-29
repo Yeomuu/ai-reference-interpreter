@@ -121,4 +121,12 @@ describe('manual outlines and display relations', () => {
       for (const b of placed.filter(item => item.id !== a.id)) expect(Math.abs(a.x - b.x) >= 110 || Math.abs(a.y - b.y) >= 40).toBe(true); }
     expect(input.every(item => item.x === 250 && item.y === 160)).toBe(true);
   });
+  it('keeps clearance geometry visible when a label starts over it', () => {
+    const clearance = { id: 'door-clearance', x: 200, y: 260, width: 100, height: 80 };
+    const before = { ...clearance };
+    const labels = [...arrangePlanLabels([{ id: 'door-name', x: 200, y: 260, width: 140, height: 40 }], 400, 320, [clearance]).values()];
+    expect(labels).toHaveLength(1);
+    expect(Math.abs(labels[0].x - clearance.x) >= 120 || Math.abs(labels[0].y - clearance.y) >= 60).toBe(true);
+    expect(clearance).toEqual(before);
+  });
 });

@@ -26,13 +26,23 @@ describe('plan canvas floor layers', () => {
 });
 
 describe('area readability', () => {
+  it.each(['view', 'keep', 'place', 'camera'] as const)('shows protected passage, clearance and occupied floor bounds in %s', mode => {
+    const project = createSampleProject();
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode }));
+    expect(html).toContain('data-constraint-id="passage-entrance"');
+    expect(html).toContain('data-constraint-id="door-south"');
+    expect(html).toContain('data-constraint-id="element-display"');
+    expect(html).toContain('출입·여닫이 여유 공간');
+    expect(html).toContain('입구 동선 · 통행 유지');
+    expect(html).toContain('바닥 요소와 시점의 배치 기준');
+  });
   it('shows only the selected scope condition and one selected area name in a dense plan', () => {
     const project = createSampleProject();
     for (let i = 0; i < 20; i++) project.floorPlan!.areas.push({ id: `zone-${i}`, name: `작업 영역 ${i}`, kind: 'spatial', bounds: { x: .2, y: .2, width: .2, height: .2 } });
     project.elements.push({ ...project.elements.find(item => item.kind === 'ambient-light')!, id: 'second-ambience', label: '부분 조명', target: { kind: 'named-area', areaId: 'zone-0' } });
     const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', selectedElementId: 'second-ambience', selectedAreaId: 'zone-0' }));
     expect(html.match(/class="plan-element__area"/g)).toHaveLength(1);
-    expect(html.match(/class="plan-area-label is-selected"/g)).toHaveLength(1);
+    expect(html.match(/class="plan-area-label is-selected(?: is-read-only)?"/g)).toHaveLength(1);
     expect(html).not.toContain('>작업 영역 1</text>');
     expect(html).toContain('영역·동선 25개');
     expect(html).toContain('aria-expanded="false"');

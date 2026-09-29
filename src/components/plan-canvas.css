@@ -686,3 +686,24 @@
 .plan-area-label text { font-family: var(--font-ui); font-size: 14px; font-weight: 500; fill: var(--text-primary); pointer-events: none; }
 .plan-area-label.is-selected rect, .plan-area-label:focus-visible rect { stroke: var(--canvas-selection); stroke-width: 2; fill: var(--surface-selected); }
 .plan-area-label:focus-visible { outline: none; }
+.plan-movement-overlay, .plan-constraint-names { pointer-events: none; }
+.plan-movement-floor > rect, .plan-movement-floor > polygon { fill: none; stroke: var(--canvas-structure); stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.plan-movement-zone > rect, .plan-movement-zone > polygon { stroke: var(--state-info-fg); stroke-width: 2; stroke-dasharray: 8 4; vector-effect: non-scaling-stroke; }
+.plan-movement-hatch { fill: none; stroke: var(--state-info-fg); stroke-opacity: .5; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.plan-movement-occupancy rect { fill: var(--surface-pressed); fill-opacity: .6; stroke: var(--canvas-structure); stroke-width: 1.5; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.plan-movement-camera circle { fill: var(--surface-base); stroke: var(--canvas-structure); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.plan-movement-zone--clearance > rect { stroke-dasharray: 2 4; }
+.plan-area-label--constraint rect { stroke: var(--state-info-fg); }
+.plan-canvas__movement-feedback { position: absolute; bottom: var(--space-8); left: var(--space-8); right: var(--space-8); z-index: 2; margin: 0; padding: var(--space-8); border-radius: var(--radius-8); background: var(--surface-glass); color: var(--text-secondary); font-size: 14px; line-height: 22px; pointer-events: none; }
+.plan-canvas__movement-feedback { display: grid; gap: var(--space-4); background: var(--state-info-bg); color: var(--state-info-fg); border: 1px solid currentColor; }
+.plan-canvas__movement-feedback.is-blocked { background: var(--state-error-bg); color: var(--state-error-fg); }
+.plan-preview-blocked .plan-element__footprint, .plan-preview-blocked .plan-element__wall, .plan-preview-blocked .plan-camera__body, .plan-preview-blocked .plan-structure__shape, .plan-preview-blocked > g > rect, .plan-preview-blocked > g > circle, .plan-preview-blocked > g > line { stroke: var(--state-error-fg); stroke-width: 3; }
+.plan-movement-structure > line, .plan-movement-structure > rect, .plan-movement-structure > circle { fill: none; stroke: var(--canvas-structure); stroke-width: 2; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.plan-area-label--constraint { cursor: default; }
+
+.plan-canvas__movement-key { flex: none; margin: 0; padding: 0 var(--space-16) var(--space-8); color: var(--text-secondary); font-size: 14px; line-height: 22px; }
+
+.plan-canvas__movement-feedback.is-top { bottom: auto; top: var(--space-8); }
+
+.plan-area-label--constraint.is-occupancy rect { stroke: var(--canvas-structure); }
+.plan-area-label.is-read-only { cursor: default; pointer-events: none; }

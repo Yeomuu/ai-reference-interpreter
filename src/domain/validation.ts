@@ -174,7 +174,7 @@ function isPreserved(project: Project, structure: Structure): boolean {
   return !!structure.immutable || structure.protected || project.keeps.some((keep) => keep.structureId === structure.id);
 }
 
-function physicalFloorBounds(project: Project, element: DesignElement, target = element.target): Rect | undefined {
+export function physicalFloorBounds(project: Project, element: DesignElement, target = element.target): Rect | undefined {
   if (!project.floorPlan || !target || !['freestanding-fixture', 'furniture', 'standing-light', 'other-floor'].includes(element.kind)) return;
   if (target.kind === 'floor-point') return floorFootprintRect(target, project.floorPlan.width, project.floorPlan.height);
   if (target.kind === 'floor-area') return areaById(project, target.areaId)?.bounds;
