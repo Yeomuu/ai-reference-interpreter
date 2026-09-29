@@ -51,6 +51,12 @@ describe('area readability', () => {
 });
 
 describe('drawing affordances', () => {
+  it('keeps visible passage labels from capturing drawing gestures', () => {
+    const project = createSampleProject();
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'view', drawTool: 'rect', selectedAreaId: 'passage-entrance' }));
+    expect(html).toContain('class="plan-area-label is-selected is-read-only"');
+    expect(html).not.toContain('aria-label="입구 동선 · 통행 동선 · 도면에서 선택"');
+  });
   it('names the actual selected host wall on the plan while drawing an opening', () => {
     const project = createSampleProject();
     const wall = project.floorPlan!.structures.find((structure) => structure.kind === 'wall')!;

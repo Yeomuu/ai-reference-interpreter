@@ -972,7 +972,7 @@ export default function PlanCanvas({
           <g aria-label="영역 이름표">{areaLabels.map(area => {
             const packed = labels.get(`area-${area.id}`); if (!packed) return null;
             const selected = area.id === selectedArea?.id;
-            const selectable = mode === 'view' || linkableAreaIds?.has(area.id);
+            const selectable = !drawTool && (mode === 'view' || linkableAreaIds?.has(area.id));
             const caption = area.name;
             const name = caption.length > 13 ? `${caption.slice(0, 12)}…` : caption;
             return <g key={area.id}><line className="plan-label-leader" x1={(area.bounds.x + area.bounds.width / 2) * width} y1={(area.bounds.y + area.bounds.height / 2) * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} /><g className={`plan-area-label${selected ? ' is-selected' : ''}${!selectable ? ' is-read-only' : ''}`} transform={`translate(${packed.x / contentPixelScale} ${packed.y / contentPixelScale}) scale(${1 / contentPixelScale})`}
