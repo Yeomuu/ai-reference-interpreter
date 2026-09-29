@@ -166,7 +166,26 @@ function elementText(project: Project, element: DesignElement, images: Generatio
   return `${boundedText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` +
     (element.origin === 'basic-support' ? 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
     `Appearance: ${boundedText(element.appearance ?? 'not specified')}. ` +
-    `Conditions: ${boundedText(element.conditions ?? 'none')}. ` + transferIntent(element) + relativeToCamera(project, element);
+    `Conditions: ${boundedText(element.conditions ?? 'none')}. ` + transferIntent(element) + relativeToCamera(project, element) + installationContext(project, element);
+}
+
+function installationContext(project: Project, element: DesignElement): string {
+  const target = element.target, camera = project.cameras[0], plan = project.floorPlan;
+  if (!target || !camera || !plan) return '';
+  if (target.kind === 'floor-point') {
+    const floor = plan.areas.find(area => area.kind === 'floor');
+    if (!floor || !target.footprint) return '';
+    return `Its footprint occupies approximately ${percent(target.footprint.width / floor.bounds.width)} of the registered floor width and ${percent(target.footprint.height / floor.bounds.height)} of its depth, not a room-filling counter. Keep the surrounding aisle gaps shown in the plan. `;
+  }
+  if (target.kind !== 'wall-segment') return '';
+  const wall = plan.structures.find(item => item.id === target.wallId);
+  if (wall?.geometry.kind !== 'segment') return '';
+  const x = (wall.geometry.end.x - wall.geometry.start.x) * plan.width, y = (wall.geometry.end.y - wall.geometry.start.y) * plan.height;
+  const radians = camera.directionDegrees * Math.PI / 180;
+  const alongSight = Math.abs(x * Math.cos(radians) + y * Math.sin(radians)) / Math.max(1, Math.hypot(x, y));
+  const orientation = alongSight < .35 ? 'This wall runs across the view, perpendicular to the sight line; do not transfer this element to a side wall.' : alongSight > .85 ? 'This is a side wall running along the sight line, not the wall across the room.' : 'Keep this element on this angled wall plane.';
+  const openings = plan.structures.filter(item => item.parentWallId === wall.id && ['window', 'door', 'entrance'].includes(item.kind));
+  return `${orientation} ${openings.length ? `It shares the SAME wall plane with ${openings.map(item => `${boundedText(item.name)}${item.wallSpan ? ` at wall span ${percent(item.wallSpan.start)}–${percent(item.wallSpan.end)}` : ''}`).join(', ')}; preserve these openings and keep the design at its own saved span. ` : ''}`;
 }
 
 function transferIntent(element: DesignElement): string {
@@ -216,6 +235,7 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const excluded = project.elements.filter((item) => item.status === 'exclude');
   const prompt = [
     'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
+    'Color fidelity: match the existing-space photo paint and material colors. With warm indirect lighting, use balanced daylight/neutral general illumination and exposure; show warmth locally around light emitters and nearby bounce, while white walls and unlit surfaces remain neutral white. Do not give the entire room an amber, brown or sepia wash. An explicit saved palette/material element may change only its own target.',
     'Input image roles, in order:',
     ...imageLines,
     'The existing-space photograph supplies the current room appearance and visible architectural character. The saved top-down plan guide supplies the authoritative 2D layout: room outline/aspect, wall openings, pillars, fixture footprints and selected camera arrow. Reconcile the photograph with those saved positions. Inspiration and product images supply ONLY the named design attributes and are NEVER spatial geometry. Follow the plan layout before styling; do not substitute any reference-room composition.',

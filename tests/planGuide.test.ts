@@ -63,6 +63,10 @@ describe('saved plan guide and scoped visual transfer', () => {
       { role: 'inspiration', sourceId: 'photo-atmosphere', dataUrl: '' }];
     const prompt = buildGenerationPrompt(project, 'camera-entrance', images);
     expect(prompt).toContain('authoritative 2D layout');
+    expect(prompt).toContain('white walls and unlit surfaces remain neutral white');
+    expect(prompt).toContain('not a room-filling counter');
+    expect(prompt).toContain('do not transfer this element to a side wall');
+    expect(prompt).toContain('SAME wall plane with 후면 창');
     expect(prompt).toContain('Transfer illumination only');
     expect(prompt).toContain('NOT a yellow wall/floor color reference');
     expect(prompt).toContain('Compatible removable decoration may be mounted on a kept wall');
