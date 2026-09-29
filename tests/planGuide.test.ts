@@ -56,6 +56,25 @@ describe('saved plan guide and scoped visual transfer', () => {
     expect(matchesPlanGuide(project, 'camera-entrance', { ...planGuideManifest(project, 'camera-entrance'), width: 1 })).toBe(false);
   });
 
+  it('keeps openings on their saved wall and column cross-sections relative to each selected camera', () => {
+    const project = createSampleProject();
+    const images: GenerationImage[] = [{ role: 'existing-space', sourceId: 'photo-existing', dataUrl: '' }];
+    const front = buildGenerationPrompt(project, 'camera-entrance', images);
+    expect(front).toContain('후면 창 [window]: in front, near the sight line. Attached to the saved wall 후면 벽 at wall span 34%–62%.');
+    expect(front).toContain('출입문 [door]: behind the camera; do not force it into view');
+    expect(front).toContain('기존 기둥 [pillar]: in front, camera-left. Rectangular column cross-section');
+    expect(front).toContain('never a cylindrical column');
+    project.cameras.push({ ...project.cameras[0], id: 'camera-side', x: .18, y: .5, directionDegrees: 0, primary: false });
+    const side = buildGenerationPrompt(project, 'camera-side', images);
+    expect(side).toContain('후면 창 [window]: in front, camera-left. Attached to the saved wall 후면 벽');
+    expect(side).toContain('This is a side wall running along the sight line');
+    const pillar = project.floorPlan!.structures.find(item => item.kind === 'pillar')!;
+    pillar.geometry = { kind: 'circle', center: { x: .25, y: .45 }, radius: .05 };
+    const round = buildGenerationPrompt(project, 'camera-side', images);
+    expect(round).toContain('Circular column cross-section');
+    expect(round).not.toContain('never a cylindrical column');
+  });
+
   it('separates warm lighting from paint/material transfer and points to the actual layout input', () => {
     const project = createSampleProject();
     const images: GenerationImage[] = [{ role: 'existing-space', sourceId: 'photo-existing', dataUrl: '' },

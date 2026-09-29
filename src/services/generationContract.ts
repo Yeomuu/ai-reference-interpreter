@@ -1,4 +1,4 @@
-import type { DesignElement, PlacementTarget, Project, Rect, StructureGeometry } from '../domain/types.js';
+import type { DesignElement, PlacementTarget, Point, Project, Rect, Structure, StructureGeometry } from '../domain/types.js';
 import { elementPlanPosition, type PlanGuideManifest } from './planGuide.js';
 
 /** One low-quality draft, with no automatic variants or hidden model calls. */
@@ -178,13 +178,19 @@ function installationContext(project: Project, element: DesignElement): string {
     return `Its footprint occupies approximately ${percent(target.footprint.width / floor.bounds.width)} of the registered floor width and ${percent(target.footprint.height / floor.bounds.height)} of its depth, not a room-filling counter. Keep the surrounding aisle gaps shown in the plan. `;
   }
   if (target.kind !== 'wall-segment') return '';
-  const wall = plan.structures.find(item => item.id === target.wallId);
+  return wallPlaneContext(project, target.wallId);
+}
+
+function wallPlaneContext(project: Project, wallId: string, openingId?: string): string {
+  const camera = project.cameras[0], plan = project.floorPlan;
+  if (!camera || !plan) return '';
+  const wall = plan.structures.find(item => item.id === wallId);
   if (wall?.geometry.kind !== 'segment') return '';
   const x = (wall.geometry.end.x - wall.geometry.start.x) * plan.width, y = (wall.geometry.end.y - wall.geometry.start.y) * plan.height;
   const radians = camera.directionDegrees * Math.PI / 180;
   const alongSight = Math.abs(x * Math.cos(radians) + y * Math.sin(radians)) / Math.max(1, Math.hypot(x, y));
   const orientation = alongSight < .35 ? 'This wall runs across the view, perpendicular to the sight line; do not transfer this element to a side wall.' : alongSight > .85 ? 'This is a side wall running along the sight line, not the wall across the room.' : 'Keep this element on this angled wall plane.';
-  const openings = plan.structures.filter(item => item.parentWallId === wall.id && ['window', 'door', 'entrance'].includes(item.kind));
+  const openings = plan.structures.filter(item => item.id !== openingId && item.parentWallId === wall.id && ['window', 'door', 'entrance'].includes(item.kind));
   return `${orientation} ${openings.length ? `It shares the SAME wall plane with ${openings.map(item => `${boundedText(item.name)}${item.wallSpan ? ` at wall span ${percent(item.wallSpan.start)}–${percent(item.wallSpan.end)}` : ''}`).join(', ')}; preserve these openings and keep the design at its own saved span. ` : ''}`;
 }
 
@@ -198,7 +204,12 @@ function transferIntent(element: DesignElement): string {
 }
 
 function relativeToCamera(project: Project, element: DesignElement): string {
-  const camera = project.cameras[0], point = elementPlanPosition(project, element), plan = project.floorPlan;
+  const point = elementPlanPosition(project, element);
+  return point ? `Relative to this camera: ${cameraRelation(project, point)}. ` : '';
+}
+
+function cameraRelation(project: Project, point: Point): string {
+  const camera = project.cameras[0], plan = project.floorPlan;
   if (!camera || !point || !plan) return '';
   // The caller narrows cameras to the chosen output view. Directions use physical
   // plan aspect, rather than treating a portrait plan as a square.
@@ -207,7 +218,29 @@ function relativeToCamera(project: Project, element: DesignElement): string {
   const forward = x * Math.cos(radians) + y * Math.sin(radians);
   const right = -x * Math.sin(radians) + y * Math.cos(radians);
   const tolerance = Math.min(plan.width, plan.height) * .025;
-  return `Relative to this camera: ${forward >= 0 ? 'in front' : 'behind the camera; do not force it into view'}, ${Math.abs(right) < tolerance ? 'near the sight line' : right > 0 ? 'camera-right' : 'camera-left'}. `;
+  return `${forward >= 0 ? 'in front' : 'behind the camera; do not force it into view'}, ${Math.abs(right) < tolerance ? 'near the sight line' : right > 0 ? 'camera-right' : 'camera-left'}`;
+}
+
+/** Translate saved 2D relationships into view-specific instructions, never inferred geometry. */
+function structureViewText(project: Project, structure: Structure): string {
+  const geometry = structure.geometry;
+  const point = geometry.kind === 'segment' ? { x: (geometry.start.x + geometry.end.x) / 2, y: (geometry.start.y + geometry.end.y) / 2 }
+    : geometry.kind === 'circle' ? geometry.center
+      : { x: geometry.bounds.x + geometry.bounds.width / 2, y: geometry.bounds.y + geometry.bounds.height / 2 };
+  let instruction = '';
+  if (structure.kind === 'pillar') {
+    instruction = geometry.kind === 'rect' ? 'Rectangular column cross-section: flat faces and sharp corners, never a cylindrical column.'
+      : geometry.kind === 'circle' ? 'Circular column cross-section: preserve its round form, not a rectangular column.'
+        : 'Preserve the column cross-section drawn in the saved plan.';
+  } else {
+    const wall = project.floorPlan?.structures.find(item => item.id === structure.parentWallId);
+    if (wall) {
+      instruction = `Attached to the saved wall ${boundedText(wall.name)}${structure.wallSpan ? ` at wall span ${percent(structure.wallSpan.start)}–${percent(structure.wallSpan.end)}` : ''}. ` +
+        wallPlaneContext(project, wall.id, structure.id);
+    }
+    instruction += 'Do not relocate this opening to another wall, enlarge it, cover it or replace it with a graphic.';
+  }
+  return `- ${boundedText(structure.name)} [${structure.kind}]: ${cameraRelation(project, point)}. ${instruction}`;
 }
 
 function hasRectangularRoomShell(project: Project): boolean {
@@ -259,6 +292,8 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     'The existing-space photograph supplies the current room appearance and visible architectural character. The saved top-down plan guide supplies the authoritative 2D layout: room outline/aspect, wall openings, pillars, fixture footprints and selected camera arrow. Reconcile the photograph with those saved positions. Inspiration and product images supply ONLY the named design attributes and are NEVER spatial geometry. Follow the plan layout before styling; do not substitute any reference-room composition.',
     rectangularRoom ? 'The saved room footprint is a RECTANGLE: preserve four straight vertical wall planes, square room corners and straight floor/ceiling junctions. Do not bow or curve the room walls, round its corners, or turn the room into an oval. A curved display fixture is a separate object inside this rectangular room; its curvature must not deform the room shell.' : 'Preserve the actual registered room outline and its corners from the saved plan guide. Do not simplify a traced irregular/curved outline into a default rectangle or import a new outline from an inspiration image.',
     'All saved straight structural wall segments must remain straight planar surfaces at their registered positions. Add curved architectural geometry only where the saved plan actually specifies it. Keep existing ceiling/wall/floor geometry; lighting and wall graphics do not create new bowed walls, niches, arches or sculpted architectural edges.',
+    'Camera-space architecture before styling (positions and cross-sections come from the saved plan, not inspiration images):',
+    ...plan.structures.filter(item => ['window', 'door', 'entrance', 'pillar'].includes(item.kind)).map(item => structureViewText({ ...project, cameras: [camera] }, item)),
     `Project: ${boundedText(project.name)}. Space type: ${boundedText(project.spaceType)}. Intended concept: ${boundedText(project.concept, 500)}.`,
     `Plan source: ${plan.kind}. Geometry confidence: ${plan.geometryConfidence}. Plan coordinates are normalized: x increases to the right and y increases downward. Do not invent precise dimensions from a schematic plan or any photograph.`,
     'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, occlude openings or replace protected geometry. Compatible removable decoration may be mounted on a kept wall without changing its geometry. Keep door circulation, windows and pillars clear. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
