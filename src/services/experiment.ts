@@ -53,7 +53,8 @@ export function targetPayload(target: PlacementTarget | null): Payload {
     ...('x' in target ? { x_norm: target.x, y_norm: target.y, rotation: target.rotationDegrees ?? 0 } : {}),
     ...('wallId' in target ? { target_id: target.wallId } : {}),
     ...('areaId' in target ? { target_id: target.areaId } : {}),
-    ...('zoneId' in target ? { target_id: target.zoneId } : {}) }
+    ...('zoneId' in target ? { target_id: target.zoneId } : {}),
+    ...(target.kind === 'fixture-surface' ? { target_id: target.fixtureElementId, x_norm: target.offset.x, y_norm: target.offset.y } : {}) }
 }
 
 /** Local-only, explicit opt-in. The journal is saved on meaningful actions, never pointer frames or keystrokes. */

@@ -1,3 +1,4 @@
+import { generationIdentity } from './_lib/generationIdentity.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { generationQuota, quotaConfigured } from './_lib/generationQuota.js';
 import {
@@ -18,7 +19,7 @@ export default async function handler(request: IncomingMessage, response: Server
   let available = Boolean(process.env.OPENAI_API_KEY && quotaConfigured());
   let quota: GenerationStatus['quota'];
   if (available) {
-    try { quota = await generationQuota.status(); }
+    try { quota = await generationQuota.status(generationIdentity(request, response)!); }
     catch { available = false; }
   }
   const status: GenerationStatus = {

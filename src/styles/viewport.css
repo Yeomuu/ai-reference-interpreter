@@ -67,6 +67,8 @@ html { scroll-padding: 0; }
 
 /* Editors give the remaining height to the plan; properties and catalogs scroll. */
 .workspace-main, .keep-layout > .surface-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow-y: auto; }
+.workspace-main { position: relative; }
+.workspace-main > .placement-warning { position: absolute; top: calc(var(--control-height-48) + var(--space-40)); left: var(--space-16); right: var(--space-16); z-index: var(--layer-notice); max-height: 40%; overflow-y: auto; box-shadow: var(--shadow-panel); }
 .workspace-main > .panel-heading, .keep-layout .panel-heading { flex: none; }
 .workspace-main .plan-canvas, .keep-layout .plan-canvas { flex: 1 0 auto; min-height: auto; }
 .workspace-main .plan-canvas__surface, .keep-layout .plan-canvas__surface { flex: 1; height: auto; min-height: var(--layout-canvas-min-height); }
@@ -158,3 +160,32 @@ html { scroll-padding: 0; }
   .project-layout { flex: none; }
   .project-list, .new-project { overflow: visible; }
 }
+
+.plan-replacement-choice { padding: var(--space-8) var(--space-16); }
+.plan-replacement-choice span { font-size: 12px; }
+.plan-area-list, .structure-reshape { padding: var(--space-12) var(--space-16); border-top: 1px solid var(--border-default); }
+.plan-area-list > summary, .add-element > summary { cursor: pointer; min-height: var(--control-height-40); display: flex; align-items: center; font-weight: 600; }
+.element-panel > .add-element { flex: none; padding: var(--space-8) var(--space-16); }
+.element-panel > .add-element[open] { padding-bottom: var(--space-16); }
+.structure-reshape { display: grid; gap: var(--space-12); padding-inline: 0; }
+.plan-shape-options { display: grid; gap: var(--space-8); }
+
+.plan-alignment-details { flex: none; border: 1px solid var(--state-info-fg); border-radius: var(--radius-8); background: var(--state-info-bg); }
+.plan-alignment-details > summary { min-height: var(--control-height-40); padding: var(--space-8) var(--space-12); color: var(--state-info-fg); cursor: pointer; }
+.plan-alignment-details[open] > .plan-alignment-alert { position: absolute; z-index: var(--layer-popover); top: calc(var(--control-height-40) + var(--space-8)); right: 0; width: min(var(--layout-popover-width), 100%); max-height: calc(100% - var(--control-height-40) - var(--space-12)); overflow-y: auto; box-shadow: var(--shadow-float); }
+@media (min-width: 1000px) {
+  .plan-editor-body.is-drawing { min-height: 0; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; }
+  .plan-editor-body.is-drawing > .plan-canvas { min-height: 0; overflow: hidden; }
+  .space-plan-panel .plan-editor-body.is-drawing .plan-canvas__surface { min-height: 0; }
+  .space-plan-panel.is-drawing .plan-editor-focus-heading, .space-plan-panel.is-drawing > .panel-heading, .space-plan-panel.is-drawing .plan-origin { display: none; }
+  .plan-edit-tools .plan-numeric-fallback { margin: var(--space-12) 0 0; }
+  .plan-edit-tools .plan-area-list { margin-top: var(--space-12); padding-inline: 0; }
+}
+
+.element-panel > .panel-heading { position: sticky; top: 0; z-index: 2; background: var(--surface-base); }
+/* Keep scroll affordance with a transparent track, including keyboard and reduced-motion users. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: var(--space-8); height: var(--space-8); }
+*::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border: 2px solid transparent; background-clip: padding-box; border-radius: var(--radius-8); }
+*::-webkit-scrollbar-thumb:hover { background-color: var(--text-secondary); }

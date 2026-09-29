@@ -2,10 +2,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import generate from '../api/generate';
 import status from '../api/status';
+import { IDENTITY_COOKIE, signedIdentity } from '../api/_lib/generationIdentity';
 import { generationQuota, quotaConfigured, QuotaError } from '../api/_lib/generationQuota';
 vi.mock('../api/_lib/generationQuota', async (original) => { const actual = await original<typeof import('../api/_lib/generationQuota')>(); return { ...actual, quotaConfigured: vi.fn(), generationQuota: { status: vi.fn(), reserve: vi.fn(), finish: vi.fn() } }; });
 import { createSampleProject } from '../src/data/sample';
-import { buildGenerationPrompt, type GenerationImage, type GenerationRequest } from '../src/services/generationContract';
+import { buildGenerationPrompt, referenceSheetGroups, type GenerationImage, type GenerationRequest } from '../src/services/generationContract';
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0xff, 0xd9]).toString('base64');
 const dataUrl = `data:image/jpeg;base64,${jpeg}`;
@@ -29,6 +30,7 @@ function requestStub(body: unknown, id = requestId): IncomingMessage & { body: u
     method: 'POST',
     headers: {
       host: 'example.test', origin: 'https://example.test',
+      cookie: `${IDENTITY_COOKIE}=${signedIdentity('cccccccc-cccc-4ccc-8ccc-cccccccccccc')}`,
       'content-type': 'application/json', 'x-generation-request-id': id,
     },
     body,
@@ -60,6 +62,34 @@ afterEach(() => {
 });
 
 describe('image generation API boundary', () => {
+  it('requires the anonymous cookie before reserving or calling the provider', async () => {
+    const call=vi.fn(); vi.stubGlobal('fetch',call);
+    const request=requestStub(sampleRequest()); delete request.headers.cookie;
+    const {response,values}=responseStub(); await generate(request,response);
+    expect(values.statusCode).toBe(403); expect(generationQuota.reserve).not.toHaveBeenCalled(); expect(call).not.toHaveBeenCalled();
+  });
+  it('packs every applied source with no reference count cap and validates its manifest', async () => {
+    const input=sampleRequest();
+    for(let i=0;i<7;i++) {
+      input.project.sourceImages.push({id:`source-${i}`,name:`참고 ${i}`,role:'inspiration',uri:'/sample/atmosphere.png'});
+      input.project.references.push({id:`ref-${i}`,imageId:`source-${i}`,role:'ambience',note:'',extractedElements:[`el-${i}`],exclusions:[]});
+      input.project.elements.push({id:`el-${i}`,sourceReferenceId:`ref-${i}`,label:`분위기 ${i}`,kind:'ambient-light',status:'apply',target:{kind:'whole-space'}});
+    }
+    const sheets=referenceSheetGroups(input.project);
+    expect(sheets.flat()).toHaveLength(10); expect(sheets.length).toBeLessThanOrEqual(3);
+    input.images=[input.images[0],...sheets.map((sheet,i)=>({role:'reference-sheet' as const,sourceId:`reference-sheet-${i}`,sheet,dataUrl}))];
+    const call=vi.fn(async (_url:string,options:RequestInit)=>{
+      const form=options.body as FormData;
+      expect(form.getAll('image[]')).toHaveLength(input.images.length);
+      expect(form.get('prompt')).toContain('numbered panel');
+      return {ok:true,json:async()=>({data:[{b64_json:jpeg}]})};
+    }); vi.stubGlobal('fetch',call);
+    const {response,values}=responseStub(); await generate(requestStub(input),response);
+    expect(values.statusCode).toBe(200); expect(call).toHaveBeenCalledTimes(1);
+    vi.clearAllMocks(); input.images[1].sheet!.pop();
+    await generate(requestStub(input),response);
+    expect(values.statusCode).toBe(400); expect(call).not.toHaveBeenCalled(); expect(generationQuota.reserve).not.toHaveBeenCalled();
+  });
   it('reports quota availability without calling a model', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
     const { response, values } = responseStub();
@@ -106,7 +136,7 @@ describe('image generation API boundary', () => {
     const { response, values } = responseStub();
     await generate(requestStub(sampleRequest()), response);
     expect(values.statusCode).toBe(502); expect(JSON.parse(values.body).outcomeUnknown).toBe(true);
-    expect(generationQuota.reserve).toHaveBeenCalledWith(requestId);
+    expect(generationQuota.reserve).toHaveBeenCalledWith(requestId, expect.stringMatching(/^[a-f0-9]{64}$/));
     expect(generationQuota.finish).toHaveBeenCalledWith(requestId);
   });
   it('rejects omitted applied references without a paid call', async () => {
@@ -139,7 +169,7 @@ describe('image generation API boundary', () => {
     const { response, values } = responseStub();
     await generate(requestStub(sampleRequest()), response);
     expect(call).toHaveBeenCalledTimes(1);
-    expect(generationQuota.reserve).toHaveBeenCalledWith(requestId);
+    expect(generationQuota.reserve).toHaveBeenCalledWith(requestId, expect.stringMatching(/^[a-f0-9]{64}$/));
     expect(generationQuota.finish).toHaveBeenCalledWith(requestId);
     expect(values.statusCode).toBe(200);
     expect(JSON.parse(values.body).imageDataUrl).toBe(dataUrl);

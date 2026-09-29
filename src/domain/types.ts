@@ -53,6 +53,8 @@ export interface Area {
   name: string;
   kind: 'floor' | 'ceiling' | 'spatial' | 'passage';
   bounds: Rect;
+  /** Optional manually traced outline; bounds is its enclosing box, never measured geometry. */
+  outline?: Point[];
 }
 
 export interface FloorPlan {
@@ -96,6 +98,11 @@ export interface Reference {
 }
 
 export type ElementKind =
+  | 'display-product'
+  | 'other-floor'
+  | 'other-wall'
+  | 'other-ceiling'
+  | 'other-area'
   | 'freestanding-fixture'
   | 'furniture'
   | 'photozone'
@@ -111,6 +118,7 @@ export type ElementKind =
   | 'wall-material';
 
 export type PlacementTarget =
+  | { kind: 'fixture-surface'; fixtureElementId: string; offset: Point }
   | { kind: 'floor-point'; x: number; y: number; rotationDegrees?: number; footprint?: { width: number; height: number } }
   | { kind: 'floor-area'; areaId: string }
   | { kind: 'wall-segment'; wallId: string; start: number; end: number; height?: string }
@@ -129,6 +137,8 @@ export interface DesignElement {
   target: PlacementTarget | null;
   appearance?: string;
   conditions?: string;
+  /** A user-added basic support is not extracted from the product photo. */
+  origin?: 'basic-support';
 }
 
 export interface Camera extends Point {
@@ -146,7 +156,7 @@ export interface ConditionsSnapshot {
   /** Existing-space photograph selected for AI input; absent on older results. */
   existingPhotoId?: string;
   /** Older saved results may omit fovPreset; that means the standard view. */
-  camera: Pick<Camera, 'id' | 'x' | 'y' | 'directionDegrees' | 'fovPreset'>;
+  camera: Pick<Camera, 'id' | 'x' | 'y' | 'directionDegrees' | 'fovPreset'> & { name?: string };
   /** Full values preserve the original review state after later partial revisions. */
   common?: {
     concept: string;

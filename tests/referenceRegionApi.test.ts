@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import generate from '../api/generate'
+import { IDENTITY_COOKIE, signedIdentity } from '../api/_lib/generationIdentity'
 vi.mock('../api/_lib/generationQuota', async original => { const actual = await original<typeof import('../api/_lib/generationQuota')>(); return { ...actual, quotaConfigured: () => true, generationQuota: { reserve: vi.fn(async () => {}), finish: vi.fn(async () => {}) } }; })
 import { createSampleProject } from '../src/data/sample'
 import { referencePreparationFor, type GenerationRequest } from '../src/services/generationContract'
@@ -19,6 +20,7 @@ function requestAndResponse(project = createSampleProject()) {
     ],
   }
   const request = { method: 'POST', headers: { host: 'example.test', origin: 'https://example.test',
+    cookie: `${IDENTITY_COOKIE}=${signedIdentity('cccccccc-cccc-4ccc-8ccc-cccccccccccc')}`,
     'content-type': 'application/json', 'x-generation-request-id': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, body } as unknown as IncomingMessage & { body: unknown }
   const result = { statusCode: 200, body: '' }
   const response = {

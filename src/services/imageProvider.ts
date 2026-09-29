@@ -6,7 +6,8 @@ import {
   GENERATION_MODEL, GENERATION_OUTPUT_PRICE_USD, GENERATION_PRICING_NOTE,
   GENERATION_QUALITY, GENERATION_SIZE, MAX_GENERATION_BODY_BYTES,
   MAX_GENERATION_IMAGE_BYTES,
-  MAX_REFERENCE_IMAGES,
+  referenceSheetGroups,
+  type SheetSource,
   referencePreparationFor,
   type GenerationImage, type GenerationImageRole, type GenerationRequest,
   type ReferencePreparation,
@@ -182,6 +183,26 @@ export async function compactImage(uri: string, preparation?: ReferencePreparati
   throw new Error('이미지 용량을 줄일 수 없습니다. 더 작은 이미지를 등록해 주세요.');
 }
 
+export async function compactReferenceSheet(project: Project, sheet: SheetSource[]): Promise<string> {
+  const edge = 1536, columns = Math.ceil(Math.sqrt(sheet.length)), rows = Math.ceil(sheet.length / columns);
+  const canvas = document.createElement('canvas'); canvas.width = edge; canvas.height = edge;
+  const context = canvas.getContext('2d'); if (!context) throw new Error('참고 이미지 모음을 준비할 수 없습니다.');
+  context.fillStyle = '#fff'; context.fillRect(0, 0, edge, edge);
+  const cellWidth = edge / columns, cellHeight = edge / rows;
+  for (let index = 0; index < sheet.length; index++) {
+    const part = sheet[index], source = project.sourceImages.find(image => image.id === part.sourceId);
+    if (!source) throw new Error('적용한 참고 이미지를 찾을 수 없습니다.');
+    const bitmap = await createImageBitmap(await (await fetch(await compactImage(source.uri, part.referencePreparation))).blob());
+    try { const fit = Math.min((cellWidth - 12) / bitmap.width, (cellHeight - 36) / bitmap.height); const width = bitmap.width * Math.max(.001,fit), height = bitmap.height * Math.max(.001,fit);
+      const x = index % columns * cellWidth, y = Math.floor(index / columns) * cellHeight;
+      context.drawImage(bitmap,x+(cellWidth-width)/2,y+30+(cellHeight-30-height)/2,width,height);
+      context.fillStyle = '#17191d'; context.font = '20px sans-serif'; context.fillText(String(index+1),x+8,y+24);
+    } finally { bitmap.close(); }
+  }
+  for (const quality of [.76,.64,.5,.36]) { const blob = await jpegBlob(canvas,quality); if(blob.size<=MAX_GENERATION_IMAGE_BYTES) return blobDataUrl(blob); }
+  throw new Error('참고 이미지 모음의 용량이 큽니다. 이미지 해상도를 줄여 주세요.');
+}
+
 async function requestImage(project: Project, cameraId: string, existingPhotoId: string | undefined, requestId: string): Promise<string> {
   const existing = project.sourceImages.find((image) => image.role === 'existing-space' &&
     (!existingPhotoId || image.id === existingPhotoId));
@@ -189,16 +210,14 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
     ? '선택한 기존 공간 사진을 찾지 못했습니다. 공간 자료에서 사진을 다시 선택해 주세요.'
     : '기존 공간 사진을 먼저 등록해 주세요.');
   const references = appliedReferenceImages(project);
-  if (references.length > MAX_REFERENCE_IMAGES) {
-    throw new Error(`한 번의 생성에는 적용된 레퍼런스 이미지 최대 ${MAX_REFERENCE_IMAGES}장을 사용할 수 있습니다. 적용 대상을 줄이거나 나누어 시도해 주세요.`);
-  }
   const sources: { role: GenerationImageRole; sourceId: string; uri: string; referencePreparation?: ReferencePreparation }[] = [
     { role: 'existing-space', sourceId: existing.id, uri: existing.uri },
   ];
   if (project.floorPlan?.kind === 'uploaded' && project.floorPlan.imageUri) {
     sources.push({ role: 'floor-plan', sourceId: 'floor-plan', uri: project.floorPlan.imageUri });
   }
-  sources.push(...references.map((image) => ({ role: image.role, sourceId: image.id, uri: image.uri,
+  const sheets = referenceSheetGroups(project);
+  if (!sheets.length) sources.push(...references.map((image) => ({ role: image.role, sourceId: image.id, uri: image.uri,
     referencePreparation: referencePreparationFor(project, image.id) })));
   const images: GenerationImage[] = [];
   for (const source of sources) {
@@ -206,6 +225,7 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
       dataUrl: await compactImage(source.uri, source.referencePreparation),
       ...(source.referencePreparation ? { referencePreparation: source.referencePreparation } : {}) });
   }
+  for (let index = 0; index < sheets.length; index++) images.push({ role: 'reference-sheet', sourceId: `reference-sheet-${index}`, sheet: sheets[index], dataUrl: await compactReferenceSheet(project, sheets[index]) });
   const body: GenerationRequest = { project: { ...project, results: [] }, cameraId, images };
   const serialized = JSON.stringify(body);
   if (new TextEncoder().encode(serialized).length > MAX_GENERATION_BODY_BYTES) {
@@ -243,7 +263,7 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
 }
 
 /** The server holds the API key and enforces the shared durable quota. */
-export function createApiImageProvider(requestId = crypto.randomUUID()): ImageProvider {
+export function createApiImageProvider(requestId: string = crypto.randomUUID()): ImageProvider {
   return {
     mode: 'api',
     provenance: 'OpenAI 이미지 API로 생성한 시안입니다. 구조와 배치가 정확히 반영되었는지 결과를 직접 확인해 주세요.',

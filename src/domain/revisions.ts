@@ -1,3 +1,4 @@
+import { cleanDisplayTargets } from './display';
 import type {
   Camera,
   ConditionsSnapshot,
@@ -77,7 +78,7 @@ export function setReferences(project: Project, references: Reference[]): Projec
 }
 
 export function setElements(project: Project, elements: DesignElement[]): Project {
-  return updateCommon(project, { elements });
+  return updateCommon(project, { elements: cleanDisplayTargets(elements) });
 }
 
 export function updateKeep(project: Project, keepId: string, patch: Partial<Omit<Keep, 'id'>>): Project {
@@ -143,14 +144,14 @@ export function removeReference(project: Project, referenceId: string): Project 
     references,
     sourceImages: references.some((item) => item.imageId === reference.imageId)
       ? project.sourceImages : project.sourceImages.filter((item) => item.id !== reference.imageId),
-    elements: project.elements.filter((item) => item.sourceReferenceId !== referenceId),
+    elements: cleanDisplayTargets(project.elements.filter((item) => item.sourceReferenceId !== referenceId)),
   });
 }
 
 export function removeDesignElement(project: Project, elementId: string): Project {
   if (!project.elements.some((item) => item.id === elementId)) return project;
   return updateCommon(project, {
-    elements: project.elements.filter((item) => item.id !== elementId),
+    elements: cleanDisplayTargets(project.elements.filter((item) => item.id !== elementId)),
     references: project.references.map((item) => ({ ...item,
       extractedElements: item.extractedElements.filter((id) => id !== elementId),
       exclusions: item.exclusions.filter((id) => id !== elementId),
@@ -228,7 +229,7 @@ export function createConditionsSnapshot(project: Project, cameraId: string, exi
     appliedElementIds: project.elements.filter((element) => element.status === 'apply').map((element) => element.id),
     excludedElementIds: project.elements.filter((element) => element.status === 'exclude').map((element) => element.id),
     ...(existingPhotoId ? { existingPhotoId } : {}),
-    camera: { id: camera.id, x: camera.x, y: camera.y, directionDegrees: camera.directionDegrees, fovPreset: camera.fovPreset ?? 'standard' },
+    camera: { id: camera.id, name: camera.name, x: camera.x, y: camera.y, directionDegrees: camera.directionDegrees, fovPreset: camera.fovPreset ?? 'standard' },
     common: structuredClone({
       concept: project.concept,
       floorPlan: project.floorPlan,
@@ -250,4 +251,13 @@ export function setResultApproved(project: Project, resultId: string, approved: 
     ...project,
     results: project.results.map((result) => result.id === resultId ? { ...result, approved } : result),
   };
+}
+
+/** Camera deletion retains its images and conditions; another remaining camera becomes primary. */
+export function removeCamera(project: Project, cameraId: string): Project {
+  const camera = project.cameras.find(item => item.id === cameraId);
+  if (!camera) return project;
+  const remaining = project.cameras.filter(item => item.id !== cameraId);
+  const cameras = camera.primary ? remaining.map((item, index) => ({ ...item, primary: index === 0 })) : remaining;
+  return { ...project, cameras, results: project.results.map(result => result.cameraId === cameraId ? { ...result, stale: true } : result) };
 }

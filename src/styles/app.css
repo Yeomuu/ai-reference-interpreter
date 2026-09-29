@@ -270,6 +270,8 @@ p { line-height: 1.65; }
 .generation-panel { display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-16); border-top: 1px solid var(--border-default); }
 .generation-panel__heading { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
 .generation-panel__heading strong { font-size: 14px; }
+.generation-viewpoints { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: var(--space-12); border: 1px solid var(--border-default); border-radius: var(--radius-8); }
+.generation-viewpoints legend { padding: 0 var(--space-8); font-size: 14px; font-weight: 600; }
 .generation-panel p { color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
 .generation-panel .generation-panel__warning { padding: var(--space-12); border-radius: var(--radius-8); background: var(--state-error-bg); color: var(--state-error-fg); }
 .generation-panel .generation-panel__warning p { color: inherit; }

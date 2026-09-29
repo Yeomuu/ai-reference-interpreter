@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { Structure } from '../domain/types';
-import { projectOntoWall, wallNearPointer } from './plan-drawing';
+import { projectOntoWall, wallNearPointer, adjacentWallAtPointer } from './plan-drawing';
 
 const horizontal: Structure = { id: 'top', kind: 'wall', name: '윗벽', protected: true, geometry: { kind: 'segment', start: { x: .1, y: .1 }, end: { x: .9, y: .1 } } };
 const diagonal: Structure = { ...horizontal, id: 'diagonal', geometry: { kind: 'segment', start: { x: .1, y: .1 }, end: { x: .9, y: .9 } } };
 
 describe('wall-bound drawing', () => {
+  it('transfers to a connected wall with enough length, including preserved walls', () => {
+    const right: Structure = { ...horizontal, id:'right', immutable:true, geometry:{kind:'segment',start:{x:.9,y:.1},end:{x:.9,y:.9}} };
+    expect(adjacentWallAtPointer({x:.9,y:.3},horizontal,[horizontal,right],1000,700,.5,100)?.id).toBe('right');
+    expect(adjacentWallAtPointer({x:.8,y:.11},horizontal,[horizontal,right],1000,700,.5,100)).toBeNull();
+    expect(adjacentWallAtPointer({x:.9,y:.3},horizontal,[horizontal,right],1000,700,.5,700)).toBeNull();
+    const disconnected: Structure = {...right,geometry:{kind:'segment',start:{x:.9,y:.2},end:{x:.9,y:.9}}};
+    expect(adjacentWallAtPointer({x:.9,y:.3},horizontal,[horizontal,disconnected],1000,700,.5,100)).toBeNull();
+  });
   it('snaps near-wall pointers to the line and clamps at its endpoints', () => {
     const snapped = projectOntoWall({ x: .4, y: .12 }, horizontal, 1000, 700)!.point;
     expect(snapped.x).toBeCloseTo(.4);

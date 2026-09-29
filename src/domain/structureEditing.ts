@@ -94,3 +94,26 @@ export function moveStructure(project: Project, id: string, delta: Point): { pro
   const validation = { valid: !issues.some((issue) => issue.severity === 'error'), issues };
   return { project: validation.valid ? updateCommon(project, { floorPlan: candidate.floorPlan }) : project, validation };
 }
+
+/** Correct a released shape without bypassing occupancy or preservation checks. */
+export function reshapeStructure(project: Project, id: string, geometry: StructureGeometry): { project: Project; validation: ValidationResult } {
+  const structure = project.floorPlan?.structures.find(item => item.id === id);
+  const fail = (message: string) => ({ project, validation: { valid: false, issues: [{ code: 'keep-conflict' as const, severity: 'error' as const, message, structureId: id }] } });
+  if (!project.floorPlan || !structure) return fail('구조를 찾을 수 없습니다.');
+  const reason = structureMovementReason(project, structure);
+  if (reason) return fail(reason);
+  if (project.floorPlan.structures.some(item => item.parentWallId === id)) return fail('창·문이 연결된 벽입니다. 연결 표시를 먼저 정리한 뒤 벽 방향을 수정해 주세요.');
+  const candidate = { ...project, floorPlan: { ...project.floorPlan, structures: project.floorPlan.structures.map(item => item.id === id ? { ...item, geometry } : item) } };
+  const issues = validateStructureDrawing(candidate, { ...structure, geometry }, id).issues;
+  const key = (issue: ValidationIssue) => JSON.stringify(issue);
+  for (const element of project.elements.filter(item => item.status === 'apply' && item.target)) {
+    const before = new Set(validatePlacement(project, element.id, element.target).issues.map(key));
+    issues.push(...validatePlacement(candidate, element.id, element.target).issues.filter(issue => !before.has(key(issue))));
+  }
+  for (const camera of project.cameras) {
+    const before = new Set(validateCamera(project, camera.id).issues.map(key));
+    issues.push(...validateCamera(candidate, camera.id).issues.filter(issue => !before.has(key(issue))));
+  }
+  const validation = { valid: !issues.some(issue => issue.severity === 'error'), issues };
+  return { project: validation.valid ? updateCommon(project, { floorPlan: candidate.floorPlan }) : project, validation };
+}

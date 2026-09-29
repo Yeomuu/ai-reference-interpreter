@@ -35,7 +35,7 @@
 | `IconLayers3Outline18.js` | `IconLayers3Outline18.svg` | 도면 레이어 |
 | `IconEyeOpenOutline18.js` | `IconEyeOpenOutline18.svg` | 레이어 보이기 |
 | `IconEyeClosedOutline18.js` | `IconEyeClosedOutline18.svg` | 레이어 숨기기 |
-| `IconLockOutline18.js` | `IconLockOutline18.svg` | 고정 구조/필수 Keep. 도면·사진의 실제 구조 이름 한쪽에 표시하는 잠금 배지 (번호·‘보존’ 배지 대체) |
+| `IconLockOutline18.js` | `IconLockOutline18.svg` | 고정 구조/필수 Keep. 도면·사진의 실제 구조 이름 한쪽에 표시하는 잠금 배지 및 필수 보존 켜기/끄기 버튼 (번호·‘보존’ 배지 대체) |
 | `IconTrashOutline18.js` | `IconTrashOutline18.svg` | 삭제 |
 | `IconRefresh2Outline18.js` | `IconRefresh2Outline18.svg` | 새로고침·다시 시도 |
 | `IconPen3Outline18.js` | `IconPen3Outline18.svg` | 조건 편집 |
@@ -44,3 +44,6 @@
 | `IconMinusOutline18.js` | `IconMinusOutline18.svg` | 축소·제거. 축소 버튼에는 텍스트도 함께 표시 |
 
 사용자 제어에서 뜻이 모호한 아이콘은 단독으로 두지 않고 한국어 텍스트와 함께 쓴다. 이 세트에서 **업로드, 다운로드, 저장, 확대**에 맞는 정확한 아이콘 파일을 검증하지 못했으므로 해당 컨트롤은 텍스트만 사용한다.
+
+## 2026-09-29 재사용
+활성 작업 단계는 기존 `file`(공간 준비), `lock`(유지), `image`(참고), `layers`(배치), `camera`(시점), `check`(확인), `images`(시안)를 한국어 이름 옆에 표시한다. 카메라 삭제는 기존 `trash`를 재사용한다. 실행 취소·다시 실행은 검증한 전용 아이콘이 없어 텍스트 버튼을 사용한다. 도형 footprint와 상품 marker는 계획 데이터 표시이며 대체 아이콘 라이브러리가 아니다. 새 SVG 자산은 추가하지 않았다.

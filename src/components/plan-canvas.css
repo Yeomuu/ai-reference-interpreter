@@ -310,6 +310,14 @@
 .plan-wall-label--selected text { fill: var(--action-selected); }
 .plan-wall-label:focus-visible rect:not(.plan-wall-label__hit) { stroke: var(--action-selected); stroke-width: 3; }
 .plan-canvas__gesture-hint {
+  position: absolute;
+  bottom: var(--space-12);
+  left: var(--space-12);
+  right: var(--space-12);
+  z-index: var(--layer-notice);
+  max-height: 35%;
+  overflow-y: auto;
+  pointer-events: none;
   margin: 0;
   border-radius: var(--radius-8);
   padding: var(--space-12) var(--space-16);
@@ -623,3 +631,29 @@
     width: 100%;
   }
 }
+
+/* Shared tokens; name layout is calculated in display pixels, independent of plan scale. */
+.plan-label-leader { stroke: var(--border-control); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.plan-keep-label { pointer-events: auto; cursor: pointer; }
+.plan-keep-label text { pointer-events: none; }
+.plan-lock-toggle { cursor: pointer; }
+.plan-lock-toggle rect { fill: transparent; stroke: none; }
+.plan-lock-toggle image { opacity: .45; pointer-events: none; }
+.plan-lock-toggle.is-kept image { opacity: 1; }
+.plan-lock-toggle:hover rect, .plan-lock-toggle:focus-visible rect { fill: var(--surface-selected); stroke: var(--focus-ring); stroke-width: 2; }
+.plan-structure__move-label:focus-visible rect, .plan-keep-label:focus-visible rect { stroke: var(--focus-ring); stroke-width: 2; }
+.plan-element--product rect { fill: var(--surface-base); stroke: var(--canvas-selection); stroke-width: 2; }
+.plan-element--product text { fill: var(--action-selected); font-family: var(--font-ui); font-size: 14px; font-weight: 600; }
+.plan-element--product { cursor: pointer; }
+.plan-element--product:focus-visible rect { stroke-width: 4; }
+.plan-canvas__draw-preview polyline { fill: none; stroke: var(--canvas-selection); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.plan-canvas__area polygon { fill: var(--surface-selected); fill-opacity: .2; stroke: var(--canvas-selection); stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.plan-outline-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-16); }
+
+.plan-element--product, .plan-element--support-picking { pointer-events: visiblePainted; }
+
+.plan-canvas__surface { position: relative; }
+.plan-canvas__validation { position: absolute; top: var(--space-12); left: var(--space-12); right: var(--space-12); z-index: var(--layer-notice); max-height: 40%; overflow-y: auto; margin: 0; box-shadow: var(--shadow-panel); }
+.plan-validation-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); }
+.plan-validation-heading button { flex: none; min-height: var(--control-height-40); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-4); background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.plan-validation-heading button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

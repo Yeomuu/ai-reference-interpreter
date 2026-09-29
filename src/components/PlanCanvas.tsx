@@ -1,19 +1,27 @@
+import { displayPosition } from '../domain/display';
+import { arrangePlanLabels } from './plan-labels';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import type { DesignElement, FloorPlan, Point, Project, Structure } from '../domain/types';
 import { resolveImageUri, revokeImageUrl } from '../services/assets';
-import { projectOntoWall, wallNearPointer } from './plan-drawing';
+import { projectOntoWall, wallNearPointer, adjacentWallAtPointer } from './plan-drawing';
 import { previewStructureTranslation, structureMovementReason } from '../domain/structureEditing';
 import './plan-canvas.css';
 
 export interface PlanCanvasProps {
+  onValidationDismiss?: () => void;
   project: Project;
+  onUndo?: () => void; onRedo?: () => void; canUndo?: boolean; canRedo?: boolean;
   onDragEvent?: (phase: 'start' | 'end' | 'cancel', kind: string, id: string) => void;
   selectedElementId?: string;
   selectedStructureId?: string;
   selectedCameraId?: string;
   mode: 'view' | 'keep' | 'place' | 'camera';
-  drawTool?: 'point' | 'segment' | 'rect';
+  drawTool?: 'point' | 'segment' | 'rect' | 'polygon';
+  lineConstraint?: 'snap' | 'horizontal' | 'vertical' | 'free';
+  onDrawPolygon?: (points: Point[]) => boolean;
+  onStructureLockToggle?: (id: string) => void;
+  onSupportSelect?: (id: string) => void;
   drawWallId?: string;
   validationMessage?: string;
   onDrawWallSelect?: (id: string) => void;
@@ -42,6 +50,7 @@ type WallDrag = {
   end: number;
   pointerOffset: number;
   geometry: { start: Point; end: Point };
+  spanPixels: number;
 };
 type StructureDrag = { pointer: Point };
 type DragState = {
@@ -113,14 +122,20 @@ function areaBounds(plan: FloorPlan, areaId: string) {
 /** Plan values remain normalized. Only this component maps them to SVG units. */
 export default function PlanCanvas({
   project,
+  onUndo, onRedo, canUndo, canRedo,
   onDragEvent,
   selectedElementId,
   selectedStructureId,
   selectedCameraId,
   mode,
   drawTool,
+  lineConstraint = 'free',
+  onDrawPolygon,
+  onStructureLockToggle,
+  onSupportSelect,
   drawWallId,
   validationMessage,
+  onValidationDismiss,
   onDrawWallSelect,
   onDraw,
   onStructureSelect,
@@ -147,6 +162,8 @@ export default function PlanCanvas({
   const [zoom, setZoom] = useState(1);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [drawDraft, setDrawDraft] = useState<DrawDraft | null>(null);
+  const [outlineRedo, setOutlineRedo] = useState<Point[]>([]);
+  const [outlineDraft, setOutlineDraft] = useState<Point[]>([]);
   const [gestureHint, setGestureHint] = useState<string | null>(null);
   const [layers, setLayers] = useState({ structures: true, elements: true, cameras: true });
   const [imageState, setImageState] = useState<{ sourceUri: string; url?: string; error?: string } | null>(null);
@@ -224,7 +241,7 @@ export default function PlanCanvas({
   const movableStructures = plan.structures.filter((structure) => !structureMovementReason(project, structure));
   const wallDrawing = drawTool === 'segment' && Boolean(onDrawWallSelect);
   const activeDrawWall = plan.structures.find((structure) => structure.id === (drawDraft?.wallId ?? drawWallId));
-  const modeInstruction = drawTool === 'point'
+  const modeInstruction = drawTool === 'polygon' ? '윤곽의 모서리를 순서대로 누르세요. 곡선은 여러 점으로 표시합니다. 윤곽 저장 또는 Enter로 완료, 마지막 점 취소 또는 Backspace로 수정, Escape로 취소합니다.' : drawTool === 'point'
     ? '원하는 위치를 한 번 누르면 구조가 추가됩니다.'
     : drawTool === 'segment'
       ? wallDrawing ? `${activeDrawWall?.name ?? '연결할 벽'}의 선에서 시작해 원하는 길이만큼 끌어 주세요. 다른 벽의 선을 누르면 연결 벽이 바뀝니다.` : '시작 위치를 누른 채 끝 위치까지 끌어 주세요. 마우스를 놓으면 선이 추가됩니다.'
@@ -242,6 +259,25 @@ export default function PlanCanvas({
   const showStructureLayer = Boolean(drawTool) || layers.structures;
   const contentPixelScale = Math.max(0.01, canvasDisplay.scale * zoom);
 
+  const labels = arrangePlanLabels([...(showCameras && layers.cameras ? project.cameras.map(camera => ({ id: `camera-${camera.id}`, x: camera.x * width * contentPixelScale, y: camera.y * height * contentPixelScale, width: 108, height: 52 })) : []), ...(showElements && layers.elements ? activeElements.flatMap(element => { const position = element.target?.kind === 'floor-point' ? element.target : displayPosition(project, element); return position ? [{ id: `element-${element.id}`, x: position.x * width * contentPixelScale, y: position.y * height * contentPixelScale, width: 48, height: 48 }] : [] }) : []), ...[...plan.structures].sort((a, b) => Number(b.id === selectedStructureId) - Number(a.id === selectedStructureId)).map(structure => {
+    const moved = preview?.kind === 'structure-move' && preview.structure ? previewStructureTranslation(project, preview.id, preview.structure).find(item => item.id === structure.id) : undefined;
+    const center = structureCenter(moved ?? structure);
+    const moving = !drawTool && movableStructures.some(item => item.id === structure.id) && mode !== 'camera';
+    const name = structure.name.length > 12 ? `${structure.name.slice(0, 11)}…` : structure.name;
+    return { id: structure.id, x: center.x * width * contentPixelScale, y: center.y * height * contentPixelScale + (center.y > .8 ? -26 : 26), width: name.length * 13 + (moving ? 100 : 50), height: 40 };
+  })], width * contentPixelScale, height * contentPixelScale);
+  function constrainedEnd(start: Point, end: Point): Point {
+    if (drawTool !== 'segment' || wallDrawing || lineConstraint === 'free') return end;
+    const dx = Math.abs((end.x - start.x) * width), dy = Math.abs((end.y - start.y) * height);
+    if (lineConstraint === 'horizontal' || lineConstraint === 'snap' && dy < dx * .14) return { x: end.x, y: start.y };
+    if (lineConstraint === 'vertical' || lineConstraint === 'snap' && dx < dy * .14) return { x: start.x, y: end.y };
+    return end;
+  }
+  function finishOutline() {
+    if (outlineDraft.length < 3) { setGestureHint('세 점 이상을 찍어 윤곽을 만들어 주세요.'); return; }
+    if (onDrawPolygon?.(outlineDraft)) { setOutlineDraft([]); setGestureHint('윤곽을 저장했습니다.'); }
+  }
+
   function svgPosition(event: { clientX: number; clientY: number }): Point | null {
     const matrix = contentRef.current?.getScreenCTM();
     if (!matrix) return null;
@@ -250,6 +286,13 @@ export default function PlanCanvas({
   }
 
   function handleCanvasClick(event: MouseEvent<SVGSVGElement>) {
+    if (drawTool === 'polygon') {
+      const point = svgPosition(event);
+      if (!point || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) return;
+      if (outlineDraft.length >= 3 && Math.hypot((point.x - outlineDraft[0].x) * width, (point.y - outlineDraft[0].y) * height) * contentPixelScale < 12) { finishOutline(); return; }
+      if (outlineDraft.length >= 100) { setGestureHint('윤곽은 최대 100점까지 표시할 수 있습니다.'); return; }
+      setOutlineRedo([]); setOutlineDraft([...outlineDraft, point]); event.currentTarget.focus({ preventScroll: true }); return;
+    }
     if (drawTool) return;
     if (mode !== 'place') return;
     if (suppressClickRef.current) {
@@ -268,7 +311,7 @@ export default function PlanCanvas({
   }
 
   function handleDrawStart(event: PointerEvent<SVGSVGElement>) {
-    if (!drawTool || !onDraw || event.button !== 0) return;
+    if (!drawTool || drawTool === 'polygon' || !onDraw || event.button !== 0) return;
     const position = svgPosition(event);
     if (!position || position.x < 0 || position.x > 1 || position.y < 0 || position.y > 1) return;
     let start = position;
@@ -296,7 +339,7 @@ export default function PlanCanvas({
     if (!position) return true;
     const wall = draft.wallId && activePlan.structures.find((item) => item.id === draft.wallId);
     const end = wall ? projectOntoWall(position, wall, width, height)?.point ?? draft.end : { x: clamp(position.x, 0, 1), y: clamp(position.y, 0, 1) };
-    const next = { ...draft, end };
+    const next = { ...draft, end: constrainedEnd(draft.start, end) };
     drawRef.current = next;
     setDrawDraft(next);
     return true;
@@ -316,7 +359,7 @@ export default function PlanCanvas({
         setGestureHint(wall ? `${wall.name}을 연결 벽으로 선택했습니다. 이 벽의 선을 누른 채 끌어 길이를 정해 주세요.` : '클릭만으로는 선이나 영역이 추가되지 않습니다. 마우스를 누른 채 원하는 끝 위치까지 끌어 주세요.');
         return true;
       }
-      onDraw?.(draft.start, drawTool === 'point' ? draft.start : end, draft.wallId);
+      onDraw?.(draft.start, drawTool === 'point' ? draft.start : constrainedEnd(draft.start, end), draft.wallId);
     }
     return true;
   }
@@ -392,6 +435,14 @@ export default function PlanCanvas({
       };
     } else if (drag.kind === 'wall-element-move') {
       if (!drag.wall) return;
+      const current = activePlan.structures.find(item => item.id === drag.wall!.wallId);
+      const adjacent = current && adjacentWallAtPointer(point, current, activePlan.structures, width, height, contentPixelScale, drag.wall.spanPixels);
+      if (adjacent?.geometry.kind === 'segment') {
+        const length = Math.hypot((adjacent.geometry.end.x - adjacent.geometry.start.x) * width, (adjacent.geometry.end.y - adjacent.geometry.start.y) * height);
+        const span = drag.wall.spanPixels / length;
+        drag.wall = { wallId: adjacent.id, start: 0, end: span, pointerOffset: 0, spanPixels: drag.wall.spanPixels, geometry: adjacent.geometry };
+        setGestureHint(`${adjacent.name}을 따라 이동 중입니다.`);
+      }
       const wall = drag.wall;
       const span = wall.end - wall.start;
       const midpoint = fractionOnSegment(point, wall.geometry.start, wall.geometry.end, width, height) + wall.pointerOffset;
@@ -480,6 +531,7 @@ export default function PlanCanvas({
       wallId: wall.id, start: target.start, end: target.end,
       pointerOffset: midpoint - projected,
       geometry: { start: wall.geometry.start, end: wall.geometry.end },
+      spanPixels: (target.end - target.start) * Math.hypot((wall.geometry.end.x - wall.geometry.start.x) * width, (wall.geometry.end.y - wall.geometry.start.y) * height),
     });
   }
 
@@ -521,7 +573,7 @@ export default function PlanCanvas({
     else onCameraRotate?.(id, next);
   }
 
-  function renderStructure(structure: Structure) {
+  function renderStructure(structure: Structure, labelsOnly = false) {
     const drawHost = wallDrawing && structure.kind === 'wall' && structure.geometry.kind === 'segment';
     const selected = drawHost ? structure.id === activeDrawWall?.id : structure.id === selectedStructureId;
     const kept = keptIds.has(structure.id);
@@ -567,28 +619,13 @@ export default function PlanCanvas({
         <circle className="plan-structure__hit" cx={geometry.center.x * width} cy={geometry.center.y * height} r={Math.max(geometry.radius * Math.min(width, height) + 7, movable ? 20 / contentPixelScale : 0)} />
       </>;
     }
-    const nameWidth = structure.name.length * 13 + (kept ? 36 : 20);
-    const moveLabelOffset = isOpening ? structure.kind === 'entrance' ? 112 : 68 : 24;
-    const nameOffset = structure.kind === 'entrance' ? (center.y > .75 ? -62 : 62)
-      : structure.kind === 'door' || structure.kind === 'window' ? (center.y > .75 ? -28 : 28)
-        : structure.kind === 'pillar' ? -30 : (center.y > .8 ? 20 : -22);
-    const labelY = clamp(center.y * height + nameOffset / contentPixelScale, 14 / contentPixelScale, height - 14 / contentPixelScale);
-    let labelX = clamp(center.x * width, nameWidth / (2 * contentPixelScale), width - nameWidth / (2 * contentPixelScale));
-    if (showCameras && layers.cameras) {
-      // Shift explanation labels only; the saved structure and camera remain untouched.
-      for (const camera of project.cameras) {
-        const position = preview?.kind === 'camera-move' && preview.id === camera.id ? preview.point! : camera;
-        const cameraHalfWidth = (canvasDisplay.narrow ? 32 : 48) / contentPixelScale;
-        if (Math.abs(labelY - position.y * height) < 36 / contentPixelScale && Math.abs(labelX - position.x * width) < cameraHalfWidth + nameWidth / (2 * contentPixelScale)) {
-          const shift = cameraHalfWidth + (nameWidth / 2 + 12) / contentPixelScale;
-          const side = structure.kind === 'door' || center.x < position.x ? -1 : 1;
-          labelX = clamp(position.x * width + side * shift, nameWidth / (2 * contentPixelScale), width - nameWidth / (2 * contentPixelScale));
-        }
-      }
-    }
-    return <g
-      key={structure.id}
-      className={classes}
+    const packed = labels.get(structure.id);
+    const labelName = structure.name.length > 12 ? `${structure.name.slice(0, 11)}…` : structure.name;
+    const nameWidth = packed?.width ?? labelName.length * 13 + 50;
+    const labelX = (packed?.x ?? center.x * width * contentPixelScale) / contentPixelScale;
+    const labelY = (packed?.y ?? center.y * height * contentPixelScale) / contentPixelScale;
+    return <g key={structure.id} className={labelsOnly ? 'plan-label-wrapper' : classes}>
+    {!labelsOnly && <g
       role={selectable ? 'button' : undefined}
       tabIndex={selectable ? 0 : undefined}
       aria-label={selectable ? `${structure.name}${drawHost ? ', 연결 벽으로 선택, 벽 선을 따라 드래그해 그리기' : movable ? ', 이동 가능한 구조, 끌어서 이동 또는 방향키로 1% 이동' : ', 위치 고정, 선택하여 보존 조건 확인'}${kept ? ', Keep 보존 대상' : ''}` : undefined}
@@ -600,15 +637,25 @@ export default function PlanCanvas({
       <title>{`${structure.name}${kept ? ' · Keep' : ''}`}</title>
       {shape}
       {structure.kind === 'existing-light' && <text className="plan-structure__light-label" x={center.x * width} y={center.y * height + 5} textAnchor="middle" aria-hidden="true">등</text>}
-      {movable && <g className="plan-structure__move-label" transform={`translate(${center.x * width} ${center.y * height + (center.y > 0.8 ? -moveLabelOffset : moveLabelOffset) / contentPixelScale}) scale(${1 / contentPixelScale})`} aria-hidden="true">
-        <rect x={-(structure.name.length * 7 + 42)} y={-18} width={structure.name.length * 14 + 84} height={36} rx={8} />
-        <text textAnchor="middle" y={5}>{structure.name} · 이동 가능</text>
-      </g>}
-      {!movable && !drawHost && <g className={`plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${labelX} ${labelY}) scale(${1 / contentPixelScale})`} aria-hidden="true">
-        <rect x={-nameWidth / 2} y={-14} width={nameWidth} height={28} rx={8} />
-        {kept && <image href="/icons/nucleo/IconLockOutline18.svg" x={-nameWidth / 2 + 8} y={-9} width={18} height={18} />}
-        <text x={kept ? 10 : 0} y={5} textAnchor="middle">{structure.name}</text>
-      </g>}
+    </g>}
+      {labelsOnly && !drawHost && packed && <>
+        <g className={movable ? 'plan-structure__move-label' : `plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${labelX} ${labelY}) scale(${1 / contentPixelScale})`}
+          style={drawTool ? { pointerEvents: 'none' } : undefined} role={selectable ? 'button' : undefined} tabIndex={selectable ? 0 : undefined} aria-label={`${structure.name}${movable ? ' · 이동 가능' : ''}`}
+          onPointerDown={movable ? event => startStructureDrag(event, structure) : event => event.stopPropagation()}
+          onClick={selectable ? event => { event.stopPropagation(); if (!suppressClickRef.current) handleStructureSelect(structure); } : undefined}
+          onKeyDown={selectable ? event => handleStructureKeyDown(event, structure) : undefined}>
+          <title>{structure.name}</title><rect x={-nameWidth / 2} y={-20} width={nameWidth} height={40} rx={8} />
+          <>{kept && (!onStructureLockToggle || drawTool) && <image href="/icons/nucleo/IconLockOutline18.svg" x={-nameWidth / 2 + 8} y={-9} width={18} height={18} aria-hidden="true" />}</><text x={kept || onStructureLockToggle && !drawTool ? 18 : 0} y={5} textAnchor="middle">{labelName}{movable ? ' · 이동 가능' : ''}</text>
+        </g>
+        {!drawTool && onStructureLockToggle && <g className={`plan-lock-toggle${kept ? ' is-kept' : ''}`} transform={`translate(${labelX - (nameWidth / 2 - 20) / contentPixelScale} ${labelY}) scale(${1 / contentPixelScale})`}
+          role="button" tabIndex={0} aria-pressed={kept} aria-label={`${structure.name} 필수 보존 ${kept ? '끄기' : '켜기'}`}
+          onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); onStructureLockToggle(structure.id); }}
+          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onStructureLockToggle(structure.id); } }}>
+          <title>{kept ? '필수 보존 끄기' : '필수 보존 켜기'}</title><rect x={-20} y={-20} width={40} height={40} rx={8} />
+          <image href="/icons/nucleo/IconLockOutline18.svg" x={-9} y={-9} width={18} height={18} aria-hidden="true" />
+        </g>}
+      </>}
+
     </g>;
   }
 
@@ -639,8 +686,9 @@ export default function PlanCanvas({
     const target = element.target;
     if (!target) return null;
     const selected = mode === 'place' && element.id === selectedElementId;
-    const editable = mode === 'place' && target.kind === 'floor-point' && Boolean(onElementMove);
-    const classes = `plan-element${selected ? ' plan-element--selected' : ''}${editable ? ' plan-element--editable' : ''}`;
+    const supportPicking = mode === 'place' && project.elements.find(item => item.id === selectedElementId)?.kind === 'display-product' && ['freestanding-fixture', 'furniture'].includes(element.kind);
+    const editable = mode === 'place' && target.kind === 'floor-point' && Boolean(onElementMove) && !supportPicking;
+    const classes = `plan-element${supportPicking ? ' plan-element--support-picking' : ''}${selected ? ' plan-element--selected' : ''}${editable ? ' plan-element--editable' : ''}`;
     const number = index + 1;
     if (target.kind === 'floor-point') {
       const footprint = target.footprint ?? { width: 0.06, height: 0.06 };
@@ -654,12 +702,12 @@ export default function PlanCanvas({
       const handleDistance = Math.max(58, footprint.width * width / 2 + 34, footprint.height * height / 2 + 34);
       const handleX = x + Math.cos(radians) * handleDistance;
       const handleY = y + Math.sin(radians) * handleDistance;
-      return <g className={classes} key={element.id} role={editable ? 'button' : undefined} tabIndex={editable ? 0 : undefined}
-        aria-label={`${element.label}, 바닥 요소${editable ? ', 끌어서 이동, 방향키로 1% 이동' : ''}`}
+      return <g className={classes} key={element.id} role={editable || supportPicking ? 'button' : undefined} tabIndex={editable || supportPicking ? 0 : undefined}
+        aria-label={`${element.label}${supportPicking ? ', 이 진열대 위에 제품 연결' : ', 바닥 요소'}${editable ? ', 끌어서 이동, 방향키로 1% 이동' : ''}`}
         aria-pressed={editable ? selected : undefined}
-        onPointerDown={editable ? (event) => startDrag(event, 'element-move', element.id, position) : undefined}
-        onKeyDown={editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
-        onClick={editable ? (event) => event.stopPropagation() : undefined}>
+        onPointerDown={supportPicking ? event => event.stopPropagation() : editable ? (event) => startDrag(event, 'element-move', element.id, position) : undefined}
+        onKeyDown={supportPicking ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSupportSelect?.(element.id); } } : editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
+        onClick={supportPicking ? event => { event.stopPropagation(); onSupportSelect?.(element.id); } : editable ? (event) => event.stopPropagation() : undefined}>
         <title>{element.label}</title>
         <rect className="plan-element__footprint" x={x - footprint.width * width / 2} y={y - footprint.height * height / 2} width={footprint.width * width} height={footprint.height * height} rx={Math.min(14, footprint.height * height / 4)} transform={`rotate(${degrees} ${x} ${y})`} />
         <circle className="plan-element__number-bg" cx={x} cy={y} r={14} />
@@ -675,8 +723,21 @@ export default function PlanCanvas({
         </g>}
       </g>;
     }
+    if (target.kind === 'fixture-surface') {
+      const host = project.elements.find(item => item.id === target.fixtureElementId);
+      const hostPreview = host && preview?.id === host.id && host.target?.kind === 'floor-point'
+        ? { ...host, target: { ...host.target, ...(preview.point ? preview.point : {}), ...(preview.degrees !== undefined ? { rotationDegrees: preview.degrees } : {}) } } : host;
+      const point = displayPosition(hostPreview ? { ...project, elements: project.elements.map(item => item.id === hostPreview.id ? hostPreview : item) } : project, element);
+      if (!point) return null;
+      return <g key={element.id} className={`${classes} plan-element--product`} role={mode === 'place' ? 'button' : undefined} tabIndex={mode === 'place' ? 0 : undefined}
+        aria-label={`${element.label}, ${host?.label ?? '진열대'} 위`} onPointerDown={event => event.stopPropagation()}
+        onClick={event => { event.stopPropagation(); onElementSelect?.(element.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onElementSelect?.(element.id); } }}>
+        <title>{`${element.label} · 진열 상품 · ${host?.label} 위`}</title><g transform={`translate(${point.x * width} ${point.y * height}) scale(${1 / contentPixelScale})`}><rect x={-17} y={-17} width={34} height={34} rx={8} /><text x={0} y={5} textAnchor="middle">{number}</text>{selected && <text className="plan-product-label" x={0} y={-25} textAnchor="middle">진열 상품</text>}</g>
+      </g>;
+    }
     if (target.kind === 'wall-segment') {
-      const wall = activePlan.structures.find((structure) => structure.id === target.wallId && structure.geometry.kind === 'segment');
+      const moving = preview?.kind === 'wall-element-move' && preview.id === element.id ? preview.wall : undefined;
+      const wall = activePlan.structures.find((structure) => structure.id === (moving?.wallId ?? target.wallId) && structure.geometry.kind === 'segment');
       if (!wall || wall.geometry.kind !== 'segment') return null;
       const wallPreview = preview?.kind === 'wall-element-move' && preview.id === element.id && preview.wall?.wallId === wall.id
         ? preview.wall : undefined;
@@ -711,7 +772,7 @@ export default function PlanCanvas({
     const labelBounds = visibleBounds[0];
     return <g className={`${classes} plan-element--area`} key={element.id} aria-label={`${element.label}, 영역 적용`}>
       <title>{element.label}</title>
-      {visibleBounds.map((bounds, boundsIndex) => <rect key={boundsIndex} className="plan-element__area" x={bounds.x * width + 9} y={bounds.y * height + 9} width={Math.max(0, bounds.width * width - 18)} height={Math.max(0, bounds.height * height - 18)} rx={8} />)}
+      {visibleBounds.map((bounds, boundsIndex) => { const area = target.kind === 'whole-space' ? floorAreas[boundsIndex] : activePlan.areas.find(item => item.id === (target.kind === 'floor-area' || target.kind === 'named-area' ? target.areaId : target.zoneId)); return area?.outline ? <polygon key={boundsIndex} className="plan-element__area" points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect key={boundsIndex} className="plan-element__area" x={bounds.x * width + 9} y={bounds.y * height + 9} width={Math.max(0, bounds.width * width - 18)} height={Math.max(0, bounds.height * height - 18)} rx={8} />; })}
       <circle className="plan-element__number-bg" cx={labelBounds.x * width + 30} cy={labelBounds.y * height + 30} r={14} />
       <text className="plan-element__number" x={labelBounds.x * width + 30} y={labelBounds.y * height + 35} textAnchor="middle">{number}</text>
     </g>;
@@ -792,6 +853,8 @@ export default function PlanCanvas({
         <span>{plan.geometryConfidence === 'schematic' ? '치수 미확인' : '등록된 치수 기준'}</span>
       </div>
       <div className="plan-canvas__controls" aria-label="도면 보기 도구">
+        {onUndo && <button type="button" disabled={!canUndo && !outlineDraft.length} onClick={() => { if (outlineDraft.length) { setOutlineRedo(points => [...points, outlineDraft.at(-1)!]); setOutlineDraft(points => points.slice(0, -1)); } else onUndo(); }}>실행 취소</button>}
+        {onRedo && <button type="button" disabled={!canRedo && !outlineRedo.length} onClick={() => { if (outlineRedo.length) { setOutlineDraft(points => [...points, outlineRedo.at(-1)!]); setOutlineRedo(points => points.slice(0, -1)); } else onRedo(); }}>다시 실행</button>}
         <button type="button" onClick={() => setZoom((value) => clamp(value - ZOOM_STEP, MIN_ZOOM, MAX_ZOOM))} disabled={zoom <= MIN_ZOOM}>축소</button>
         <span aria-live="polite">{Math.round(zoom * 100)}%</span>
         <button type="button" onClick={() => setZoom((value) => clamp(value + ZOOM_STEP, MIN_ZOOM, MAX_ZOOM))} disabled={zoom >= MAX_ZOOM}>확대</button>
@@ -805,8 +868,8 @@ export default function PlanCanvas({
       </div>
     </div>
     {plan.kind === 'uploaded' && (imageError || !sourceUri) && <p className="plan-canvas__image-status" role="alert">{imageError ?? '등록한 도면 이미지를 찾을 수 없습니다. 다시 등록해 주세요.'}</p>}
-    {validationMessage && <div className="plan-canvas__validation" role="alert"><strong>표시를 저장하지 않았습니다.</strong><p>{validationMessage}</p></div>}
     <div className="plan-canvas__surface">
+    {validationMessage && <div className="plan-canvas__validation" role="alert"><div className="plan-validation-heading"><strong>표시를 저장하지 않았습니다.</strong>{onValidationDismiss && <button type="button" aria-label="도면 안내 닫기" onClick={onValidationDismiss}>닫기</button>}</div><p>{validationMessage}</p></div>}
       <svg
         ref={svgRef}
         className={`plan-canvas__svg plan-canvas__svg--${mode}${drawTool ? ` plan-canvas__svg--draw-${drawTool}` : ''}`}
@@ -822,24 +885,26 @@ export default function PlanCanvas({
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
         onLostPointerCapture={() => { if (drawRef.current || dragRef.current) cancelGesture(); }}
-        onKeyDown={(event) => { if (event.key === 'Escape' && (drawRef.current || dragRef.current)) { event.preventDefault(); cancelGesture(); setGestureHint('그리기를 취소했습니다. 저장된 도면은 그대로 유지됩니다.'); } }}
+        onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.stopPropagation(); if (drawRef.current || dragRef.current) cancelGesture(); else if (event.shiftKey && outlineRedo.length) { setOutlineDraft(points => [...points, outlineRedo.at(-1)!]); setOutlineRedo(points => points.slice(0, -1)); } else if (!event.shiftKey && outlineDraft.length) { setOutlineRedo(points => [...points, outlineDraft.at(-1)!]); setOutlineDraft(points => points.slice(0, -1)); } else if (event.shiftKey) onRedo?.(); else onUndo?.(); return; } if (drawTool === 'polygon') { if (event.key === 'Enter') { event.preventDefault(); finishOutline(); } else if (event.key === 'Escape') { event.preventDefault(); setOutlineDraft([]); } else if (event.key === 'Backspace') { event.preventDefault(); setOutlineDraft(points => points.slice(0, -1)); } } if (event.key === 'Escape' && (drawRef.current || dragRef.current)) { event.preventDefault(); cancelGesture(); setGestureHint('그리기를 취소했습니다. 저장된 도면은 그대로 유지됩니다.'); } }}
       >
         <g ref={contentRef} transform={`translate(${width / 2} ${height / 2}) scale(${zoom}) translate(${-width / 2} ${-height / 2})`}>
           <rect className="plan-canvas__backdrop" width={width} height={height} />
           {imageUri && <image className="plan-canvas__image" href={imageUri} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid meet" />}
-          {floorAreas.map((area) => <rect key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />)}
+          {floorAreas.map((area) => area.outline ? <polygon key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />)}
           {mode === 'view' && plan.areas.filter((area) => area.kind !== 'floor').map((area) => <g key={area.id} className={`plan-canvas__area plan-canvas__area--${area.kind}`} aria-label={`${area.name} 영역`}>
-            <rect x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />
+            {area.outline ? <polygon points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />}
             <text x={area.bounds.x * width + 10} y={area.bounds.y * height + 22}>{area.name}</text>
           </g>)}
           {showStructureLayer && <g className="plan-canvas__layer plan-canvas__layer--structures" aria-label="기존 구조 레이어">
             {mode === 'place' && plan.structures.filter((structure) => structure.clearance).map((structure) => <rect key={`${structure.id}-clearance`} className="plan-canvas__clearance" x={structure.clearance!.x * width} y={structure.clearance!.y * height} width={structure.clearance!.width * width} height={structure.clearance!.height * height} />)}
-            {plan.structures.map(renderStructure)}
+            {plan.structures.map(structure => renderStructure(structure))}
           </g>}
-          {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.map(renderElement)}</g>}
+          {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.filter(item => item.kind !== 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}{activeElements.filter(item => item.kind === 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}</g>}
           {showCameras && layers.cameras && <g className="plan-canvas__layer plan-canvas__layer--cameras" aria-label="카메라 레이어">{project.cameras.map(renderCamera)}</g>}
+          {showStructureLayer && <g aria-label="구조 이름표"><g aria-hidden="true">{plan.structures.map(structure => { const packed = labels.get(structure.id); const center = structureCenter(structure); return packed && <line key={structure.id} className="plan-label-leader" x1={center.x * width} y1={center.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} />; })}</g>{plan.structures.map(structure => renderStructure(structure, true))}</g>}
           {wallDrawing && activeDrawWall?.geometry.kind === 'segment' && <line className="plan-canvas__active-wall" x1={activeDrawWall.geometry.start.x * width} y1={activeDrawWall.geometry.start.y * height} x2={activeDrawWall.geometry.end.x * width} y2={activeDrawWall.geometry.end.y * height} style={{ strokeWidth: 6 / contentPixelScale }} />}
           {wallDrawing && plan.structures.filter((wall) => wall.kind === 'wall' && wall.geometry.kind === 'segment').map(renderDrawWallLabel)}
+          {outlineDraft.length > 0 && <g className="plan-canvas__draw-preview" aria-hidden="true"><polyline points={outlineDraft.map(p => `${p.x * width},${p.y * height}`).join(' ')} />{outlineDraft.map((p, i) => <circle key={i} cx={p.x * width} cy={p.y * height} r={6 / contentPixelScale} />)}</g>}
           {drawDraft && <g className="plan-canvas__draw-preview" aria-hidden="true">
             {drawTool === 'point' && <circle cx={drawDraft.start.x * width} cy={drawDraft.start.y * height} r={15} />}
             {drawTool === 'segment' && <line x1={drawDraft.start.x * width} y1={drawDraft.start.y * height} x2={drawDraft.end.x * width} y2={drawDraft.end.y * height} />}
@@ -847,9 +912,11 @@ export default function PlanCanvas({
           </g>}
         </g>
       </svg>
-    </div>
-    <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>
     {gestureHint && <p className="plan-canvas__gesture-hint" role="status">{gestureHint}</p>}
+    </div>
+    {drawTool === 'polygon' && <div className="plan-outline-actions"><span aria-live="polite">윤곽 {outlineDraft.length}점</span><button type="button" disabled={outlineDraft.length < 3} onClick={finishOutline}>윤곽 저장</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft(points => points.slice(0, -1))}>마지막 점 취소</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft([])}>윤곽 취소</button></div>}
+    <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>
+    {!drawTool && plan.structures.some(item => !labels.has(item.id)) && <p className="muted small">겹침을 줄이기 위해 일부 이름표를 접었습니다. 구조 목록에서 선택하면 이름표가 우선 표시됩니다.</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
       <span><i className="plan-canvas__legend-keep" aria-hidden="true" />고정 구조 / Keep</span>
       {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}

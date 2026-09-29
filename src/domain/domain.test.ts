@@ -259,7 +259,7 @@ describe('revision scope', () => {
     const keeps = project.keeps.map((keep) => keep.id === 'keep-wall' ? { ...keep, allowedSurfaceTreatment: false } : keep);
     const next = setKeeps(project, keeps);
     expect(next.results[0].stale).toBe(true);
-    expect(validatePreflight(next).issues.map((issue) => issue.code)).toContain('keep-conflict');
+    expect(validatePreflight(next).issues.map((issue) => issue.code)).not.toContain('keep-conflict');
   });
 
   it('keeps original structures fixed while allowing an optional partition to be removed', () => {

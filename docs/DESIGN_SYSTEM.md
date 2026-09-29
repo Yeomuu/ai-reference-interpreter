@@ -467,7 +467,7 @@ Do not use a generic plan pan mode for this 2D flow.
 - Below 1000px, stack the existing surfaces in a single vertically scrollable task workspace. This is an accessibility exception to the one-screen presentation: the document and mobile bottom actions remain fixed, and all inputs and text alternatives remain reachable.
 - Project information and optional study controls open within the available frame without changing the plan's position. Reference notes, result history and approved collections are explicit disclosures, closed initially. Preserve all controls and keyboard access inside them.
 - SVG fills a positioned plan surface without imposing an intrinsic height on its parent. Reference image previews retain aspect ratio; reserve the selection-status action row so a crop gesture cannot change its image bounds.
-- Shared geometry tokens: minimum plan surface 280px, notification width 560px, study drawer maximum width 720px, drawing tools 240px. Overlay layers: notices 50, optional detail panels 40. Existing spacing, borders, colors and shadows apply; these tokens add no brand treatment.
+- Shared geometry tokens: minimum plan surface 280px outside the bounded desktop drawing editor; the drawing surface flexes to its available row without clipping behind utility disclosures, notification width 560px, study drawer maximum width 720px, drawing tools 240px. Overlay layers: notices 50, optional detail panels 40. Existing spacing, borders, colors and shadows apply; these tokens add no brand treatment.
 
 ### 7.4 Spacing rhythm
 
@@ -730,10 +730,10 @@ Show before paid action:
 - selected viewpoint
 - chosen existing-space anchor photo
 - image transfer summary
-- one-image scope
-- one concise sentence: “설정한 조건과 선택한 시점으로 이미지 1장을 만듭니다.”
+- one image per selected viewpoint with visible count
+- one concise sentence: “선택한 시점마다 이미지 1장을 만듭니다. 시점 수만큼 생성 횟수가 차감됩니다.”
 - transmitted inputs/result limitations in “사용 자료·결과 안내”; no per-image API price or provider pricing link
-- shared total/daily quota and plain-language busy/exhausted reason; no user key, code or invitation link
+- service-wide daily and anonymous-browser daily quotas and plain-language busy/exhausted reason; no user key, code or invitation link
 - structural-accuracy limitation
 
 Primary action:
@@ -930,7 +930,7 @@ Respect:
 - compact condition synthesis
 - Keep details collapsible
 - free sample and paid generation explicitly separate
-- concise one-image guidance and accessible data-use details before generation; API billing guidance remains in operator documentation
+- concise one-image-per-selected-view guidance and accessible data-use details before generation; API billing guidance remains in operator documentation
 
 ### Results
 - current result image dominant
@@ -1048,3 +1048,12 @@ of plan zoom; body movement and rotation hits remain separate.
 Figma's current guide also lists Recraft, Krea, Adobe Firefly, Figma and Planner 5D interaction
 patterns. Apply the task-local edit/export controls, progressive controls, shared canvas and direct
 manipulation principles only. Do not import their branding, accounts or extra 2D/3D/CAD features.
+
+## 2026-09-29 작업 제어 보완
+새 브랜드 색·폰트·아이콘 라이브러리는 추가하지 않는다. 기존 semantic tokens로 카메라(공식 카메라 아이콘), 바닥 진열대(평면 footprint), 진열 상품(작은 둥근 사각 marker)을 구분하고 목록에는 실제 유형을 표시한다. 실제 구조 이름과 잠금 버튼은 별도 40px hit target으로 배치하며 촘촘한 이름표를 화면 픽셀 기준으로 정리한다. 수용하지 못한 이름표는 구조 목록으로 안내해 실제 도형을 가리지 않는다.
+
+참고 이미지 오른쪽 제목은 패널 내부 sticky, 선택 요소는 맨 위에 둔다. 요소 추가 폼은 명시적 펼치기로 빈 공간을 줄인다. 활성 단계 번호 대신 기존 manifest 아이콘을 사용하되 한국어 단계명은 유지한다. 스크롤 track은 투명하고 thumb는 기존 border token, hover는 text-secondary를 사용한다. 스크롤 affordance를 숨기지 않고 강제 애니메이션을 넣지 않아 reduced motion을 존중한다.
+
+새 도면 대응 안내는 40px summary와 기존 popover 계층의 overlaid content로 구성한다. 그리기 도구는 독립 내부 스크롤, 캔버스는 남은 높이를 사용한다. 충돌 알림/배치 경고는 canvas/workspace의 absolute overlay로 렌더링하여 좌표 변환과 도형 크기를 바꾸지 않는다. 생성할 시점은 fieldset/checkbox의 기존 component states를 사용하고 `n / total · 시점명 생성 중`은 실제 요청 순서 안내이며 가상의 모델 진행률이 아니다.
+
+그리기 중에는 중복 패널 제목·업로드 안내를 접고 좌표 대체 입력/영역 관리를 왼쪽 도구 패널의 내부 스크롤에 둔다. 오른쪽은 캔버스와 명시적 그리기 종료만 사용한다. 저장·제스처 안내도 캔버스 안 absolute status로 렌더링하며 클릭을 가로채지 않는다. 업로드와 사진은 그리기 종료 후 원래 위치에서 사용할 수 있다.

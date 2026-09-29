@@ -36,7 +36,7 @@ Inspect repository first. Plan minimal route and data model. Implement a fully u
 - Project/step URLs must support browser history and reload. Optional study logs follow the latest 14-page PDF, last five pages plus relevant definitions, as documented in docs/EXPERIMENT_LOGGING.md. Do not claim an implemented free-text comparison, filled ground truth, server collection or human-coded accuracy.
 
 ## User-directed generation update · 2026-09-28
-- Read the API key from server env; require no participant key, access code or invitation link. A durable shared private quota must reserve before paid calls, fail closed on storage faults, and reject replays. Initial maximums are 60 total and 20/day, across Production/Preview. Never reset usage on deploy, failure or a public request.
+- Read the API key from server env; require no participant key, access code or invitation link. A durable shared private quota must reserve before paid calls, fail closed on storage faults, and reject replays. Current maximums are 60/day across all anonymous browsers and 20/day per signed anonymous browser, shared across Production/Preview. Both reset only at Korean midnight according to server time. Never reset on deploy, failure or a public request; preserve immutable replay claims and existing ledger records through migration.
 
 ## Design reference governance · supplied update 2026-09-28
 
@@ -66,3 +66,9 @@ in `docs/UX_SPEC_CHANGELOG.md`.
 
 
 Latest visual source: Figma active v1.3 section `125:2` and Design System v1.2. Follow the reconciled current docs, not archived examples. Keep existing user-directed preservation, navigation, experiment and quota contracts.
+
+## User-directed editing and batch update · 2026-09-29
+- A fresh uploaded plan starts without the previous rectangle/annotations and releases current placements, with deletion undo; retaining old annotations is an explicit alternate choice. Preserve image aspect ratio. Schematic starters offer portrait/landscape or a manually traced polygon; curved edges are an approximation, never automatic extraction or measured CAD.
+- Compatible removable graphics/lights may attach to a kept wall without repeated confirmation. Keep still locks the underlying geometry and blocks replacement/removal. Wall elements can transfer along connected corners; physical conflicts remain enforced.
+- Applied reference count is unrestricted. Pack sources into bounded input contact sheets without extra model calls and validate their source/crop manifest. Products use an explicit display-support relation; product/support overlap is valid, floor-object/pillar/opening conflicts are not.
+- Canvas Ctrl+Z/Ctrl+Shift+Z undo/redo edits within the current tab. Camera deletion preserves result history and is undoable. Batch generation selects existing cameras and consumes one reserved request per image, retains completed images on partial failure and blocks repeated clicks for the whole batch.

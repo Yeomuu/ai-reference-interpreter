@@ -1,3 +1,4 @@
+import { generationIdentity } from './_lib/generationIdentity.js';
 import { generationQuota, quotaConfigured, validRequestId, QuotaError } from './_lib/generationQuota.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { validatePreflight } from '../src/domain/validation.js';
@@ -5,7 +6,7 @@ import { isProject } from '../src/services/persistence.js';
 import {
   buildGenerationPrompt, GENERATION_MODEL, GENERATION_QUALITY,
   GENERATION_SIZE, MAX_GENERATION_BODY_BYTES, MAX_GENERATION_IMAGES,
-  MAX_GENERATION_IMAGE_BYTES, MAX_REFERENCE_IMAGES,
+  MAX_GENERATION_IMAGE_BYTES, referenceSheetGroups, matchesReferenceSheet,
   matchesReferencePreparation, referencePreparationFor,
   type GenerationImage, type GenerationRequest,
 } from '../src/services/generationContract.js';
@@ -63,7 +64,7 @@ async function readBody(request: BodyRequest): Promise<unknown> {
 function isImage(value: unknown): value is GenerationImage {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const image = value as Record<string, unknown>;
-  return ['existing-space', 'floor-plan', 'inspiration', 'product'].includes(String(image.role)) &&
+  return ['existing-space', 'floor-plan', 'inspiration', 'product', 'reference-sheet'].includes(String(image.role)) &&
     typeof image.sourceId === 'string' && typeof image.dataUrl === 'string';
 }
 
@@ -86,7 +87,7 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
     throw new RequestError('프로젝트나 이미지 입력 형식을 확인해 주세요.', 400);
   }
   const project = body.project;
-  if (project.results.length || project.sourceImages.length > 50 || project.elements.length > 100 ||
+  if (project.results.length ||
       (project.floorPlan?.structures.length ?? 0) > 100) {
     throw new RequestError('생성 요청에 결과 이력을 포함하지 말고 입력 조건을 간결하게 정리해 주세요.', 400);
   }
@@ -100,14 +101,14 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
   const seen = new Set<string>();
   const appliedReferences = new Set(project.elements.filter((element) => element.status === 'apply').map((element) => element.sourceReferenceId));
   const appliedImageIds = new Set(project.references.filter((reference) => appliedReferences.has(reference.id)).map((reference) => reference.imageId));
-  if (appliedImageIds.size > MAX_REFERENCE_IMAGES) {
-    throw new RequestError('적용 레퍼런스 이미지는 한 번에 최대 3장까지 사용할 수 있습니다.', 400);
-  }
-  let referenceCount = 0;
   for (const image of images) {
     if (seen.has(image.sourceId)) throw new RequestError('같은 이미지를 여러 번 보낼 수 없습니다.', 400);
     seen.add(image.sourceId);
-    if (image.role === 'floor-plan') {
+    if (image.role === 'reference-sheet') {
+      const index = Number(image.sourceId.replace('reference-sheet-', ''));
+      if (!/^reference-sheet-[0-2]$/.test(image.sourceId) || !matchesReferenceSheet(referenceSheetGroups(project)[index], image.sheet) || image.referencePreparation !== undefined) throw new RequestError('레퍼런스 모음과 적용 자료가 일치하지 않습니다.', 400);
+      for (const part of image.sheet!) { if (seen.has(part.sourceId)) throw new RequestError('같은 참고 이미지를 여러 번 보낼 수 없습니다.', 400); seen.add(part.sourceId); }
+    } else if (image.role === 'floor-plan') {
       if (image.referencePreparation !== undefined) throw new RequestError('도면에는 레퍼런스 선택 영역을 지정할 수 없습니다.', 400);
       if (image.sourceId !== 'floor-plan' || project.floorPlan?.kind !== 'uploaded' || !project.floorPlan.imageUri) {
         throw new RequestError('등록된 업로드 도면만 입력할 수 있습니다.', 400);
@@ -127,10 +128,8 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
           throw new RequestError('레퍼런스 선택 영역과 전송 이미지 정보가 일치하지 않습니다.', 400);
         }
       }
-      if (image.role === 'inspiration' || image.role === 'product') referenceCount += 1;
     }
   }
-  if (referenceCount > MAX_REFERENCE_IMAGES) throw new RequestError('적용 레퍼런스 이미지는 한 번에 최대 3장까지 사용할 수 있습니다.', 400);
   if ([...appliedImageIds].some((id) => !seen.has(id))) {
     throw new RequestError('적용된 레퍼런스 이미지가 생성 입력에서 빠졌습니다.', 400);
   }
@@ -176,7 +175,9 @@ export default async function handler(request: BodyRequest, response: ServerResp
     form.set('output_format', 'jpeg');
     form.set('output_compression', '72');
     decoded.forEach((bytes, index) => form.append('image[]', new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }), `reference-${index + 1}.jpg`));
-    await generationQuota.reserve(requestId);
+    const userId = generationIdentity(request);
+    if (!userId) throw new RequestError('브라우저의 익명 사용자 식별이 필요합니다. 생성 가능 여부를 다시 확인하고 쿠키를 허용해 주세요.', 403);
+    await generationQuota.reserve(requestId, userId);
     reserved = true;
     providerAttempted = true;
     const upstream = await fetch('https://api.openai.com/v1/images/edits', {

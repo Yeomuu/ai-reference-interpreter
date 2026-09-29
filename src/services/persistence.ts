@@ -1,3 +1,4 @@
+import { outlineBounds, validOutline } from '../domain/geometry';
 import type { FloorPlan, Project } from '../domain/types';
 
 const STORAGE_KEY = 'ai-reference-interpreter:projects:v1';
@@ -18,6 +19,11 @@ function isFraction(value: unknown): value is number {
 
 function isPoint(value: unknown): boolean {
   return isRecord(value) && isFraction(value.x) && isFraction(value.y);
+}
+
+function matchingOutlineBounds(points: {x:number;y:number}[], bounds: Record<string, unknown>): boolean {
+  const expected=outlineBounds(points);
+  return (['x','y','width','height'] as const).every(key=>typeof bounds[key]==='number' && Math.abs(expected[key]-(bounds[key] as number))<1e-9);
 }
 
 function isRect(value: unknown): boolean {
@@ -60,7 +66,7 @@ function isFloorPlan(value: unknown): value is FloorPlan {
     Array.isArray(value.structures) && value.structures.every(isStructure) &&
     Array.isArray(value.areas) && value.areas.every((area: unknown) =>
       isRecord(area) && typeof area.id === 'string' && typeof area.name === 'string' &&
-      ['floor', 'ceiling', 'spatial', 'passage'].includes(String(area.kind)) && isRect(area.bounds));
+      ['floor', 'ceiling', 'spatial', 'passage'].includes(String(area.kind)) && isRect(area.bounds) && (area.outline === undefined || (Array.isArray(area.outline) && area.outline.every(isPoint) && validOutline(area.outline as {x:number;y:number}[]) && matchingOutlineBounds(area.outline as {x:number;y:number}[], area.bounds as Record<string,unknown>))));
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -93,6 +99,8 @@ function isReference(value: unknown): boolean {
 function isPlacementTarget(value: unknown): boolean {
   if (!isRecord(value)) return false;
   switch (value.kind) {
+    case 'fixture-surface':
+      return typeof value.fixtureElementId === 'string' && isPoint(value.offset);
     case 'floor-point':
       return isFraction(value.x) && isFraction(value.y) &&
         (value.rotationDegrees === undefined || (typeof value.rotationDegrees === 'number' && Number.isFinite(value.rotationDegrees))) &&
@@ -119,13 +127,14 @@ function isElement(value: unknown): boolean {
   return isRecord(value) && typeof value.id === 'string' && typeof value.sourceReferenceId === 'string' &&
     (value.sourceRegion === undefined || isRect(value.sourceRegion)) &&
     typeof value.label === 'string' &&
-    ['freestanding-fixture', 'furniture', 'photozone', 'wall-graphic', 'wall-mounted-product',
+    ['display-product', 'other-floor', 'other-wall', 'other-ceiling', 'other-area', 'freestanding-fixture', 'furniture', 'photozone', 'wall-graphic', 'wall-mounted-product',
       'ceiling-light', 'hanging-display', 'wall-light', 'standing-light', 'ambient-light',
       'global-palette', 'floor-material', 'wall-material'].includes(String(value.kind)) &&
     (value.status === 'apply' || value.status === 'exclude') &&
     (value.target === null || isPlacementTarget(value.target)) &&
     (value.appearance === undefined || typeof value.appearance === 'string') &&
-    (value.conditions === undefined || typeof value.conditions === 'string');
+    (value.conditions === undefined || typeof value.conditions === 'string') &&
+    (value.origin === undefined || value.origin === 'basic-support');
 }
 
 function isCamera(value: unknown): boolean {
@@ -143,7 +152,8 @@ function isConditionsSnapshot(value: unknown): boolean {
       !isRecord(value.camera) ||
       typeof value.camera.id !== 'string' || !isFraction(value.camera.x) || !isFraction(value.camera.y) ||
       typeof value.camera.directionDegrees !== 'number' || !Number.isFinite(value.camera.directionDegrees) ||
-      (value.camera.fovPreset !== undefined && !['narrow', 'standard', 'wide'].includes(String(value.camera.fovPreset)))) return false;
+      (value.camera.fovPreset !== undefined && !['narrow', 'standard', 'wide'].includes(String(value.camera.fovPreset))) ||
+      (value.camera.name !== undefined && typeof value.camera.name !== 'string')) return false;
   if (value.common === undefined) return true;
   const common = value.common;
   return isRecord(common) && typeof common.concept === 'string' &&

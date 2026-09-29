@@ -5,13 +5,15 @@ export const GENERATION_MODEL = 'gpt-image-1-mini' as const;
 export const GENERATION_QUALITY = 'low' as const;
 export const GENERATION_SIZE = '1536x1024' as const;
 export const GENERATION_OUTPUT_PRICE_USD = 0.006;
-export const MAX_REFERENCE_IMAGES = 3;
+// Input slots after the room photo and optional plan; applied source count is unrestricted.
+export const REFERENCE_IMAGE_SLOTS = 3;
 export const MAX_REFERENCE_REGIONS_PER_IMAGE = 4;
 export const MAX_GENERATION_IMAGES = 5;
 export const MAX_GENERATION_IMAGE_BYTES = 550_000;
 export const MAX_GENERATION_BODY_BYTES = 4_000_000;
 
-export type GenerationImageRole = 'existing-space' | 'floor-plan' | 'inspiration' | 'product';
+export type GenerationImageRole = 'existing-space' | 'floor-plan' | 'inspiration' | 'product' | 'reference-sheet';
+export interface SheetSource { sourceId: string; referencePreparation?: ReferencePreparation }
 
 export interface GenerationImage {
   role: GenerationImageRole;
@@ -19,6 +21,7 @@ export interface GenerationImage {
   dataUrl: string;
   /** The pixels in dataUrl were prepared from these user-selected source regions. */
   referencePreparation?: ReferencePreparation;
+  sheet?: SheetSource[];
 }
 
 export interface ReferencePreparation {
@@ -36,7 +39,7 @@ export interface GenerationRequest {
 export interface GenerationStatus {
   available: boolean;
   requiresAccessCode: boolean;
-  quota?: { totalLimit: number; used: number; remaining: number; dailyLimit: number; dailyRemaining: number; busy: boolean };
+  quota?: { totalLimit: number; used: number; remaining: number; dailyLimit: number; dailyRemaining: number; busy: boolean; resetsAt?: string };
   reason?: string;
   model: typeof GENERATION_MODEL;
   quality: typeof GENERATION_QUALITY;
@@ -64,7 +67,7 @@ function sameRegion(left: Rect, right: Rect): boolean {
 
 /** One reference source remains one transmitted image, even when several elements use it. */
 export function referencePreparationFor(project: Project, sourceId: string): ReferencePreparation | undefined {
-  const elements = project.elements.filter((element) => element.status === 'apply' &&
+  const elements = project.elements.filter((element) => element.status === 'apply' && element.origin !== 'basic-support' &&
     project.references.some((reference) => reference.id === element.sourceReferenceId && reference.imageId === sourceId));
   // A whole-image element needs the original pixels; other elements can still use normalized source coordinates.
   if (elements.some((element) => !element.sourceRegion)) return undefined;
@@ -94,6 +97,19 @@ export function matchesReferencePreparation(expected: ReferencePreparation | und
   });
 }
 
+/** Unlimited applied sources are packed into at most three sheets, without extra model calls. */
+export function referenceSheetGroups(project: Project): SheetSource[][] {
+  const ids = new Set(project.elements.filter(item => item.status === 'apply').map(item => item.sourceReferenceId));
+  const sources = new Set(project.references.filter(item => ids.has(item.id)).map(item => item.imageId));
+  const images = project.sourceImages.filter(image => sources.has(image.id) && image.role !== 'existing-space');
+  if (images.length <= REFERENCE_IMAGE_SLOTS) return [];
+  const size = Math.ceil(images.length / REFERENCE_IMAGE_SLOTS);
+  return Array.from({length:Math.ceil(images.length/size)}, (_, i) => images.slice(i*size,(i+1)*size).map(image => ({sourceId:image.id, ...(referencePreparationFor(project,image.id) ? {referencePreparation:referencePreparationFor(project,image.id)} : {})})));
+}
+export function matchesReferenceSheet(expected: SheetSource[] | undefined, actual: unknown): boolean {
+  return !!expected && Array.isArray(actual) && actual.length === expected.length && actual.every((item, i) => item && typeof item === 'object' && item.sourceId === expected[i].sourceId && matchesReferencePreparation(expected[i].referencePreparation, item.referencePreparation) && Object.keys(item).every(key => ['sourceId','referencePreparation'].includes(key)));
+}
+
 function geometryText(geometry: StructureGeometry): string {
   if (geometry.kind === 'segment') {
     return `segment (${percent(geometry.start.x)}, ${percent(geometry.start.y)}) to (${percent(geometry.end.x)}, ${percent(geometry.end.y)})`;
@@ -107,6 +123,8 @@ function geometryText(geometry: StructureGeometry): string {
 function targetText(project: Project, target: PlacementTarget | null): string {
   if (!target) return 'unplaced';
   switch (target.kind) {
+    case 'fixture-surface':
+      return `on top of display support ${boundedText(project.elements.find(item => item.id === target.fixtureElementId)?.label ?? target.fixtureElementId)}, relative surface position (${percent(target.offset.x)}, ${percent(target.offset.y)}); product and support overlap intentionally, never place this product directly on the floor`;
     case 'floor-point':
       return `floor point (${percent(target.x)}, ${percent(target.y)}), rotation ${Math.round(target.rotationDegrees ?? 0)} degrees, footprint ${percent(target.footprint?.width ?? 0.06)} by ${percent(target.footprint?.height ?? 0.06)}`;
     case 'floor-area':
@@ -124,8 +142,10 @@ function targetText(project: Project, target: PlacementTarget | null): string {
 
 function elementText(project: Project, element: DesignElement, images: GenerationImage[]): string {
   const reference = project.references.find((item) => item.id === element.sourceReferenceId);
-  const imageNumber = images.findIndex((image) => image.sourceId === reference?.imageId) + 1;
-  const preparation = images.find((image) => image.sourceId === reference?.imageId)?.referencePreparation;
+  const imageNumber = images.findIndex((image) => image.sourceId === reference?.imageId || image.sheet?.some(source => source.sourceId === reference?.imageId)) + 1;
+  const sheet = images[imageNumber - 1]?.sheet;
+  const panel = sheet?.findIndex(source => source.sourceId === reference?.imageId);
+  const preparation = sheet && panel !== undefined ? sheet[panel]?.referencePreparation : images.find((image) => image.sourceId === reference?.imageId)?.referencePreparation;
   let sourceScope: string;
   if (element.sourceRegion && preparation?.mode === 'crop') {
     sourceScope = 'The entire transmitted reference image is the user-selected crop for this element. ';
@@ -139,8 +159,9 @@ function elementText(project: Project, element: DesignElement, images: Generatio
   } else {
     sourceScope = 'Use the whole reference image for this element. ';
   }
+  if (sheet && panel !== undefined) sourceScope = `Use only numbered panel ${panel + 1} in this input image. This panel is the reference image described below, never the whole sheet. ` + sourceScope;
   return `${boundedText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` +
-    sourceScope +
+    (element.origin === 'basic-support' ? 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
     `Appearance: ${boundedText(element.appearance ?? 'not specified')}. ` +
     `Conditions: ${boundedText(element.conditions ?? 'none')}.`;
 }
@@ -151,6 +172,7 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   if (!camera || !project.floorPlan) throw new Error('카메라와 도면을 확인해 주세요.');
   const plan = project.floorPlan;
   for (const image of images) {
+    if (image.role === 'reference-sheet') { const index = Number(image.sourceId.replace('reference-sheet-', '')); if (!matchesReferenceSheet(referenceSheetGroups(project)[index], image.sheet)) throw new Error('레퍼런스 모음과 적용 자료가 일치하지 않습니다.'); continue; }
     if (image.role !== 'product' && image.role !== 'inspiration') continue;
     if (!matchesReferencePreparation(referencePreparationFor(project, image.sourceId), image.referencePreparation)) {
       throw new Error('선택한 이미지 영역과 생성 입력이 일치하지 않습니다.');
@@ -159,9 +181,10 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const imageLines = images.map((image, index) => {
     const source = project.sourceImages.find((entry) => entry.id === image.sourceId);
     const label = image.role === 'floor-plan' ? 'uploaded floor plan' : boundedText(source?.name ?? image.role);
+    const sheetDescription = image.sheet ? ` numbered panels: ${image.sheet.map((source, i) => `${i + 1} = ${boundedText(project.sourceImages.find(item => item.id === source.sourceId)?.name ?? source.sourceId)}`).join('; ')}` : '';
     const prepared = image.referencePreparation?.mode === 'crop' ? ' (user-selected crop)' :
       image.referencePreparation?.mode === 'grid' ? ` (${image.referencePreparation.regions.length} user-selected crops in reading-order grid panels)` : '';
-    return `${index + 1}. ${image.role}: ${label}${prepared}`;
+    return `${index + 1}. ${image.role}: ${label}${prepared}${sheetDescription}`;
   });
   const fixed = plan.structures.filter((item) => item.immutable || item.protected);
   const editable = plan.structures.filter((item) => !item.immutable && !item.protected);
@@ -178,11 +201,11 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     `Protected structures (${fixed.length}):`,
     ...fixed.map((item) => `- ${boundedText(item.name)} [${item.kind}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Existing light tone: ${boundedText(item.lightTone)}.` : ''}`),
     'Saved preservation conditions:',
-    ...project.keeps.map((keep) => `- ${boundedText(plan.structures.find((item) => item.id === keep.structureId)?.name ?? keep.structureId)}: ${boundedText(keep.description)}. Removable surface treatment: ${keep.allowedSurfaceTreatment ? 'allowed' : 'not specified'}.`),
+    ...project.keeps.map((keep) => `- ${boundedText(plan.structures.find((item) => item.id === keep.structureId)?.name ?? keep.structureId)}: ${boundedText(keep.description)}. Keep the underlying structure intact; compatible removable wall decoration is allowed. Never demolish or replace a preserved structure.`),
     'User-editable plan structures (follow these saved positions; do not add an automatic preservation lock):',
     ...editable.map((item) => `- ${boundedText(item.name)} [${item.kind}, ${item.role ?? 'unspecified origin'}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Light tone: ${boundedText(item.lightTone)}.` : ''}`),
     'Registered plan areas and circulation:',
-    ...plan.areas.map((area) => `- ${boundedText(area.name)} [${area.kind}] rectangle (${percent(area.bounds.x)}, ${percent(area.bounds.y)}), width ${percent(area.bounds.width)}, height ${percent(area.bounds.height)}.`),
+    ...plan.areas.map((area) => area.outline ? `- ${boundedText(area.name)} [${area.kind}] manually traced polygon: ${area.outline.map(p => `(${percent(p.x)}, ${percent(p.y)})`).join(' → ')}.` : `- ${boundedText(area.name)} [${area.kind}] rectangle (${percent(area.bounds.x)}, ${percent(area.bounds.y)}), width ${percent(area.bounds.width)}, height ${percent(area.bounds.height)}.`),
     'Applied design elements and their compatible targets:',
     ...applied.map((element) => `- ${elementText(project, element, images)}`),
     'Excluded design elements and appearance:',
