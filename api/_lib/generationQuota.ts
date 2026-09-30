@@ -35,7 +35,10 @@ export function validateQuota(value: unknown): QuotaState {
   if (state.version !== 2 || !validDay(state.day) || !Number.isInteger(state.totalLimit) || state.totalLimit < 1 || state.totalLimit > TOTAL_LIMIT || !Number.isInteger(state.dailyLimit) || state.dailyLimit < 1 || state.dailyLimit > DAILY_LIMIT || !Array.isArray(state.legacyIds) || state.legacyIds.length > TOTAL_LIMIT || state.legacyIds.some(id=>!validRequestId(id)) || new Set(state.legacyIds).size !== state.legacyIds.length || !Array.isArray(state.reservations) || state.reservations.length > state.totalLimit || state.reservations.some(r=>!r || !validRequestId(r.id) || !validUser(r.userId) || !Number.isSafeInteger(r.at) || r.at < 0 || dayInKorea(r.at)!==state.day) || new Set(state.reservations.map(r=>r.id)).size !== state.reservations.length || state.active !== null && (!state.active || !validRequestId(state.active.id) || !Number.isSafeInteger(state.active.until) || !state.reservations.some(r=>r.id===state.active?.id))) throw new Error('Invalid quota');
   return state;
 }
-export function quotaConfigured(): boolean { return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID && process.env.VERCEL_OIDC_TOKEN); }
+// Vercel Functions receive their short-lived Blob OIDC credential through the
+// request context, not necessarily as a process environment variable. The
+// actual status/read and reserve calls still fail closed if authentication fails.
+export function quotaConfigured(): boolean { return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID); }
 const blobStore: QuotaStore = {
   async read() {
     const value = await get(QUOTA_PATH, {access:'private',useCache:false,abortSignal:AbortSignal.timeout(8_000)});

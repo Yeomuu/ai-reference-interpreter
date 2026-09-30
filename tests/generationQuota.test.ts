@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GenerationQuota, validateQuota, dayInKorea, type QuotaState, type QuotaStore } from '../api/_lib/generationQuota';
+import { GenerationQuota, quotaConfigured, validateQuota, dayInKorea, type QuotaState, type QuotaStore } from '../api/_lib/generationQuota';
 const uuid = (n: number) => `aaaaaaaa-aaaa-4aaa-8aaa-${String(n).padStart(12, '0')}`;
 const userA = 'a'.repeat(64), userB = 'b'.repeat(64), userC = 'c'.repeat(64);
 const now = Date.UTC(2026, 8, 28, 1);
@@ -14,6 +14,26 @@ function memoryStore(totalLimit = 60, dailyLimit = 20, initial?: QuotaState) {
   return { store, state: () => state };
 }
 describe('durable daily browser and service quotas', () => {
+  it('recognizes a connected OIDC Blob store without a static token environment variable', () => {
+    const prior = {
+      store: process.env.BLOB_STORE_ID,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      oidc: process.env.VERCEL_OIDC_TOKEN,
+    };
+    try {
+      delete process.env.BLOB_READ_WRITE_TOKEN;
+      delete process.env.VERCEL_OIDC_TOKEN;
+      process.env.BLOB_STORE_ID = 'connected-store';
+      expect(quotaConfigured()).toBe(true);
+      delete process.env.BLOB_STORE_ID;
+      expect(quotaConfigured()).toBe(false);
+    } finally {
+      for (const [name, value] of Object.entries({ BLOB_STORE_ID: prior.store, BLOB_READ_WRITE_TOKEN: prior.token, VERCEL_OIDC_TOKEN: prior.oidc })) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
   it('lets one racing instance reserve and rejects the same ID after release', async () => {
     const { store, state } = memoryStore();
     const one = new GenerationQuota(store), two = new GenerationQuota(store);
