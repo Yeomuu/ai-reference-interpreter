@@ -20,7 +20,11 @@ export default async function handler(request: IncomingMessage, response: Server
   let quota: GenerationStatus['quota'];
   if (available) {
     try { quota = await generationQuota.status(generationIdentity(request, response)!); }
-    catch { available = false; }
+    catch (error) {
+      available = false;
+      // Log only the error class. Blob error messages can contain credentials.
+      console.error('generation quota status failed', error instanceof Error ? error.name : 'unknown error');
+    }
   }
   const status: GenerationStatus = {
     available,
