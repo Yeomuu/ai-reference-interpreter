@@ -615,6 +615,11 @@
   border-style: dashed;
   background: var(--surface-selected);
 }
+.plan-wall-face-marker { pointer-events: none; }
+.plan-wall-face-marker circle { fill: var(--surface-base); stroke: var(--canvas-structure); stroke-width: 1.5; }
+.plan-wall-face-marker text { fill: var(--canvas-structure); font-family: var(--font-ui); font-size: 14px; font-weight: 700; }
+.plan-wall-face-marker.is-active circle { stroke: var(--action-selected); stroke-width: 2; }
+.plan-wall-face-marker.is-active text { fill: var(--action-selected); }
 .plan-canvas__legend i.plan-canvas__legend-partition,
 .plan-canvas__legend i.plan-canvas__legend-area {
   width: 19px;

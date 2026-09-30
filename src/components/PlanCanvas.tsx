@@ -14,6 +14,7 @@ import type { AreaLayers } from './PlanAreaControls';
 import PlanMovementOverlay from './PlanMovementOverlay';
 import { physicalFloorBounds } from '../domain/validation';
 import { validateMovementPreview, type MovementPreview } from '../domain/movementFeedback';
+import { wallFaceLabel, wallFaceLine } from '../domain/wallFaces';
 import './plan-canvas.css';
 
 export interface PlanCanvasProps {
@@ -828,17 +829,23 @@ export default function PlanCanvas({
       const start = pointOnSegment(wall.geometry.start, wall.geometry.end, startFraction);
       const end = pointOnSegment(wall.geometry.start, wall.geometry.end, endFraction);
       const middle = pointOnSegment(start, end, 0.5);
+      const partition = wall.role === 'partition';
+      const faceLine = partition && target.face ? wallFaceLine(wall, startFraction, endFraction, target.face, width, height) : null;
       const wallEditable = mode === 'place' && Boolean(onWallElementMove);
-      return <g className={`${classes}${wallEditable ? ' plan-element--wall-editable' : ''}`} key={element.id} aria-label={`${element.label}, ${wall.name}`}>
-        <title>{`${element.label} · ${wall.name}`}</title>
+      return <g className={`${classes}${wallEditable ? ' plan-element--wall-editable' : ''}`} key={element.id} aria-label={`${element.label}, ${wall.name}${partition ? `, ${target.face ? wallFaceLabel(project, wall.id, target.face) : '붙일 면 미지정'}` : ''}`}>
+        <title>{`${element.label} · ${wall.name}${partition ? ` · ${target.face ? wallFaceLabel(project, wall.id, target.face) : '붙일 면 미지정'}` : ''}`}</title>
         <g className="plan-element__wall-drag" role={wallEditable ? 'button' : undefined} tabIndex={wallEditable ? 0 : undefined}
-          aria-label={`${element.label}, ${wall.name}${wallEditable ? ', 벽을 따라 끌어서 이동, 방향키로 1% 이동' : ''}`}
+          aria-label={`${element.label}, ${wall.name}${partition ? `, ${target.face ? wallFaceLabel(project, wall.id, target.face) : '붙일 면 미지정'}` : ''}${wallEditable ? ', 벽을 따라 끌어서 이동, 방향키로 1% 이동' : ''}`}
           aria-pressed={wallEditable ? selected : undefined}
           onPointerDown={wallEditable ? (event) => startWallElementDrag(event, element, wall) : undefined}
           onKeyDown={wallEditable ? (event) => handleWallElementKeyDown(event, element, wall) : undefined}
           onClick={wallEditable ? (event) => event.stopPropagation() : undefined}>
-          <line className="plan-element__wall" x1={start.x * width} y1={start.y * height} x2={end.x * width} y2={end.y * height} />
+          <line className="plan-element__wall" x1={faceLine?.start.x ?? start.x * width} y1={faceLine?.start.y ?? start.y * height} x2={faceLine?.end.x ?? end.x * width} y2={faceLine?.end.y ?? end.y * height} />
         </g>
+        {partition && selected && (['a', 'b'] as const).map(face => {
+          const marker = wallFaceLine(wall, .08, .08, face, width, height, 32)?.start;
+          return marker && <g className={`plan-wall-face-marker ${target.face === face ? 'is-active' : ''}`} key={face} aria-hidden="true"><circle cx={marker.x} cy={marker.y} r={14} /><text x={marker.x} y={marker.y + 5} textAnchor="middle">{face.toUpperCase()}</text></g>;
+        })}
         {selected && wallEditable && <text className="plan-element__wall-hint" x={middle.x * width} y={middle.y * height + (middle.y > 0.75 ? -35 : 52)} textAnchor="middle" aria-hidden="true">벽 따라 이동</text>}
       </g>;
     }

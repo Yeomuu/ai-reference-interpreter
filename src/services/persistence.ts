@@ -114,7 +114,8 @@ function isPlacementTarget(value: unknown): boolean {
       return typeof value.areaId === 'string';
     case 'wall-segment':
       return typeof value.wallId === 'string' && isFraction(value.start) && isFraction(value.end) &&
-        value.start < value.end && (value.height === undefined || typeof value.height === 'string');
+        value.start < value.end && (value.height === undefined || typeof value.height === 'string') &&
+        (value.face === undefined || value.face === 'a' || value.face === 'b');
     case 'ceiling-zone':
       return typeof value.zoneId === 'string' && (value.offset === undefined || isPoint(value.offset)) &&
         (value.height === undefined || typeof value.height === 'string');

@@ -252,7 +252,9 @@ function validateElementOccupancy(project: Project, element: DesignElement, targ
     if (floor && otherFloor && validRect(floor) && validRect(otherFloor)) overlap = intersects(floor, otherFloor);
     if (target.kind === 'wall-segment' && other.target.kind === 'wall-segment' && target.wallId === other.target.wallId) {
       const sameLayer = wallPhysical && ['photozone', 'wall-graphic', 'wall-mounted-product', 'wall-light', 'other-wall'].includes(other.kind) || element.kind === 'wall-material' && other.kind === 'wall-material';
-      if (sameLayer) overlap = spanOverlap(target, other.target);
+      const wall = structureById(project, target.wallId);
+      const differentFaces = wall?.role === 'partition' && target.face && other.target.face && target.face !== other.target.face;
+      if (sameLayer && !differentFaces) overlap = spanOverlap(target, other.target);
     }
     const otherCeiling = ceilingBounds(project, other.target);
     if (ceiling && otherCeiling) overlap = intersects(ceiling, otherCeiling);
@@ -710,6 +712,12 @@ export function validatePreflight(project: Project, previewCameraId?: string): V
   }
   for (const element of project.elements) {
     if (element.status !== 'apply') continue;
+    if (element.target?.kind === 'wall-segment') {
+      const wall = structureById(project, element.target.wallId);
+      if (wall?.role === 'partition' && !element.target.face) {
+        issues.push(error('missing-wall-face', `${element.label}이(가) ${wall.name}의 어느 면에 붙는지 선택해 주세요.`, element.id, wall.id));
+      }
+    }
     const reference = project.references.find((item) => item.id === element.sourceReferenceId);
     if (!reference || !project.sourceImages.some((image) => image.id === reference.imageId && image.role !== 'existing-space')) {
       issues.push(error('missing-reference', `${element.label}의 분위기·제품 레퍼런스를 확인해 주세요.`, element.id));

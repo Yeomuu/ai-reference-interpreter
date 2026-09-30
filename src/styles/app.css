@@ -169,6 +169,10 @@ p { line-height: 1.65; }
 .list-row.is-selected, .list-row:hover { background: var(--surface-selected); }
 .inspector-block { display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-16); border-bottom: 1px solid var(--border-default); }
 .inspector-block > .button { align-self: flex-start; }
+.wall-face-choice { display: grid; gap: var(--space-8); padding: var(--space-12); border: 1px solid var(--border-default); border-radius: var(--radius-8); min-width: 0; }
+.wall-face-choice legend { padding: 0 var(--space-8); font-weight: 600; }
+.wall-face-choice__option { display: flex; align-items: center; gap: var(--space-8); min-height: var(--control-height-40); cursor: pointer; }
+.wall-face-choice__option input { flex: none; }
 .inspector-block h3 { font-size: 16px; line-height: 26px; }
 
 .reference-layout { display: grid; grid-template-columns: 324px minmax(0, 1fr) 346px; gap: var(--space-16); align-items: stretch; min-height: 570px; }

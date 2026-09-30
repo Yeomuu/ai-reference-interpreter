@@ -123,7 +123,7 @@ export type PlacementTarget =
   | { kind: 'fixture-surface'; fixtureElementId: string; offset: Point }
   | { kind: 'floor-point'; x: number; y: number; rotationDegrees?: number; footprint?: { width: number; height: number } }
   | { kind: 'floor-area'; areaId: string }
-  | { kind: 'wall-segment'; wallId: string; start: number; end: number; height?: string }
+  | { kind: 'wall-segment'; wallId: string; start: number; end: number; height?: string; face?: 'a' | 'b' }
   | { kind: 'ceiling-zone'; zoneId: string; offset?: Point; height?: string }
   | { kind: 'whole-space' }
   | { kind: 'named-area'; areaId: string };
@@ -213,6 +213,7 @@ export interface ValidationIssue {
     | 'missing-applied-element'
     | 'excluded-element'
     | 'missing-target'
+    | 'missing-wall-face'
     | 'invalid-target-kind'
     | 'invalid-coordinate'
     | 'missing-structure'

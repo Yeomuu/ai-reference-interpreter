@@ -2,6 +2,7 @@ import type { DesignElement, Point, Project, Rect, StructureGeometry } from '../
 import { displayPosition } from '../domain/display.js';
 import { arrangePlanLabels } from '../components/plan-labels.js';
 import { planSymbol } from '../domain/planSymbols.js';
+import { wallFaceLine } from '../domain/wallFaces.js';
 
 export interface PlanGuideManifest {
   version: 1;
@@ -94,7 +95,12 @@ export function buildPlanGuideSvg(project: Project, cameraId: string, palette: P
       const wall = plan.structures.find(structure => structure.id === target.wallId);
       if (wall?.geometry.kind !== 'segment') return '';
       const { start, end } = wall.geometry;
-      return `<line data-element-id="${escape(item.id)}" x1="${(start.x + (end.x - start.x) * target.start) * width}" y1="${(start.y + (end.y - start.y) * target.start) * height}" x2="${(start.x + (end.x - start.x) * target.end) * width}" y2="${(start.y + (end.y - start.y) * target.end) * height}" stroke="${color.selected}" stroke-width="5"/>`;
+      const faceLine = wall.role === 'partition' && target.face ? wallFaceLine(wall, target.start, target.end, target.face, width, height) : null;
+      const x1 = faceLine?.start.x ?? (start.x + (end.x - start.x) * target.start) * width;
+      const y1 = faceLine?.start.y ?? (start.y + (end.y - start.y) * target.start) * height;
+      const x2 = faceLine?.end.x ?? (start.x + (end.x - start.x) * target.end) * width;
+      const y2 = faceLine?.end.y ?? (start.y + (end.y - start.y) * target.end) * height;
+      return `<line data-element-id="${escape(item.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color.selected}" stroke-width="5"/>${faceLine ? `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 8}" text-anchor="middle" fill="${color.selected}" font-size="12">${target.face!.toUpperCase()}면</text>` : ''}`;
     }
     return `<circle data-element-id="${escape(item.id)}" cx="${point.x * width}" cy="${point.y * height}" r="8" fill="${color.paper}" stroke="${color.structure}" stroke-width="2"/>`;
   }).join('');

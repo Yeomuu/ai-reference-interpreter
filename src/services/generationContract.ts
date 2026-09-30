@@ -1,5 +1,6 @@
 import type { DesignElement, PlacementTarget, Point, Project, Rect, Structure, StructureGeometry } from '../domain/types.js';
 import { elementPlanPosition, type PlanGuideManifest } from './planGuide.js';
+import { wallFaceLabel, wallFaceOfPoint } from '../domain/wallFaces.js';
 
 /** One low-quality draft, with no automatic variants or hidden model calls. */
 export const GENERATION_MODEL = 'gpt-image-1-mini' as const;
@@ -132,8 +133,10 @@ function targetText(project: Project, target: PlacementTarget | null): string {
       return `floor point (${percent(target.x)}, ${percent(target.y)}), rotation ${Math.round(target.rotationDegrees ?? 0)} degrees, footprint ${percent(target.footprint?.width ?? 0.06)} by ${percent(target.footprint?.height ?? 0.06)}`;
     case 'floor-area':
       return `floor area ${boundedText(project.floorPlan?.areas.find((area) => area.id === target.areaId)?.name ?? target.areaId)}`;
-    case 'wall-segment':
-      return `wall ${boundedText(project.floorPlan?.structures.find((item) => item.id === target.wallId)?.name ?? target.wallId)}, span ${percent(target.start)} to ${percent(target.end)} along wall`;
+    case 'wall-segment': {
+      const wall = project.floorPlan?.structures.find(item => item.id === target.wallId);
+      return `wall ${boundedText(wall?.name ?? target.wallId)}, span ${percent(target.start)} to ${percent(target.end)} along wall${wall?.role === 'partition' && target.face ? `, ONLY on ${wallFaceLabel(project, wall.id, target.face)} of this partition (A/B are defined by the saved wall start-to-end direction in the plan guide)` : ''}`;
+    }
     case 'ceiling-zone':
       return `ceiling zone ${boundedText(project.floorPlan?.areas.find((area) => area.id === target.zoneId)?.name ?? target.zoneId)}`;
     case 'whole-space':
@@ -178,7 +181,15 @@ function installationContext(project: Project, element: DesignElement): string {
     return `Its footprint occupies approximately ${percent(target.footprint.width / floor.bounds.width)} of the registered floor width and ${percent(target.footprint.height / floor.bounds.height)} of its depth, not a room-filling counter. Keep the surrounding aisle gaps shown in the plan. `;
   }
   if (target.kind !== 'wall-segment') return '';
-  return wallPlaneContext(project, target.wallId);
+  const wall = plan.structures.find(item => item.id === target.wallId);
+  const faceContext = wall?.role === 'partition' && target.face ? (() => {
+    const cameraFace = wallFaceOfPoint(project, wall, camera);
+    return cameraFace === target.face
+      ? 'The selected camera is on the decorated face of this partition. Show the object only if this wall span is actually in view; never duplicate it on the opposite face. '
+      : cameraFace ? 'The selected camera is on the OPPOSITE face of this partition. The mounted object must NOT be visible from this camera; do not copy or relocate it to the camera-facing side or another wall. '
+        : 'The selected camera lies on the partition line; keep the object on its saved face and do not duplicate it. ';
+  })() : '';
+  return faceContext + wallPlaneContext(project, target.wallId);
 }
 
 function wallPlaneContext(project: Project, wallId: string, openingId?: string): string {
