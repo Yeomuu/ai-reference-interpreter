@@ -41,13 +41,17 @@ export function validateQuota(value: unknown): QuotaState {
 export function quotaConfigured(): boolean { return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID); }
 const blobStore: QuotaStore = {
   async read() {
+    // Blob's content GET may expose a representation ETag different from the
+    // store metadata ETag accepted by conditional writes. Read the metadata
+    // first: a concurrent write after this point will fail the later ifMatch.
+    const metadata = await head(QUOTA_PATH);
     const value = await get(QUOTA_PATH, {access:'private',useCache:false,abortSignal:AbortSignal.timeout(8_000)});
     if (!value) throw new Error('Quota unavailable: record missing');
     if (value.statusCode !== 200 || !value.stream) throw new Error('Quota unavailable: body missing');
     if (value.blob.size > 65_000) throw new Error('Quota unavailable: invalid size');
     const body = await new Response(value.stream).text();
     if (!body || body.length > 65_000) throw new Error('Quota unavailable: invalid content length');
-    return {state:validateQuota(JSON.parse(body)),etag:value.blob.etag};
+    return {state:validateQuota(JSON.parse(body)),etag:metadata.etag};
   },
   async compareAndSwap(state, etag) {
     try { await put(QUOTA_PATH,JSON.stringify(state),{access:'private',addRandomSuffix:false,allowOverwrite:true,ifMatch:etag,contentType:'application/json',abortSignal:AbortSignal.timeout(8_000)}); return true; }
