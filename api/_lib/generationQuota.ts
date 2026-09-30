@@ -44,8 +44,10 @@ const blobStore: QuotaStore = {
     const value = await get(QUOTA_PATH, {access:'private',useCache:false,abortSignal:AbortSignal.timeout(8_000)});
     if (!value) throw new Error('Quota unavailable: record missing');
     if (value.statusCode !== 200 || !value.stream) throw new Error('Quota unavailable: body missing');
-    if (!value.blob.size || value.blob.size > 65_000) throw new Error('Quota unavailable: invalid size');
-    return {state:validateQuota(await new Response(value.stream).json()),etag:value.blob.etag};
+    if (value.blob.size > 65_000) throw new Error('Quota unavailable: invalid size');
+    const body = await new Response(value.stream).text();
+    if (!body || body.length > 65_000) throw new Error('Quota unavailable: invalid content length');
+    return {state:validateQuota(JSON.parse(body)),etag:value.blob.etag};
   },
   async compareAndSwap(state, etag) {
     try { await put(QUOTA_PATH,JSON.stringify(state),{access:'private',addRandomSuffix:false,allowOverwrite:true,ifMatch:etag,contentType:'application/json',abortSignal:AbortSignal.timeout(8_000)}); return true; }

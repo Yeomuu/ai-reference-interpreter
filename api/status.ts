@@ -34,11 +34,11 @@ export default async function handler(request: IncomingMessage, response: Server
         : /timeout|fetch failed|network/i.test(message) ? 'blob-network'
         : 'other';
       console.error('generation quota status failed', category);
-      if (category === 'missing-ledger') {
+      if (category === 'missing-ledger' || category === 'ledger-size-invalid') {
         try {
           const inventory = await list({ prefix: 'generation-quota/', limit: 20 });
           console.error('generation quota inventory', inventory.blobs.length,
-            inventory.blobs.filter(blob => !blob.pathname.startsWith('generation-quota/requests/')).map(blob => blob.pathname));
+            inventory.blobs.filter(blob => !blob.pathname.startsWith('generation-quota/requests/')).map(blob => ({ path: blob.pathname, size: blob.size })));
         } catch { console.error('generation quota inventory unavailable'); }
       }
     }
