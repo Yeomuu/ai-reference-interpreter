@@ -99,7 +99,7 @@ async function localImageBlob(uri: string): Promise<Blob> {
     if (!blob) throw new Error('등록된 이미지 파일을 찾지 못했습니다. 다시 등록해 주세요.');
     return blob;
   }
-  if (!/^\/sample\/[a-z0-9_-]+\.(?:png|jpe?g|webp)$/i.test(uri)) {
+  if (!/^\/sample\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.(?:png|jpe?g|webp)$/i.test(uri)) {
     throw new Error('이 이미지의 저장 경로를 확인할 수 없습니다. 다시 등록해 주세요.');
   }
   const response = await fetch(uri, { credentials: 'omit' });

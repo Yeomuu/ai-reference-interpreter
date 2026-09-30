@@ -1,4 +1,12 @@
-# Product brief — AI Reference Interpreter
+# Product brief — Scene Edit · 전시·팝업 공간 디자인
+
+## 논문 사용자 평가 화면 흐름 · 2026-09-30
+
+화면에 노출하는 여정은 **공간 확인 → 참고 요소 선택 → 공간 배치 및 시점 지정 → AI 시안 확인 및 수정** 네 단계다. 기존의 Keep, 요소, 위치, 카메라, 생성 전 확인, 결과는 이 여정 안의 편집 기능으로 유지한다. 기존 프로젝트 URL과 저장 데이터는 보존해 뒤로 가기와 이전 프로젝트 재개가 가능해야 한다. 사용자의 연구 과업은 실제 공간 사진과 다중 시각 레퍼런스를 연결해 공간 결과를 예측하고, 작업 만족도·인지된 작업 효율성·통제감을 평가하는 것이다.
+
+첫 프로젝트는 한국공학대학교 프로젝트룸을 졸업전시 공간으로 꾸미는 사례다. 학교의 실제 공간 사진은 출처를 밝히고, 도면은 실측하지 않은 수동 개략도라고 명시한다. 코스메틱 브랜드 팝업스토어 AURA는 접힌 보조 예시로 둔다. 학교 사례의 결과가 아직 생성되지 않았다면 AURA의 사전 제공 이미지를 그 결과처럼 보여주지 않는다. 사용자는 참고 이미지 2~3장에서 가져올 요소를 명시적으로 선택하고, 같은 화면 흐름에서 적용 위치와 시점을 확인하며, 결과에서 해당 요소만 수정해 다시 생성할 수 있어야 한다.
+
+기존 아래의 상세 화면 목록과 생성·보존·안전 계약은 이 네 단계의 내부 기능 명세로 읽는다. 이 변경은 지도, CAD, 쇼핑, 계정, 자동 추천이나 모바일 기능을 추가하지 않는다.
 
 ## What it is
 A desktop-first spatial concept design web app for visualizing renovation/retail/pop-up/exhibition/showroom scenarios. Users specify what must remain in an existing space, select whole-image ambience or concrete elements from multiple references, anchor each element at a compatible location on a floor plan, choose a camera viewpoint and request AI concept imagery. A generated result is compared with the saved constraints; users revise only the needed constraints.

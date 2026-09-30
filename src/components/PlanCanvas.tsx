@@ -1,3 +1,4 @@
+import PlanSymbol, { PlanSymbolLegend } from './PlanSymbol'
 import { displayPosition } from '../domain/display';
 import { arrangePlanLabels } from './plan-labels';
 import { elementPlanPosition } from '../services/planGuide';
@@ -264,7 +265,7 @@ export default function PlanCanvas({
       ? '카메라 본체를 끌면 위치가 이동합니다. 본체와 떨어진 회전 손잡이를 끌면 시선 각도만 바뀝니다. 빈 바닥을 눌러도 카메라는 이동하지 않습니다.'
       : mode === 'keep'
         ? `구조를 선택하고 필수 보존을 켜거나 끄세요. ${movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌면 위치가 바뀝니다.' : '현재 이동 가능한 구조가 없습니다. 필수 보존을 끄면 도면 위치를 수정할 수 있습니다.'}`
-        : movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌어 위치를 바꾸세요. 빈 공간을 끌면 도면은 이동하지 않습니다.' : '현재 이동 가능한 구조가 없습니다. Keep에서 필수 보존을 끄거나 ‘추가 가벽’을 그려 주세요.';
+        : movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌어 위치를 바꾸세요. 빈 공간을 끌면 도면은 이동하지 않습니다.' : '현재 이동 가능한 구조가 없습니다. 유지할 구조에서 위치 고정을 끄거나 ‘추가 가벽’을 그려 주세요.';
   const showElements = mode === 'place' || mode === 'camera';
   const showCameras = mode === 'camera';
   const showStructureLayer = Boolean(drawTool) || layers.structures;
@@ -680,8 +681,7 @@ export default function PlanCanvas({
       const x2 = geometry.end.x * width;
       const y2 = geometry.end.y * height;
       shape = <>
-        {isOpening && <line className="plan-structure__opening-gap" x1={x1} y1={y1} x2={x2} y2={y2} />}
-        <line className="plan-structure__shape" x1={x1} y1={y1} x2={x2} y2={y2} />
+        {isOpening ? <PlanSymbol structure={{ ...structure, geometry }} width={width} height={height} /> : <line className="plan-structure__shape" x1={x1} y1={y1} x2={x2} y2={y2} />}
         <line className="plan-structure__hit" x1={x1} y1={y1} x2={x2} y2={y2} style={movable || drawHost ? { strokeWidth: 40 / contentPixelScale } : undefined} />
       </>;
     } else if (geometry.kind === 'rect') {
@@ -713,7 +713,7 @@ export default function PlanCanvas({
     >
       <title>{`${structure.name}${kept ? ' · Keep' : ''}`}</title>
       {shape}
-      {structure.kind === 'existing-light' && <text className="plan-structure__light-label" x={center.x * width} y={center.y * height + 5} textAnchor="middle" aria-hidden="true">등</text>}
+      {structure.kind === 'existing-light' && <path className="plan-symbol__line" d={`M ${center.x * width - 6} ${center.y * height - 6} l 12 12 M ${center.x * width - 6} ${center.y * height + 6} l 12 -12`} aria-hidden="true" />}
     </g>}
       {labelsOnly && !drawHost && packed && <>
         <g className={movable ? 'plan-structure__move-label' : `plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${labelX} ${labelY}) scale(${1 / contentPixelScale})`}
@@ -936,7 +936,7 @@ export default function PlanCanvas({
         <button type="button" onClick={() => setZoom(1)}>보기 초기화</button>
       </div>
       <div className="plan-canvas__layer-controls" aria-label="표시 레이어">
-        <span>레이어</span>
+        <PlanSymbolLegend />
         <button type="button" aria-pressed={showStructureLayer} disabled={Boolean(drawTool)} onClick={() => setLayers((current) => ({ ...current, structures: !current.structures }))}>구조 {showStructureLayer ? '표시' : '숨김'}</button>
         {showElements && <button type="button" aria-pressed={layers.elements} onClick={() => setLayers((current) => ({ ...current, elements: !current.elements }))}>요소 {layers.elements ? '표시' : '숨김'}</button>}
         {showCameras && <button type="button" aria-pressed={layers.cameras} onClick={() => setLayers((current) => ({ ...current, cameras: !current.cameras }))}>카메라 {layers.cameras ? '표시' : '숨김'}</button>}
@@ -979,7 +979,7 @@ export default function PlanCanvas({
             </g>;
           })}
           {showStructureLayer && <g className="plan-canvas__layer plan-canvas__layer--structures" aria-label="기존 구조 레이어">
-            {plan.structures.map(structure => renderStructure(structure))}
+            {[...plan.structures].sort((a, b) => Number(a.kind === 'door') - Number(b.kind === 'door')).map(structure => renderStructure(structure))}
           </g>}
           {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.filter(item => item.kind !== 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}{activeElements.filter(item => item.kind === 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}</g>}
           {showCameras && layers.cameras && <g className="plan-canvas__layer plan-canvas__layer--cameras" aria-label="카메라 레이어">{project.cameras.map(renderCamera)}</g>}
@@ -1013,7 +1013,7 @@ export default function PlanCanvas({
     {drawTool === 'polygon' && <div className="plan-outline-actions"><span aria-live="polite">윤곽 {outlineDraft.length}점</span><button type="button" disabled={outlineDraft.length < 3} onClick={finishOutline}>윤곽 저장</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft(points => points.slice(0, -1))}>마지막 점 취소</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft([])}>윤곽 취소</button></div>}
     {!drawTool && (mode === 'place' || mode === 'camera') ? <details className="plan-canvas__help"><summary>도면 조작 안내</summary><p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p></details> : <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
-      <span><i className="plan-canvas__legend-keep" aria-hidden="true" />고정 구조 / Keep</span>
+      <span><i className="plan-canvas__legend-keep" aria-hidden="true" />위치 고정 구조</span>
       {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}
       {showElements && layers.elements && <span><i className="plan-canvas__legend-element" aria-hidden="true" />적용 요소</span>}
       {showCameras && layers.cameras && <span>카메라 본체: 위치 이동 · 바깥 링/회전: 시선 변경</span>}

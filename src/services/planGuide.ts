@@ -1,6 +1,7 @@
 import type { DesignElement, Point, Project, Rect, StructureGeometry } from '../domain/types.js';
 import { displayPosition } from '../domain/display.js';
 import { arrangePlanLabels } from '../components/plan-labels.js';
+import { planSymbol } from '../domain/planSymbols.js';
 
 export interface PlanGuideManifest {
   version: 1;
@@ -70,11 +71,13 @@ export function buildPlanGuideSvg(project: Project, cameraId: string, palette: P
   ];
   const labelText = (item: typeof anchors[number]) => short(item.name, Math.max(5, Math.min(22, Math.floor(width / 16) - 2)));
   const labels = arrangePlanLabels(anchors.map(item => ({ id: item.id, x: item.point.x * width, y: item.point.y * height + 26, width: Math.min(width - 8, labelText(item).length * 16 + 16), height: 26 })), width, height, obstacles);
-  const structureShapes = plan.structures.map(item => {
+  const structureShapes = [...plan.structures].sort((a, b) => Number(a.kind === 'door') - Number(b.kind === 'door')).map(item => {
     const geometry = item.geometry, opening = ['window', 'door', 'entrance'].includes(item.kind);
     const stroke = item.kind === 'wall' ? color.ink : opening ? color.info : color.structure;
     const attrs = `fill="${item.kind === 'pillar' ? color.subtle : 'none'}" stroke="${stroke}" stroke-width="${item.kind === 'wall' ? 5 : 2}"`;
     if (geometry.kind === 'segment') {
+      const symbol = planSymbol(item, width, height);
+      if (symbol) return `<g data-structure-id="${escape(item.id)}"><path d="${symbol.gap}" fill="none" stroke="${color.paper}" stroke-width="8"/>${symbol.paths.map(d => `<path d="${d}" fill="none" stroke="${color.ink}" stroke-width="2"/>`).join('')}</g>`;
       const line = `x1="${geometry.start.x * width}" y1="${geometry.start.y * height}" x2="${geometry.end.x * width}" y2="${geometry.end.y * height}"`;
       return `${opening ? `<line ${line} stroke="${color.paper}" stroke-width="8"/>` : ''}<line data-structure-id="${escape(item.id)}" ${line} ${attrs} ${item.kind === 'door' || item.kind === 'entrance' ? 'stroke-dasharray="6 4"' : ''}/>`;
     }

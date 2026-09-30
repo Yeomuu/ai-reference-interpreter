@@ -521,7 +521,7 @@ function validateWallSegment(project: Project, elementId: string, elementKind: E
     } else if (elementKind === 'wall-light' || elementKind === 'wall-mounted-product' || elementKind === 'other-wall') {
       issues.push({
         code: 'keep-conflict',
-        message: `${wall.name}은(는) Keep 대상입니다. 조명·제품의 고정 방식이 벽을 손상하지 않는지 직접 확인해 주세요.`,
+        message: `${wall.name}은(는) 유지할 벽입니다. 조명·제품의 고정 방식이 벽을 손상하지 않는지 직접 확인해 주세요.`,
         severity: 'warning',
         elementId,
         structureId: wall.id,
@@ -629,10 +629,10 @@ export function validateStructureOperation(
   if (operation === 'light-tone') return result(structure.kind === 'existing-light' ? [] : [error('keep-conflict', '기존 천장 조명에만 색감을 적용할 수 있습니다.', undefined, structureId)]);
   if (operation === 'surface-treatment' && structure.kind === 'wall') return result([]);
   if (structure.immutable) {
-    return result([error('keep-conflict', `${structure.name}의 필수 보존이 켜져 있어 위치가 고정됩니다. Keep에서 끈 뒤 수정해 주세요.`, undefined, structureId)]);
+    return result([error('keep-conflict', `${structure.name}의 위치 고정이 켜져 있습니다. 유지할 구조에서 끈 뒤 수정해 주세요.`, undefined, structureId)]);
   }
   if (!isPreserved(project, structure)) return result([]);
-  return result([error('keep-conflict', `${structure.name}은(는) Keep으로 보존됩니다. ${operation === 'surface-treatment' ? '표면 연출' : '제거·이동·교체'}을(를) 적용할 수 없습니다.`, undefined, structureId)]);
+  return result([error('keep-conflict', `${structure.name}은(는) 보존할 구조입니다. ${operation === 'surface-treatment' ? '표면 연출' : '제거·이동·교체'}을(를) 적용할 수 없습니다.`, undefined, structureId)]);
 }
 
 export function validateCamera(project: Project, cameraId: string): ValidationResult {
@@ -685,11 +685,11 @@ export function validatePreflight(project: Project, previewCameraId?: string): V
   }
   if (!project.floorPlan) issues.push(error('missing-plan', '도면을 등록하거나 개략 도면을 만드세요.'));
   if (project.planAlignmentPending) {
-    issues.push(error('plan-alignment-pending', '새 도면에 맞춰 구조·영역·Keep·배치 위치를 확인해 주세요.'));
+    issues.push(error('plan-alignment-pending', '새 도면에 맞춰 구조·영역·보존 상태·배치 위치를 확인해 주세요.'));
   }
   for (const keep of project.keeps) {
     if (!structureById(project, keep.structureId)) {
-      issues.push(error('missing-structure', 'Keep 대상 구조물이 도면에 없습니다. Keep 설정을 확인해 주세요.', undefined, keep.structureId));
+      issues.push(error('missing-structure', '보존할 구조가 도면에 없습니다. 유지할 구조 설정을 확인해 주세요.', undefined, keep.structureId));
     }
   }
   for (const structure of project.floorPlan?.structures ?? []) {

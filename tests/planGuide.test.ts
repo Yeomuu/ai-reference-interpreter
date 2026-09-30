@@ -6,6 +6,20 @@ import { buildGenerationPrompt, type GenerationImage } from '../src/services/gen
 const palette: PlanGuidePalette = { paper: 'white', ink: 'black', structure: 'gray', info: 'blue', selected: 'purple', subtle: 'white', border: 'gray' };
 
 describe('saved plan guide and scoped visual transfer', () => {
+  it('describes a graduation exhibition as a school-room exhibition, not a retail pop-up', () => {
+    const project = createSampleProject();
+    project.spaceType = '졸업전시';
+    project.name = '한국공학대학교 프로젝트룸';
+    const prompt = buildGenerationPrompt(project, 'camera-entrance', [{ role: 'existing-space', sourceId: 'photo-existing', dataUrl: '' }]);
+    expect(prompt).toContain('graduation exhibition installed in the existing school room');
+    expect(prompt).toContain('graduation exhibition display scale');
+    expect(prompt).not.toContain('installed pop-up retail/VMD space');
+    project.name = '기존 전시관';
+    const otherExhibition = buildGenerationPrompt(project, 'camera-entrance', [{ role: 'existing-space', sourceId: 'photo-existing', dataUrl: '' }]);
+    expect(otherExhibition).toContain('an exhibition installed in the existing space');
+    expect(otherExhibition).not.toContain('school room');
+  });
+
   it('keeps a portrait polygon, actual fixtures and only the chosen camera in the guide', () => {
     const project = createSampleProject(), plan = project.floorPlan!;
     project.cameras.push({ ...project.cameras[0], id: 'camera-side', name: '옆 시점', primary: false });

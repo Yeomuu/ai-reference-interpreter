@@ -49,6 +49,8 @@ function isStructure(value: unknown): boolean {
       (value.preservationSettings.allowedSurfaceTreatment === undefined || typeof value.preservationSettings.allowedSurfaceTreatment === 'boolean'))) &&
     (value.parentWallId === undefined || typeof value.parentWallId === 'string') &&
     (value.lightTone === undefined || typeof value.lightTone === 'string') &&
+    (value.doorSwing === undefined || (value.kind === 'door' && isRecord(value.doorSwing) &&
+      ['start', 'end'].includes(String(value.doorSwing.hinge)) && (value.doorSwing.side === 1 || value.doorSwing.side === -1))) &&
     (value.photoAnchor === undefined || isPoint(value.photoAnchor)) &&
     (value.clearance === undefined || isRect(value.clearance)) &&
     (value.wallSpan === undefined || (isRecord(value.wallSpan) &&

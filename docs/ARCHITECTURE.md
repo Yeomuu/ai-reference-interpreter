@@ -1,4 +1,8 @@
-# Suggested Codex implementation architecture
+# Scene Edit implementation architecture
+
+## 화면 그룹과 URL 호환성 · 2026-09-30
+
+내부 데이터 모델과 `/projects/:id/{space,keep,references,placement,camera,review,results}` URL은 보존한다. 화면 내비게이션은 이들을 네 사용자 단계로 그룹화한다. 기본 프로젝트 진입은 실제 학교 졸업전시 사례를 앞세우며 AURA 팝업은 별도로 선택할 수 있다. 새 학교 사례의 사진은 실제 출처와 함께 표시하고 개략 도면을 실측·자동 추출 결과로 표현하지 않는다. 기존 브라우저 저장소와 과거 결과는 마이그레이션 과정에서 삭제하지 않는다.
 
 This is a starting architecture, not a requirement to change an existing repository. If empty, use React + TypeScript + Vite, CSS variables/design token stylesheet, and a small accessible component layer; avoid adding large design-system dependencies or a paid backend. Choose and explain canvas approach (SVG with typed hit areas is sufficient for schematic MVP). Keep image, preservation-controlled structure, movable element and camera overlays in one normalized coordinate system, while rendering only the layers relevant to each task. Optionally use a lightweight drag library only if necessary and tested with zoom, resize and typed validation; a generic pan tool is unnecessary for this 2D workflow.
 

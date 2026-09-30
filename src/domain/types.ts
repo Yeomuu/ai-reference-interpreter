@@ -34,6 +34,8 @@ export interface Structure {
   wallSpan?: { start: number; end: number };
   /** Explicit no-obstruction area for doors and entrances. */
   clearance?: Rect;
+  /** User-confirmed plan symbol. Unspecified doors never imply an inferred swing. */
+  doorSwing?: { hinge: 'start' | 'end'; side: 1 | -1 };
   connectedPhotoRegionId?: string;
   /** Approximate visual location on an existing-space photograph; never plan geometry. */
   photoAnchor?: Point;

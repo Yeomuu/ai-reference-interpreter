@@ -1,5 +1,9 @@
 # Domain model, valid targets and interaction contracts
 
+## 네 단계 여정과 기존 편집 상태 · 2026-09-30
+
+기존 `space`/`keep`은 공간 확인, `references`는 참고 요소 선택, `placement`/`camera`는 공간 배치 및 시점 지정, `review`/`results`는 AI 시안 확인 및 수정에 매핑한다. 1단계의 기본 다음 행동은 참고 요소 선택으로 이어지며 Keep 편집은 같은 단계 안에서 선택 가능하다. 참고 요소는 이미지를 통째로 복사하는 대신 실제로 적용할 조명·그래픽·전시대 등의 항목별 사용 여부를 직접 정한다. 항목을 선택해 도면 배치로 넘어갈 수 있지만 다른 레퍼런스가 자동 선택되어서는 안 된다. 3단계는 배치와 카메라를 오가며 상태를 보존하고 별도의 중간 승인 화면 없이 4단계로 진행한다. 결과에서 특정 항목·위치·시점을 수정해도 이전 생성 결과와 조건 스냅샷을 보존한다. 기존 유효성 검사, 출처 구분, 비용과 사용량 보호는 그대로 적용한다.
+
 ## Document entities
 `Project { id, name, spaceType, concept, sourceImages[], floorPlan, keeps[], references[], elements[], cameras[], results[], commonRevision }`.
 `SourceImage { id, role:'existing-space'|'inspiration'|'product', uri, name, referenceId?, crop?, note? }`.

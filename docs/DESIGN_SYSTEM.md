@@ -1,4 +1,8 @@
-# Design system — AI Reference Interpreter / v1.2
+# Design system — Scene Edit / v1.2
+
+## 논문 사용자 평가용 단계 표기 · 2026-09-30
+
+상단 진행 표시는 네 그룹만 사용한다: `공간 확인`, `참고 요소 선택`, `공간 배치 및 시점 지정`, `AI 시안 확인 및 수정`. Keep·도면 편집은 공간 확인의 내부 조작이고, 배치·카메라는 같은 세 번째 단계의 내부 조작이다. 생성 전 확인과 결과·수정은 네 번째 단계에 함께 속한다. 내부 조작으로 이동할 수 있는 한국어 하위 메뉴와 기존 URL은 유지한다. 현재 단계, 선택된 하위 작업과 다음 행동은 색에만 의존하지 않고 텍스트로 구분한다. 공간 사진·도면·레퍼런스·결과 이미지를 가장 큰 시각적 표면으로 유지한다.
 
 > Updated 2026-09-28 from the current product/interaction contracts and four reference studies:
 > Apple, Toss, Ohouse (오늘의집), and The Pinkfong Company.

@@ -284,8 +284,12 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const applied = project.elements.filter((item) => item.status === 'apply');
   const excluded = project.elements.filter((item) => item.status === 'exclude');
   const rectangularRoom = hasRectangularRoomShell(project);
+  const exhibition = /전시|갤러리/.test(project.spaceType);
+  const schoolSpace = /학교|교내|대학|프로젝트룸/.test(`${project.name} ${project.spaceType} ${project.concept}`);
   const prompt = [
-    'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
+    exhibition
+      ? `Create ONE photorealistic interior concept photograph of ${schoolSpace ? 'a graduation exhibition installed in the existing school room' : 'an exhibition installed in the existing space'} from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy. Preserve the recognizable existing architecture and show the selected exhibits on appropriate supports.${schoolSpace ? ' Existing movable classroom desks and chairs may be rearranged unless the saved plan or Keep conditions preserve them; fixed walls, windows, doors and ceiling remain in place.' : ''}`
+      : 'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
     'Color fidelity: match the existing-space photo paint and material colors. With warm indirect lighting, use balanced daylight/neutral general illumination and exposure; show warmth locally around light emitters and nearby bounce, while white walls and unlit surfaces remain neutral white. Do not give the entire room an amber, brown or sepia wash. An explicit saved palette/material element may change only its own target.',
     'Input image roles, in order:',
     ...imageLines,
@@ -311,7 +315,7 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     ...(excluded.length ? excluded.map((element) => `- Do not add ${boundedText(element.label)}. ${boundedText(element.conditions ?? '')}`) : ['- None specified.']),
     ...project.references.flatMap((reference) => reference.exclusions.map((excludedNote) => `- Do not add ${boundedText(excludedNote)} from reference ${boundedText(project.sourceImages.find((image) => image.id === reference.imageId)?.name ?? reference.imageId)}.`)),
     `Viewpoint: camera at (${percent(camera.x)}, ${percent(camera.y)}), direction ${Math.round(camera.directionDegrees)} degrees, where 0 degrees points right, 90 down, 180 left and 270 up. Field of view: ${camera.fovPreset ?? 'standard'}. Compose from this approximate viewpoint.`,
-    'Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible eye-level perspective, realistic commercial display scale, product supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.',
+    `Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible eye-level perspective, realistic ${exhibition ? 'graduation exhibition display' : 'commercial display'} scale, appropriate display supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.`,
   ].join('\n');
   if (prompt.length > 16_000) throw new Error('생성 조건이 너무 길어 요청할 수 없습니다. 구조와 조건을 정리해 주세요.');
   return prompt;

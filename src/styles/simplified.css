@@ -1,0 +1,56 @@
+/* Reviewer update: grouped tasks and progressive controls, using existing tokens. */
+.brand > span { display: grid; gap: var(--space-4); text-align: left; }
+.brand small { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+.workflow-group > .step-link { width: 100%; }
+.workflow-substeps { display: grid; padding-left: var(--space-24); margin: var(--space-4) 0 var(--space-16); }
+.workflow-substeps button { text-align: left; min-height: var(--control-height-40); padding: var(--space-8); border: 0; border-left: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font: inherit; font-size: 14px; cursor: pointer; }
+.workflow-substeps button[aria-current] { color: var(--action-selected); border-left: 2px solid var(--border-selected); font-weight: 600; }
+.workflow-substeps small { display: block; color: var(--text-secondary); font-size: 12px; font-weight: 400; }
+.element-more { width: 100%; }
+.element-more > summary { min-height: var(--control-height-40); display: list-item; align-content: center; color: var(--text-secondary); cursor: pointer; }
+.element-more > div { display: flex; gap: var(--space-8); flex-wrap: wrap; padding-bottom: var(--space-8); }
+.add-element > .button { margin-top: var(--space-8); margin-right: var(--space-4); }
+.plan-symbol { pointer-events: none; }
+.plan-symbol__gap { stroke: var(--surface-base); stroke-width: 8; fill: none; }
+.plan-symbol__line { stroke: var(--canvas-wall); stroke-width: 1.5; fill: none; vector-effect: non-scaling-stroke; stroke-linecap: square; }
+.plan-structure--selected .plan-symbol__line { stroke: var(--canvas-selection); stroke-width: 2; }
+.plan-symbol-legend { position: relative; color: var(--text-secondary); font-size: 14px; }
+.plan-symbol-legend summary { min-height: var(--control-height-40); align-content: center; cursor: pointer; }
+.plan-symbol-legend > div { position: absolute; right: 0; top: 100%; z-index: var(--layer-popover); width: min(300px, 65vw); padding: var(--space-12); border: 1px solid var(--border-default); border-radius: var(--radius-8); background: var(--surface-base); box-shadow: var(--shadow-float); display: flex; flex-wrap: wrap; }
+.plan-symbol-legend > div > span { width: 33%; display: grid; text-align: center; }
+.plan-symbol-legend svg { width: 100%; height: 60px; }
+.plan-symbol-legend p { margin: var(--space-8) 0 0; line-height: 1.6; }
+.campus-example { border-top: 1px solid var(--border-default); margin-top: var(--space-16); padding-top: var(--space-16); }
+.campus-example { display: grid; grid-template-columns: minmax(100px, 38%) minmax(0, 1fr); gap: var(--space-16); align-items: center; }
+.campus-example > img { width: 100%; height: 100%; max-height: 250px; object-fit: cover; border-radius: var(--radius-8); }
+.campus-example h3 { margin: var(--space-4) 0 var(--space-8); }
+.other-examples > summary { min-height: var(--control-height-44); align-content: center; cursor: pointer; color: var(--text-secondary); }
+.other-examples .sample-card { width: 100%; }
+.campus-example p { margin: var(--space-8) 0; color: var(--text-secondary); }
+.campus-example-actions { display: flex; gap: var(--space-8); flex-wrap: wrap; }
+.source-provenance { padding: var(--space-8) var(--space-16); font-size: 12px; line-height: 1.6; color: var(--text-secondary); }
+.source-provenance summary { cursor: pointer; min-height: var(--control-height-32); align-content: center; }
+.source-provenance p { margin: var(--space-8) 0; }
+@media (min-width: 1200px) and (min-height: 801px) {
+  .space-plan-panel .plan-editor-body:not(.is-drawing) > .plan-canvas { flex: 1 1 0; min-height: 0; }
+  .space-plan-panel .plan-editor-body:not(.is-drawing) { overflow: visible; }
+  .space-plan-panel .plan-editor-body:not(.is-drawing) .plan-canvas__surface { min-height: 200px; }
+}
+@media (max-width: 1199px) {
+  .app-shell--project .step-nav { height: auto; min-height: 96px; overflow: visible; position: relative; }
+  .app-shell--project .step-nav-inner { min-width: 0; height: 48px; width: calc(100% - var(--space-32)); justify-content: space-between; gap: var(--space-4); }
+  .workflow-group { flex: 1; min-width: 0; }
+  .app-shell--project .workflow-group .step-link { justify-content: center; }
+  .workflow-substeps { position: absolute; top: 48px; left: var(--space-16); right: var(--space-16); height: 44px; margin: 0; padding: 0; display: flex; justify-content: center; gap: var(--space-16); }
+  .workflow-substeps button { border: 0; border-bottom: 2px solid transparent; padding: var(--space-4) var(--space-12); }
+  .workflow-substeps button[aria-current] { border-left: 0; border-bottom-color: var(--border-selected); }
+  .workflow-substeps small { display: inline; margin-left: var(--space-4); }
+  .workflow-group:only-child { width: 100%; }
+}
+@media (max-width: 600px) {
+  .campus-example { grid-template-columns: minmax(0, 1fr); }
+  .campus-example > img { height: 170px; }
+  .brand small { display: none; }
+  .app-shell--project .workflow-group .step-link { font-size: 12px; gap: var(--space-4); padding: var(--space-4); }
+  .app-shell--project .workflow-group .step-number { width: 18px; }
+}

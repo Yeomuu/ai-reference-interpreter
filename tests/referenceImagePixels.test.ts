@@ -57,4 +57,12 @@ describe('reference image pixels before generation', () => {
     await compactImage('/sample/product.png')
     expect(draws).toEqual([[bitmap, 0, 0, canvas.width, canvas.height]])
   })
+
+  it('loads the bundled school-room photograph for the same generation path', async () => {
+    const { draws } = fakeImageBrowser()
+    await compactImage('/sample/campus/projectroom-front.jpg')
+    expect(fetch).toHaveBeenCalledWith('/sample/campus/projectroom-front.jpg', { credentials: 'omit' })
+    expect(draws).toHaveLength(1)
+    await expect(compactImage('/sample/../secret.jpg')).rejects.toThrow('저장 경로')
+  })
 })

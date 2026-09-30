@@ -1,5 +1,14 @@
 # Acceptance test matrix
 
+## 네 단계 사용자 평가 회귀 · 2026-09-30
+
+1. 첫 화면에서 한국공학대학교 프로젝트룸의 졸업전시 사례가 주 예시임을 읽을 수 있고, 기존 공간 사진과 미실측 도면의 출처·역할이 구분된다. AURA 팝업은 보조 예시다. 학교 사례에 기존 팝업 이미지가 학교 공간의 결과로 표시되지 않는다.
+2. 페이지 진행 표시는 정확히 네 단계다. 기존 Keep·배치·시점·조건·결과 기능과 URL은 단계 내부에서 접근 가능하다. 각 단계의 기본 다음 버튼으로 추가 설명 없이 결과까지 진행할 수 있다.
+3. 참고 이미지 2~3장에서 선택한 항목만 적용 조건에 들어간다. 선택, 제외, 배치, 시점 선택을 앞뒤로 이동·새로고침해도 유지한다. 결과에서 한 항목만 수정하면 기존 이미지와 그 조건 스냅샷은 보존되고 새 시안은 새 조건을 사용한다.
+4. 데스크톱 실제 브라우저에서 처음부터 끝까지 수행하고 뒤로 가기·앞으로 가기, 키보드 초점, 주요 버튼 문구, 상태 저장을 확인한다. 유료 이미지 테스트는 승인된 한 장만 실행하고 그 결과가 실제 생성인지 출처를 검증한다.
+
+이전의 7개 내부 화면 회귀 항목은 위 네 단계의 하위 기능 수용 기준으로 유지한다.
+
 ## Space drawing regression cases · 2026-09-28
 
 - Window/door/entrance tools name and highlight the host wall on the visible plan. Wall name/line click changes the host without adding a zero-length opening; a nearby start and off-line drag snap to the same wall. Empty-floor and tiny gestures explain the next action beside the canvas.
