@@ -1,4 +1,4 @@
-import { get, put, BlobPreconditionFailedError } from '@vercel/blob';
+import { get, head, put, BlobPreconditionFailedError } from '@vercel/blob';
 
 export const QUOTA_PATH = 'generation-quota/v1.json'; // Retain the existing shared ledger and ETag through migration.
 export const TOTAL_LIMIT = 60; // All browsers per Korea day.
@@ -51,7 +51,14 @@ const blobStore: QuotaStore = {
   },
   async compareAndSwap(state, etag) {
     try { await put(QUOTA_PATH,JSON.stringify(state),{access:'private',addRandomSuffix:false,allowOverwrite:true,ifMatch:etag,contentType:'application/json',abortSignal:AbortSignal.timeout(8_000)}); return true; }
-    catch(error) { if (error instanceof BlobPreconditionFailedError) return false; throw error; }
+    catch(error) {
+      if (error instanceof BlobPreconditionFailedError) {
+        const current = await head(QUOTA_PATH);
+        console.error('quota conditional write conflict', { sameEtag: current?.etag === etag, readEtagPresent: Boolean(etag), headEtagPresent: Boolean(current?.etag) });
+        return false;
+      }
+      throw error;
+    }
   },
   async claimRequest(id, day) {
     const path = `generation-quota/requests/${id}.json`;
