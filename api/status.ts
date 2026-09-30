@@ -1,4 +1,5 @@
 import { generationIdentity } from './_lib/generationIdentity.js';
+import { list } from '@vercel/blob';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { generationQuota, quotaConfigured } from './_lib/generationQuota.js';
 import {
@@ -30,6 +31,13 @@ export default async function handler(request: IncomingMessage, response: Server
         : /timeout|fetch failed|network/i.test(message) ? 'blob-network'
         : 'other';
       console.error('generation quota status failed', category);
+      if (category === 'missing-ledger') {
+        try {
+          const inventory = await list({ prefix: 'generation-quota/', limit: 20 });
+          console.error('generation quota inventory', inventory.blobs.length,
+            inventory.blobs.filter(blob => !blob.pathname.startsWith('generation-quota/requests/')).map(blob => blob.pathname));
+        } catch { console.error('generation quota inventory unavailable'); }
+      }
     }
   }
   const status: GenerationStatus = {
