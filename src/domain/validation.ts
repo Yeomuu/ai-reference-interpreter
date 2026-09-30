@@ -719,7 +719,7 @@ export function validatePreflight(project: Project, previewCameraId?: string): V
       }
     }
     const reference = project.references.find((item) => item.id === element.sourceReferenceId);
-    if (!reference || !project.sourceImages.some((image) => image.id === reference.imageId && image.role !== 'existing-space')) {
+    if (!(element.origin === 'layout' && !element.sourceReferenceId) && (!reference || !project.sourceImages.some((image) => image.id === reference.imageId && image.role !== 'existing-space'))) {
       issues.push(error('missing-reference', `${element.label}의 분위기·제품 레퍼런스를 확인해 주세요.`, element.id));
     }
     issues.push(...validatePlacement(project, element.id, element.target).issues);

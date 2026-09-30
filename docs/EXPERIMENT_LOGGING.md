@@ -83,3 +83,7 @@
 참여자 안내는 [USER_GUIDE.md](USER_GUIDE.md), 진행 준비·과업 초안·평가 범위·소개영상 구성은 [EXPERIMENT_RUNBOOK_AND_VIDEO.md](EXPERIMENT_RUNBOOK_AND_VIDEO.md)를 참조한다. 공개 사이트 `/guide/index.html`과 `/guide/user-guide.pdf`에는 참여자 안내만 배포한다. 진행자 문서의 답안 기준이나 영상 촬영 메모는 공개 가이드에 넣지 않는다.
 A/B는 원 기획의 자료 과업 예시(화장품 팝업/라이프스타일 전시)이며 자유 텍스트/구조화 방식과 별개의 축이다. 현재 구현은 structured 하나이며 자료 세트 자동 전환이나 완전한 비교 실험이 아니다. 기획 PDF의 방법 순서 교차 예시는 과업 순서까지 완전히 균형화한 설계로 주장하지 않는다.
 요소 생성과 동시에 위치를 지정했을 때도 `element_create`에 이어 실제 연결을 담은 `placement_commit`을 한 번 기록한다. 별도 포인터 이동을 요구하거나 가짜 drag 이벤트를 만들지 않는다. A 종료 → B 시작 시 새 B 세션의 ZIP을 기본 선택하고 재진입·종료·설문·실제 ZIP을 확인한다.
+
+## 레이아웃 우선 흐름의 기록 호환 · 2026-10-01
+
+기존 세션/이벤트 schema 1과 기록 동의·종료·ZIP 전달은 유지한다. 새 시작/종료 조건에는 workflow_version=layout-first-v2 및 reference_bindings를 추가해 이미지 영역과 다중 대상 관계를 추적한다. 이전 저장 기록을 소급 변환하지 않는다. layout_item_add에는 내부 요소 유형·layout_kind·정규화 위치, reference_binding_apply에는 target_count, 해제에는 reference_binding_remove를 기록한다. 이미지·파일명·비밀키는 로그에 포함하지 않는다. 단계 이동의 뒤로 돌아가기는 새 실제 순서(배치 → 레퍼런스)를 따른다. 이전 방식과 새 방식의 세션을 동일 UI 버전으로 섞어 해석하지 않는다. 자유 텍스트 비교·서버 수집·자동 정확도 채점은 이 변경으로 추가되지 않는다.

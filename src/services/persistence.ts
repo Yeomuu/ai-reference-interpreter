@@ -1,3 +1,4 @@
+import { migrateLayout } from '../domain/layoutMapping.js';
 import { outlineBounds, validOutline } from '../domain/geometry.js';
 import type { FloorPlan, Project } from '../domain/types.js';
 
@@ -137,7 +138,13 @@ function isElement(value: unknown): boolean {
     (value.target === null || isPlacementTarget(value.target)) &&
     (value.appearance === undefined || typeof value.appearance === 'string') &&
     (value.conditions === undefined || typeof value.conditions === 'string') &&
-    (value.origin === undefined || value.origin === 'basic-support');
+    (value.origin === undefined || value.origin === 'basic-support' || value.origin === 'layout') &&
+    (value.layoutKind === undefined || ['display','table','chair','light','wall-art','product','area'].includes(String(value.layoutKind))) &&
+    (value.locked === undefined || typeof value.locked === 'boolean');
+}
+
+function isBindings(value: unknown): boolean {
+  return value === undefined || (Array.isArray(value) && value.every(item => isRecord(item) && typeof item.id === 'string' && typeof item.referenceId === 'string' && isStringArray(item.layoutItemIds) && item.layoutItemIds.length > 0 && new Set(item.layoutItemIds).size === item.layoutItemIds.length && (item.sourceRegion === undefined || isRect(item.sourceRegion)) && (item.scope === undefined || ['appearance','lighting','material'].includes(String(item.scope)))));
 }
 
 function isCamera(value: unknown): boolean {
@@ -164,6 +171,7 @@ function isConditionsSnapshot(value: unknown): boolean {
     Array.isArray(common.keeps) && common.keeps.every(isKeep) &&
     Array.isArray(common.references) && common.references.every(isReference) &&
     Array.isArray(common.elements) && common.elements.every(isElement) &&
+    isBindings(common.referenceBindings) &&
     (common.sourceImages === undefined || (Array.isArray(common.sourceImages) && common.sourceImages.every(isSourceImage)));
 }
 
@@ -180,6 +188,7 @@ export function isProject(value: unknown): value is Project {
   if (!isRecord(value)) return false;
   const project = value;
   return project.schemaVersion === SCHEMA_VERSION &&
+    (project.layoutVersion === undefined || project.layoutVersion === 2) && isBindings(project.referenceBindings) &&
     typeof project.id === 'string' &&
     typeof project.name === 'string' &&
     typeof project.spaceType === 'string' &&
@@ -212,7 +221,7 @@ export function loadProjects(): Project[] {
     if (!parsed || typeof parsed !== 'object') return [];
     const envelope = parsed as Partial<StoredProjects>;
     if (envelope.schemaVersion !== SCHEMA_VERSION || !Array.isArray(envelope.projects)) return [];
-    return envelope.projects.filter(isProject);
+    return envelope.projects.filter(isProject).map(migrateLayout);
   } catch {
     return [];
   }

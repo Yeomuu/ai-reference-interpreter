@@ -1,4 +1,4 @@
-import { cleanDisplayTargets } from './display';
+import { cleanDisplayTargets } from './display.js';
 import type {
   Camera,
   ConditionsSnapshot,
@@ -12,8 +12,8 @@ import type {
   SourceImage,
   FloorPlan,
   ValidationResult,
-} from './types';
-import { validatePlacement } from './validation';
+} from './types.js';
+import { validatePlacement } from './validation.js';
 
 function same(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -33,7 +33,7 @@ export function markCommonChange(project: Project): Project {
 }
 
 export type CommonPatch = Partial<Pick<Project,
-  'name' | 'spaceType' | 'concept' | 'sourceImages' | 'floorPlan' | 'planAlignmentPending' | 'keeps' | 'references' | 'elements'
+  'name' | 'spaceType' | 'concept' | 'sourceImages' | 'floorPlan' | 'planAlignmentPending' | 'keeps' | 'references' | 'elements' | 'referenceBindings'
 >>;
 
 export function updateCommon(project: Project, patch: CommonPatch): Project {
@@ -144,7 +144,8 @@ export function removeReference(project: Project, referenceId: string): Project 
     references,
     sourceImages: references.some((item) => item.imageId === reference.imageId)
       ? project.sourceImages : project.sourceImages.filter((item) => item.id !== reference.imageId),
-    elements: cleanDisplayTargets(project.elements.filter((item) => item.sourceReferenceId !== referenceId)),
+    elements: cleanDisplayTargets(project.elements.flatMap(item => item.sourceReferenceId !== referenceId ? [item] : item.layoutKind ? [{ ...item, origin: 'layout' as const, sourceReferenceId: '', sourceRegion: undefined }] : [])),
+    referenceBindings: project.referenceBindings?.filter(item => item.referenceId !== referenceId),
   });
 }
 
@@ -152,6 +153,7 @@ export function removeDesignElement(project: Project, elementId: string): Projec
   if (!project.elements.some((item) => item.id === elementId)) return project;
   return updateCommon(project, {
     elements: cleanDisplayTargets(project.elements.filter((item) => item.id !== elementId)),
+    referenceBindings: project.referenceBindings?.map(item => ({ ...item, layoutItemIds: item.layoutItemIds.filter(id => id !== elementId) })).filter(item => item.layoutItemIds.length),
     references: project.references.map((item) => ({ ...item,
       extractedElements: item.extractedElements.filter((id) => id !== elementId),
       exclusions: item.exclusions.filter((id) => id !== elementId),
@@ -181,6 +183,8 @@ export function placeElement(
   elementId: string,
   target: PlacementTarget,
 ): { project: Project; validation: ValidationResult } {
+  const item = project.elements.find(item=>item.id===elementId);
+  if (item?.locked && !same(item.target,target)) return { project, validation: { valid:false, issues:[{ code:'keep-conflict', severity:'error', elementId, message:'위치 고정을 끈 뒤 이동하거나 크기를 바꾸세요.' }] } };
   const validation = validatePlacement(project, elementId, target);
   if (!validation.valid) return { project, validation };
   const elements = project.elements.map((element) => element.id === elementId ? { ...element, target } : element);
@@ -237,6 +241,7 @@ export function createConditionsSnapshot(project: Project, cameraId: string, exi
       references: project.references,
       elements: project.elements,
       sourceImages: project.sourceImages,
+      referenceBindings: project.referenceBindings,
     }),
   };
 }

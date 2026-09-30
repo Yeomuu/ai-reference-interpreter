@@ -42,4 +42,7 @@
   --layer-notice:50; --layer-popover:40;
   --control-height-32:32px; --control-height-40:40px; --control-height-44:44px; --control-height-48:48px;
   --font-ui:Paperlogy,"Noto Sans KR",system-ui,sans-serif;
+  --font-size-workspace-title:24px;
+  --font-size-panel:18px; --font-size-body:16px;
+  --font-size-compact:14px; --font-size-caption:12px;
 }

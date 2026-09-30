@@ -140,7 +140,21 @@ export interface DesignElement {
   appearance?: string;
   conditions?: string;
   /** A user-added basic support is not extracted from the product photo. */
-  origin?: 'basic-support';
+  origin?: 'basic-support' | 'layout';
+  /** Reference-independent layout identity; geometry stays in target for compatibility. */
+  layoutKind?: LayoutKind;
+  locked?: boolean;
+}
+
+export type LayoutKind = 'display' | 'table' | 'chair' | 'light' | 'wall-art' | 'product' | 'area';
+/** Reference-free layout view. Persisted DesignElement fields remain a legacy projection. */
+export type LayoutItem = Omit<DesignElement, 'sourceReferenceId' | 'sourceRegion'>;
+export interface ReferenceBinding {
+  id: string;
+  referenceId: string;
+  sourceRegion?: Rect;
+  layoutItemIds: string[];
+  scope?: 'appearance' | 'lighting' | 'material';
 }
 
 export interface Camera extends Point {
@@ -168,6 +182,7 @@ export interface ConditionsSnapshot {
     elements: DesignElement[];
     /** Keeps historical source attribution after a reference is removed. */
     sourceImages?: SourceImage[];
+    referenceBindings?: ReferenceBinding[];
   };
 }
 
@@ -199,6 +214,8 @@ export interface Project {
   cameras: Camera[];
   results: Result[];
   commonRevision: number;
+  layoutVersion?: 2;
+  referenceBindings?: ReferenceBinding[];
 }
 
 export interface ValidationIssue {

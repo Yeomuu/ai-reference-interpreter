@@ -167,7 +167,7 @@ function elementText(project: Project, element: DesignElement, images: Generatio
   }
   if (sheet && panel !== undefined) sourceScope = `Use only numbered panel ${panel + 1} in this input image. This panel is the reference image described below, never the whole sheet. ` + sourceScope;
   return `${boundedText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` +
-    (element.origin === 'basic-support' ? 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
+    (element.origin === 'layout' && !element.sourceReferenceId ? 'This is a user-created layout item without an inspiration image. Preserve its saved geometry and use a neutral functional design; do not invent a source image. ' : element.origin === 'basic-support' ? 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
     `Appearance: ${boundedText(element.appearance ?? 'not specified')}. ` +
     `Conditions: ${boundedText(element.conditions ?? 'none')}. ` + transferIntent(element) + relativeToCamera(project, element) + installationContext(project, element);
 }

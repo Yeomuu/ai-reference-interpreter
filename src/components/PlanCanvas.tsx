@@ -1,3 +1,6 @@
+import LayoutSymbol from './LayoutSymbol';
+import { layoutKindFor, LAYOUT_LABELS } from '../domain/layoutMapping';
+import { REFERENCE_DRAG_TYPE } from './MappingWorkspace';
 import PlanSymbol, { PlanSymbolLegend } from './PlanSymbol'
 import { displayPosition } from '../domain/display';
 import { arrangePlanLabels } from './plan-labels';
@@ -28,7 +31,14 @@ export interface PlanCanvasProps {
   selectedAreaId?: string;
   showCameraPreview?: boolean;
   onAreaSelect?: (id: string) => void;
-  mode: 'view' | 'keep' | 'place' | 'camera';
+  mode: 'view' | 'keep' | 'place' | 'camera' | 'mapping';
+  quietLabels?: boolean;
+  mappingSelectedIds?: string[];
+  attachmentWallId?: string;
+  wallAttachmentMode?: boolean;
+  areaSelectionMode?: boolean;
+  onMappingSelect?: (id: string, multi: boolean) => void;
+  onReferenceDrop?: (targetId: string, referenceId: string, region?: import('../domain/types').Rect) => void;
   drawTool?: 'point' | 'segment' | 'rect' | 'polygon';
   drawStructureKind?: Structure['kind'];
   lineConstraint?: 'snap' | 'horizontal' | 'vertical' | 'free';
@@ -127,7 +137,7 @@ function areaBounds(plan: FloorPlan, areaId: string) {
 
 /** Plan values remain normalized. Only this component maps them to SVG units. */
 export default function PlanCanvas({
-  project,
+  project, quietLabels = false, mappingSelectedIds = [], attachmentWallId, wallAttachmentMode = false, areaSelectionMode = false, onMappingSelect, onReferenceDrop,
   onUndo, onRedo, canUndo, canRedo,
   onDragEvent,
   selectedElementId,
@@ -169,6 +179,8 @@ export default function PlanCanvas({
   const drawRef = useRef<DrawDraft | null>(null);
   const suppressClickRef = useRef(false);
   const instructionId = useId();
+  const [hoveredId, setHoveredId] = useState<string>();
+  const [dropTarget, setDropTarget] = useState<string>();
   const [zoom, setZoom] = useState(1);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [drawDraft, setDrawDraft] = useState<DrawDraft | null>(null);
@@ -269,14 +281,14 @@ export default function PlanCanvas({
       : mode === 'keep'
         ? `구조를 선택하고 필수 보존을 켜거나 끄세요. ${movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌면 위치가 바뀝니다.' : '현재 이동 가능한 구조가 없습니다. 필수 보존을 끄면 도면 위치를 수정할 수 있습니다.'}`
         : movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌어 위치를 바꾸세요. 빈 공간을 끌면 도면은 이동하지 않습니다.' : '현재 이동 가능한 구조가 없습니다. 유지할 구조에서 위치 고정을 끄거나 ‘추가 가벽’을 그려 주세요.';
-  const showElements = mode === 'place' || mode === 'camera' || showCameraPreview;
+  const showElements = mode === 'place' || mode === 'mapping' || mode === 'camera' || showCameraPreview;
   const showCameras = mode === 'camera' || showCameraPreview;
   const showStructureLayer = Boolean(drawTool) || layers.structures;
   const contentPixelScale = Math.max(0.01, canvasDisplay.scale * zoom);
   const selectedArea = plan.areas.find(area => area.id === (selectedAreaId ?? localAreaId));
-  const showAreas = mode === 'view' || mode === 'place';
+  const showAreas = mode === 'view' || mode === 'place' || mode === 'mapping';
   const visibleAreas = plan.areas.filter(area => area.kind === 'passage' || showAreas && (areaLayers[area.kind] || area.id === selectedArea?.id));
-  const areaLabels = visibleAreas.filter(area => showAreaNames || area.id === selectedArea?.id);
+  const areaLabels = visibleAreas.filter(area => showAreaNames || area.id === selectedArea?.id || mappingSelectedIds.includes(`area:${area.id}`) || hoveredId===`area:${area.id}`);
   const selectedDesignElement = project.elements.find(element => element.id === selectedElementId);
   const linkableAreaIds = mode === 'place' && onAreaSelect && selectedDesignElement ? new Set(plan.areas.filter(area => targetForArea(selectedDesignElement.kind, area)).map(area => area.id)) : undefined;
   function selectArea(id: string) {
@@ -291,7 +303,7 @@ export default function PlanCanvas({
   const showCameraOccupancy = !showCameras && (editingStructure === 'wall' || editingStructure === 'pillar') && (Boolean(drawStructureKind) || movableStructures.some(item => item.id === selectedStructureId));
   const clearanceNames = movedStructures.filter(item => item.clearance && (showAreaNames || item.id === selectedStructureId)).map(item => ({ id: `clearance-${item.id}`, name: `${item.name} · 여닫이`, hint: `${item.name} · 출입·여닫이 여유 공간`, x: item.clearance!.x + item.clearance!.width / 2, y: item.clearance!.y + item.clearance!.height / 2 }));
   const occupancyNames = !showElements || !layers.elements ? activeElements.filter(element => element.id === selectedElementId).flatMap(element => { const bounds = physicalFloorBounds(project, element); return bounds ? [{ id: `occupancy-${element.id}`, name: element.label, hint: `${element.label} · 배치 점유 범위`, x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }] : []; }) : [];
-  const elementNames = showElements && layers.elements && !preview ? activeElements.filter(element => activeElements.length <= 4 || element.id === selectedElementId).flatMap(element => {
+  const elementNames = showElements && layers.elements && !preview ? activeElements.filter(element => (!quietLabels && activeElements.length <= 4) || element.id === selectedElementId || element.id === hoveredId || mappingSelectedIds.includes(element.id)).flatMap(element => {
     if (!element.target || !['floor-point', 'fixture-surface', 'wall-segment'].includes(element.target.kind)) return [];
     const point = elementPlanPosition(project, element);
     return point ? [{ id: `element-name-${element.id}`, name: element.label, hint: element.label, x: point.x, y: point.y }] : [];
@@ -299,8 +311,8 @@ export default function PlanCanvas({
   const constraintNames = [...elementNames.sort((a, b) => Number(b.id === `element-name-${selectedElementId}`) - Number(a.id === `element-name-${selectedElementId}`)), ...clearanceNames, ...occupancyNames];
 
   const areaLabelCandidates = areaLabels.map(area => ({ id: `area-${area.id}`, x: (area.bounds.x + area.bounds.width / 2) * width * contentPixelScale, y: (area.bounds.y + area.bounds.height / 2) * height * contentPixelScale, width: Math.min(220, area.name.length * 14 + 32), height: 40 }));
-  const showStructureNames = wallDrawing || plan.structures.length <= 5;
-  const labeledStructures = showStructureLayer ? plan.structures.filter(structure => showStructureNames || structure.id === selectedStructureId || !keptIds.has(structure.id)) : [];
+  const showStructureNames = wallDrawing || !quietLabels && plan.structures.length <= 5;
+  const labeledStructures = showStructureLayer ? plan.structures.filter(structure => showStructureNames || (!quietLabels && !keptIds.has(structure.id)) || structure.id === selectedStructureId || structure.id === hoveredId || mappingSelectedIds.includes(`wall:${structure.id}`)) : [];
   const structureLabelCandidates = labeledStructures.map(structure => {
     const moved = movedStructures.find(item => item.id === structure.id);
     const center = structureCenter(moved ?? structure);
@@ -448,12 +460,12 @@ export default function PlanCanvas({
 
   function handleStructureSelect(structure: Structure) {
     if (wallDrawing && structure.kind === 'wall') onDrawWallSelect?.(structure.id);
-    else if (mode === 'place' && structure.kind === 'wall' && onWallSelect && !movableStructures.some((item) => item.id === structure.id)) onWallSelect(structure.id);
+    else if (mode === 'place' && structure.kind === 'wall' && onWallSelect && (wallAttachmentMode || !movableStructures.some((item) => item.id === structure.id))) onWallSelect(structure.id);
     else onStructureSelect?.(structure.id);
   }
 
   function handleStructureKeyDown(event: KeyboardEvent<SVGGElement>, structure: Structure) {
-    if (!drawTool && movableStructures.some((item) => item.id === structure.id) && onStructureMove && mode !== 'camera') {
+    if (!drawTool && !(wallAttachmentMode && structure.kind === 'wall') && movableStructures.some((item) => item.id === structure.id) && onStructureMove && mode !== 'camera') {
       const step = event.shiftKey ? 0.05 : 0.01;
       const offsets: Record<string, Point> = {
         ArrowLeft: { x: -step, y: 0 }, ArrowRight: { x: step, y: 0 },
@@ -663,7 +675,7 @@ export default function PlanCanvas({
       ? previewStructureTranslation(project, preview.id, preview.structure).find((item) => item.id === structure.id) : undefined;
     const geometry = translated?.geometry ?? structure.geometry;
     const center = structureCenter({ ...structure, geometry });
-    const movable = !drawTool && movableStructures.some((item) => item.id === structure.id)
+    const movable = !drawTool && !(wallAttachmentMode && structure.kind === 'wall') && movableStructures.some((item) => item.id === structure.id)
       && Boolean(onStructureMove) && mode !== 'camera';
     const selectable = drawHost || (!drawTool && (movable || (mode === 'place' && structure.kind === 'wall'
       ? Boolean(onWallSelect || onStructureSelect)
@@ -707,7 +719,7 @@ export default function PlanCanvas({
     const nameWidth = packed?.width ?? labelName.length * 13 + 50;
     const labelX = (packed?.x ?? center.x * width * contentPixelScale) / contentPixelScale;
     const labelY = (packed?.y ?? center.y * height * contentPixelScale) / contentPixelScale;
-    return <g key={structure.id} className={labelsOnly ? `plan-label-wrapper${selected ? ' is-selected' : ''}${drawTool ? ' is-read-only' : ''}` : classes}>
+    return <g key={structure.id} onMouseEnter={()=>setHoveredId(structure.id)} onMouseLeave={()=>setHoveredId(undefined)} className={labelsOnly ? `plan-label-wrapper${selected ? ' is-selected' : ''}${drawTool ? ' is-read-only' : ''}` : classes}>
     {!labelsOnly && <g
       role={selectable ? 'button' : undefined}
       tabIndex={selectable ? 0 : undefined}
@@ -719,8 +731,9 @@ export default function PlanCanvas({
     >
       <title>{`${structure.name}${kept ? ' · Keep' : ''}`}</title>
       {shape}
-      {structure.kind === 'existing-light' && <path className="plan-symbol__line" d={`M ${center.x * width - 6} ${center.y * height - 6} l 12 12 M ${center.x * width - 6} ${center.y * height + 6} l 12 -12`} aria-hidden="true" />}
+      {structure.kind === 'existing-light' && <LayoutSymbol kind="light" x={center.x*width} y={center.y*height} width={28} height={28} />}
     </g>}
+      {labelsOnly && quietLabels && !packed && kept && !drawTool && mode!=='camera' && <g className="plan-lock-toggle is-kept" transform={`translate(${center.x*width} ${center.y*height}) scale(${1/contentPixelScale})`} role={onStructureLockToggle?'button':undefined} tabIndex={onStructureLockToggle?0:undefined} aria-label={`${structure.name} 필수 보존 끄기`} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onStructureLockToggle?.(structure.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onStructureLockToggle?.(structure.id)}}}><title>{structure.name} · 위치 고정</title><rect x={-14} y={-14} width={28} height={28} rx={6} /><image href="/icons/nucleo/IconLockOutline18.svg" x={-7} y={-7} width={14} height={14} /></g>}
       {labelsOnly && !drawHost && packed && <>
         <g className={movable ? 'plan-structure__move-label' : `plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${labelX} ${labelY}) scale(${1 / contentPixelScale})`}
           style={drawTool ? { pointerEvents: 'none' } : undefined} role={selectable ? 'button' : undefined} tabIndex={selectable ? 0 : undefined} aria-label={`${structure.name}${movable ? ' · 이동 가능' : ''}`}
@@ -768,11 +781,11 @@ export default function PlanCanvas({
   function renderElement(element: DesignElement, index: number) {
     const target = element.target;
     if (!target) return null;
-    const selected = mode === 'place' && element.id === selectedElementId;
+    const selected = mode === 'place' && element.id === selectedElementId || mode === 'mapping' && mappingSelectedIds.includes(element.id);
     // Scope conditions are not separate physical objects: focus one instead of stacking every outline.
-    if (['whole-space', 'named-area', 'ceiling-zone', 'floor-area'].includes(target.kind) && !['freestanding-fixture', 'furniture'].includes(element.kind) && !selected) return null;
+    if (['whole-space', 'named-area', 'ceiling-zone', 'floor-area'].includes(target.kind) && !['freestanding-fixture', 'furniture','ceiling-light','hanging-display'].includes(element.kind) && !selected) return null;
     const supportPicking = mode === 'place' && project.elements.find(item => item.id === selectedElementId)?.kind === 'display-product' && ['freestanding-fixture', 'furniture'].includes(element.kind);
-    const editable = mode === 'place' && target.kind === 'floor-point' && Boolean(onElementMove) && !supportPicking;
+    const editable = mode === 'place' && target.kind === 'floor-point' && Boolean(onElementMove) && !supportPicking && !element.locked;
     const classes = `plan-element${supportPicking ? ' plan-element--support-picking' : ''}${selected ? ' plan-element--selected' : ''}${editable ? ' plan-element--editable' : ''}${previewBlocked && preview?.id === element.id ? ' plan-preview-blocked' : ''}`;
     const number = index + 1;
     if (target.kind === 'floor-point') {
@@ -787,14 +800,15 @@ export default function PlanCanvas({
       const handleDistance = Math.max(58, footprint.width * width / 2 + 34, footprint.height * height / 2 + 34);
       const handleX = x + Math.cos(radians) * handleDistance;
       const handleY = y + Math.sin(radians) * handleDistance;
-      return <g className={classes} key={element.id} role={editable || supportPicking ? 'button' : undefined} tabIndex={editable || supportPicking ? 0 : undefined}
+      return <g className={classes} key={element.id} onMouseEnter={() => setHoveredId(element.id)} onMouseLeave={() => setHoveredId(undefined)} role={editable || supportPicking || mode==='place' ? 'button' : undefined} tabIndex={editable || supportPicking || mode==='place' ? 0 : undefined}
         aria-label={`${element.label}${supportPicking ? ', 이 진열대 위에 제품 연결' : ', 바닥 요소'}${editable ? ', 끌어서 이동, 방향키로 1% 이동' : ''}`}
         aria-pressed={editable ? selected : undefined}
         onPointerDown={supportPicking ? event => event.stopPropagation() : editable ? (event) => startDrag(event, 'element-move', element.id, position) : undefined}
-        onKeyDown={supportPicking ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSupportSelect?.(element.id); } } : editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
-        onClick={supportPicking ? event => { event.stopPropagation(); onSupportSelect?.(element.id); } : editable ? (event) => event.stopPropagation() : undefined}>
+        onKeyDown={mode==='place' && element.locked ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onElementSelect?.(element.id)}} : supportPicking ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSupportSelect?.(element.id); } } : editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
+        onClick={mode==='place' && element.locked ? event=>{event.stopPropagation();onElementSelect?.(element.id)} : supportPicking ? event => { event.stopPropagation(); onSupportSelect?.(element.id); } : editable ? (event) => event.stopPropagation() : undefined}>
         <title>{element.label}</title>
         <rect className="plan-element__footprint" data-constraint-id={!preview ? element.id : undefined} x={x - footprint.width * width / 2} y={y - footprint.height * height / 2} width={footprint.width * width} height={footprint.height * height} rx={Math.min(14, footprint.height * height / 4)} transform={`rotate(${degrees} ${x} ${y})`} />
+        <g transform={`rotate(${degrees} ${x} ${y})`} style={{ pointerEvents: 'none' }}><LayoutSymbol kind={layoutKindFor(element)} x={x} y={y} width={footprint.width * width} height={footprint.height * height} /></g>
         {selected && editable && <g className="plan-rotation-handle" role="slider" tabIndex={0}
           aria-label={`${element.label} 회전 각도`} aria-valuemin={0} aria-valuemax={359} aria-valuenow={degrees}
           onPointerDown={(event) => startDrag(event, 'element-rotate', element.id, position)}
@@ -805,6 +819,11 @@ export default function PlanCanvas({
           <text x={handleX} y={handleY + 4} textAnchor="middle">회전</text>
         </g>}
       </g>;
+    }
+    if(target.kind==='ceiling-zone' && ['ceiling-light','hanging-display'].includes(element.kind)) {
+      const zone=plan!.areas.find(area=>area.id===target.zoneId);if(!zone)return null;
+      const x=(zone.bounds.x+zone.bounds.width*(target.offset?.x??.5))*width,y=(zone.bounds.y+zone.bounds.height*(target.offset?.y??.5))*height;
+      return <g className={classes} key={element.id} role={onElementSelect?'button':undefined} tabIndex={onElementSelect?0:undefined} aria-label={`${element.label}, 천장 조명`} onMouseEnter={()=>setHoveredId(element.id)} onMouseLeave={()=>setHoveredId(undefined)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onElementSelect?.(element.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onElementSelect?.(element.id)}}}><title>{element.label}</title><LayoutSymbol kind="light" x={x} y={y} width={30/contentPixelScale} height={30/contentPixelScale} /></g>;
     }
     if (target.kind === 'fixture-surface') {
       const host = project.elements.find(item => item.id === target.fixtureElementId);
@@ -831,7 +850,7 @@ export default function PlanCanvas({
       const middle = pointOnSegment(start, end, 0.5);
       const partition = wall.role === 'partition';
       const faceLine = partition && target.face ? wallFaceLine(wall, startFraction, endFraction, target.face, width, height) : null;
-      const wallEditable = mode === 'place' && Boolean(onWallElementMove);
+      const wallEditable = mode === 'place' && Boolean(onWallElementMove) && !element.locked;
       return <g className={`${classes}${wallEditable ? ' plan-element--wall-editable' : ''}`} key={element.id} aria-label={`${element.label}, ${wall.name}${partition ? `, ${target.face ? wallFaceLabel(project, wall.id, target.face) : '붙일 면 미지정'}` : ''}`}>
         <title>{`${element.label} · ${wall.name}${partition ? ` · ${target.face ? wallFaceLabel(project, wall.id, target.face) : '붙일 면 미지정'}` : ''}`}</title>
         <g className="plan-element__wall-drag" role={wallEditable ? 'button' : undefined} tabIndex={wallEditable ? 0 : undefined}
@@ -865,6 +884,33 @@ export default function PlanCanvas({
     </g>;
   }
 
+  function renderMappingTarget(id: string, name: string, geometry: React.ReactNode) {
+    const linked = project.referenceBindings?.some(binding => binding.layoutItemIds.includes(id));
+    return <g key={id} data-mapping-target={id} className={`mapping-target ${mappingSelectedIds.includes(id) ? 'is-selected' : ''} ${dropTarget===id ? 'is-drop-target' : ''} ${linked ? 'is-linked' : ''}`} role="button" tabIndex={0} aria-label={`${name} 매핑 대상${linked ? ', 연결됨' : ''}`} aria-pressed={mappingSelectedIds.includes(id)}
+      onMouseEnter={()=>setHoveredId(id.replace(/^wall:/,''))} onMouseLeave={()=>setHoveredId(undefined)}
+      onPointerDown={event=>event.stopPropagation()}
+      onClick={event=>{event.stopPropagation();onMappingSelect?.(id,event.shiftKey)}}
+      onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onMappingSelect?.(id,event.shiftKey)}}}
+      onDragOver={event=>{if(event.dataTransfer.types.includes(REFERENCE_DRAG_TYPE)){event.preventDefault();event.stopPropagation();event.dataTransfer.dropEffect='copy';setDropTarget(id)}}}
+      onDragLeave={()=>setDropTarget(undefined)} onDrop={event=>{event.preventDefault();event.stopPropagation();setDropTarget(undefined);try {const input=JSON.parse(event.dataTransfer.getData(REFERENCE_DRAG_TYPE));if(typeof input.referenceId==='string')onReferenceDrop?.(id,input.referenceId,input.region)} catch {setGestureHint('이미지를 다시 끌어 적용하세요.')}}}>{geometry}</g>;
+  }
+  function attachmentMarkers() {
+    return plan!.structures.filter(wall=>wall.role==='partition'&&(mappingSelectedIds.includes(`wall:${wall.id}`)||attachmentWallId===wall.id)).flatMap(wall=>(['a','b'] as const).map(face=>{const point=wallFaceLine(wall,.5,.5,face,width,height,24/contentPixelScale)?.start;return point&&<g className="plan-wall-face-marker" pointerEvents="none" key={`${wall.id}-${face}`} aria-hidden="true" transform={`translate(${point.x} ${point.y}) scale(${1/contentPixelScale})`}><circle r={12} /><text y={5} textAnchor="middle">{face.toUpperCase()}</text></g>}));
+  }
+  function mappingTargets() {
+    return <g className="mapping-targets">
+      {plan!.areas.filter(area=>area.kind!=='passage').map(area=>renderMappingTarget(`area:${area.id}`,area.name,area.outline ? <polygon points={area.outline.map(p=>`${p.x*width},${p.y*height}`).join(' ')} /> : <rect x={area.bounds.x*width} y={area.bounds.y*height} width={area.bounds.width*width} height={area.bounds.height*height} />))}
+      {plan!.structures.filter(item=>item.kind==='wall'&&item.geometry.kind==='segment').map(wall=>wall.geometry.kind==='segment'&&renderMappingTarget(`wall:${wall.id}`,wall.name,<polygon points={(() => { if(wall.geometry.kind!=='segment')return '';const a={x:wall.geometry.start.x*width,y:wall.geometry.start.y*height},b={x:wall.geometry.end.x*width,y:wall.geometry.end.y*height},length=Math.hypot(b.x-a.x,b.y-a.y)||1,offset=8/contentPixelScale,n={x:-(b.y-a.y)/length*offset,y:(b.x-a.x)/length*offset};return `${a.x+n.x},${a.y+n.y} ${b.x+n.x},${b.y+n.y} ${b.x-n.x},${b.y-n.y} ${a.x-n.x},${a.y-n.y}`;})()} />))}
+
+      {activeElements.filter(item=>item.target?.kind==='floor-point'||item.target?.kind==='wall-segment'||item.target?.kind==='fixture-surface'||item.target?.kind==='ceiling-zone').map(item=>{
+        const target=item.target!;const point=elementPlanPosition(project,item);if(!point)return null;
+        const w=target.kind==='floor-point' ? (target.footprint?.width ?? .06)*width : 36/contentPixelScale;
+        const h=target.kind==='floor-point' ? (target.footprint?.height ?? .06)*height : 36/contentPixelScale;
+        return renderMappingTarget(item.id,item.label,<rect x={point.x*width-w/2} y={point.y*height-h/2} width={w} height={h} rx={4} transform={`rotate(${target.kind==='floor-point'?target.rotationDegrees??0:0} ${point.x*width} ${point.y*height})`} />);
+      })}
+    </g>;
+  }
+
   function renderCamera(camera: Project['cameras'][number], index: number) {
     const editable = mode === 'camera' && Boolean(onCameraMove);
     const dragPreview = preview?.kind === 'camera-move' && preview.id === camera.id ? preview.point : undefined;
@@ -880,7 +926,7 @@ export default function PlanCanvas({
     const right = { x: x + Math.cos(angle + spread) * reach, y: y + Math.sin(angle + spread) * reach };
     const selected = showCameras && (camera.id === selectedCameraId || (!selectedCameraId && camera.primary));
     const displayUnit = 1 / contentPixelScale;
-    const bodyWidth = (canvasDisplay.narrow ? 64 : 96) * displayUnit;
+    const bodyWidth = (mode==='camera' ? canvasDisplay.narrow ? 64 : 96 : 36) * displayUnit;
     const bodyHeight = 36 * displayUnit;
     const bodyHitWidth = bodyWidth;
     const bodyHitHeight = 48 * displayUnit;
@@ -896,8 +942,8 @@ export default function PlanCanvas({
     return <g key={camera.id} className={`plan-camera${selected ? ' plan-camera--selected' : ''}${editable ? ' plan-camera--editable' : ''}${previewBlocked && preview?.id === camera.id ? ' plan-preview-blocked' : ''}`}
       aria-label={`${camera.name}, 방향 ${Math.round(degrees)}도`}>
       <title>{`${camera.name} · ${Math.round(degrees)}°`}</title>
-      <path className="plan-camera__cone" d={`M ${x} ${y} L ${left.x} ${left.y} Q ${x + Math.cos(angle) * reach * 1.1} ${y + Math.sin(angle) * reach * 1.1} ${right.x} ${right.y} Z`} />
-      <line className="plan-camera__direction" x1={x} y1={y} x2={x + Math.cos(angle) * 48} y2={y + Math.sin(angle) * 48} />
+      {mode === 'camera' && <><path className="plan-camera__cone" d={`M ${x} ${y} L ${left.x} ${left.y} Q ${x + Math.cos(angle) * reach * 1.1} ${y + Math.sin(angle) * reach * 1.1} ${right.x} ${right.y} Z`} />
+      <line className="plan-camera__direction" x1={x} y1={y} x2={x + Math.cos(angle) * 48} y2={y + Math.sin(angle) * 48} /></>}
       <g className="plan-camera__drag" role={editable ? 'button' : undefined} tabIndex={editable ? 0 : undefined}
         aria-label={`${camera.name} 카메라 위치${editable ? ', 이 본체를 끌어서 이동, 방향키로 1% 이동' : ''}`}
         aria-pressed={editable ? selected : undefined}
@@ -909,9 +955,9 @@ export default function PlanCanvas({
         <image className="plan-camera__icon" href="/icons/nucleo/IconCameraOutline18.svg"
           x={x - bodyWidth / 2 + 8 * displayUnit} y={y - cameraIconSize / 2}
           width={cameraIconSize} height={cameraIconSize} aria-hidden="true" />
-        <text className="plan-camera__label" x={x + 14 * displayUnit}
+        {mode === 'camera' && <text className="plan-camera__label" x={x + 14 * displayUnit}
           y={y + 5 * displayUnit} textAnchor="middle"
-          style={{ fontSize: 14 * displayUnit }}>{canvasDisplay.narrow ? index + 1 : `카메라 ${index + 1}`}</text>
+          style={{ fontSize: 14 * displayUnit }}>{canvasDisplay.narrow ? index + 1 : `카메라 ${index + 1}`}</text>}
       </g>
       {selected && editable && <g className="plan-rotation-handle plan-rotation-handle--camera" role="slider" tabIndex={0}
         aria-label={`${camera.name} 시선 회전 손잡이. 이 손잡이나 바깥 링을 끌면 위치는 그대로이고 각도만 바뀝니다.`} aria-valuemin={0} aria-valuemax={359} aria-valuenow={degrees} aria-valuetext={`${degrees}도`}
@@ -983,7 +1029,7 @@ export default function PlanCanvas({
           <PlanMovementOverlay project={project} structures={movedStructures} width={width} height={height} unit={1 / contentPixelScale} patternId={movementPatternId} showCameraOccupancy={showCameraOccupancy} showStructureObstacles={!showStructureLayer} showElementOccupancy={!showElements || !layers.elements || Boolean(preview)} ignoredElementId={preview?.kind === 'element-move' || preview?.kind === 'element-rotate' ? preview.id : undefined} />
           {visibleAreas.filter(area => area.kind !== 'passage' && (area.kind !== 'floor' || area.id === selectedArea?.id)).map(area => {
             const selected = area.id === selectedArea?.id;
-            const pickable = !drawTool && (mode === 'view' || linkableAreaIds?.has(area.id));
+            const pickable = !drawTool && (mode === 'view' || areaSelectionMode || linkableAreaIds?.has(area.id));
             return <g key={area.id} className={`plan-canvas__area plan-canvas__area--${area.kind}${selected ? ' is-selected' : selectedArea && dimOtherAreas ? ' is-dimmed' : ''}${pickable ? ' is-pickable' : ''}`} aria-label={`${area.name} · ${AREA_LABELS[area.kind]}${selected ? ' · 선택됨' : ''}`} data-area-id={area.id}
               onClick={pickable ? event => { event.stopPropagation(); selectArea(area.id); } : undefined} onPointerDown={pickable ? event => event.stopPropagation() : undefined}>
               <title>{`${area.name} · ${AREA_LABELS[area.kind]}`}</title>
@@ -1018,6 +1064,8 @@ export default function PlanCanvas({
             {drawTool === 'segment' && <line x1={drawDraft.start.x * width} y1={drawDraft.start.y * height} x2={drawDraft.end.x * width} y2={drawDraft.end.y * height} />}
             {drawTool === 'rect' && <rect x={Math.min(drawDraft.start.x, drawDraft.end.x) * width} y={Math.min(drawDraft.start.y, drawDraft.end.y) * height} width={Math.abs(drawDraft.end.x - drawDraft.start.x) * width} height={Math.abs(drawDraft.end.y - drawDraft.start.y) * height} />}
           </g>}
+          {mode === 'mapping' && mappingTargets()}
+          {attachmentMarkers()}
         </g>
       </svg>
     {movementValidation ? <div className={`plan-canvas__movement-feedback${previewBlocked ? ' is-blocked' : ''}${movingPosition && movingPosition.y > .5 ? ' is-top' : ''}`} role="status"><strong>{previewBlocked ? '놓을 수 없는 위치' : '놓을 수 있는 위치'}</strong><span>{movementReason ?? '놓으면 이 위치로 저장합니다.'}</span></div> : gestureHint ? <p className="plan-canvas__gesture-hint" role="status">{gestureHint}</p> : null}
@@ -1025,7 +1073,13 @@ export default function PlanCanvas({
     {drawTool === 'polygon' && <div className="plan-outline-actions"><span aria-live="polite">윤곽 {outlineDraft.length}점</span><button type="button" disabled={outlineDraft.length < 3} onClick={finishOutline}>윤곽 저장</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft(points => points.slice(0, -1))}>마지막 점 취소</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft([])}>윤곽 취소</button></div>}
     {!drawTool && (mode === 'place' || mode === 'camera') ? <details className="plan-canvas__help"><summary>도면 조작 안내</summary><p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p></details> : <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
-      <span><i className="plan-canvas__legend-keep" aria-hidden="true" />위치 고정 구조</span>
+      {plan.structures.some(s=>s.kind==='wall') && <span><i className="legend-wall" />기존 벽</span>}
+      {(['window','door','entrance','pillar'] as const).filter(kind=>plan.structures.some(s=>s.kind===kind)).map(kind=><span key={kind}>{kind==='window'?'이중선 · 창':kind==='door'?'문짝·회전 호 · 문':kind==='entrance'?'열린 출입구':'채운 도형 · 기둥'}</span>)}
+      {[...new Set(activeElements.filter(e=>e.target?.kind==='floor-point'||e.target?.kind==='ceiling-zone').map(layoutKindFor))].map(kind=><span key={kind}><svg viewBox="-40 -28 80 56"><LayoutSymbol kind={kind} /></svg>{LAYOUT_LABELS[kind]}</span>)}
+      {plan.structures.some(s=>s.clearance) && <span>빗금 · 출입 여유</span>}
+      {visibleAreas.some(a=>a.kind==='spatial') && <span>점선 윤곽 · 공간 영역</span>}
+      {mode==='mapping' && <span>보라 윤곽 · 연결·선택</span>}
+      <span><img src="/icons/nucleo/IconLockOutline18.svg" width="14" height="14" alt="" />위치 고정 구조</span>
       {plan.structures.some(structure => structure.role === 'partition') && <span><i className="plan-canvas__legend-partition" aria-hidden="true" />점선 · 추가 가벽</span>}
       {plan.areas.some(area => area.kind === 'spatial') && showAreas && <span><i className="plan-canvas__legend-area" aria-hidden="true" />긴 점선 · 공간 범위</span>}
       {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}

@@ -1,8 +1,11 @@
 # Design system — Scene Edit / v1.2
 
-## 논문 사용자 평가용 단계 표기 · 2026-09-30
+## 레이아웃 우선 화면 규칙 · 2026-10-01
 
-상단 진행 표시는 네 그룹만 사용한다: `공간 확인`, `참고 요소 선택`, `공간 배치 및 시점 지정`, `AI 시안 확인 및 수정`. Keep·도면 편집은 공간 확인의 내부 조작이고, 배치·카메라는 같은 세 번째 단계의 내부 조작이다. 생성 전 확인과 결과·수정은 네 번째 단계에 함께 속한다. 내부 조작으로 이동할 수 있는 한국어 하위 메뉴와 기존 URL은 유지한다. 현재 단계, 선택된 하위 작업과 다음 행동은 색에만 의존하지 않고 텍스트로 구분한다. 공간 사진·도면·레퍼런스·결과 이미지를 가장 큰 시각적 표면으로 유지한다.
+상단 헤더 아래 네 진행 단계만 사용한다: 공간·방향 설정 / 레이아웃 구성 / 레퍼런스 적용 / 시안 생성. 별도의 전역 왼쪽 단계 메뉴는 없다. 1단계는 자료/정보 2열, 2단계는 도구/큰 도면/선택 속성 3열, 3단계는 레퍼런스·매핑 현황 패널/도면 2열, 4단계 결과는 큰 이미지·이력/당시 조건 요약 2열이다. 시점/검토/결과는 4단계 내부 탭이다.
+
+기존 보라색 선택·포커스 토큰과 중립 primary CTA를 모든 단계에 공통 적용한다. 추가 브랜드 색·그림자·아이콘 라이브러리는 도입하지 않는다. 구조는 건축 도면 기호, 전시대·테이블·의자·조명은 윗면 도형으로 구별한다. 이름은 마우스 올림·선택 때 표시하고 해당 유형은 작은 범례에 대응시킨다. 1070×671 이상의 데스크톱에서 도구·속성 패널만 내부 스크롤한다. 낮은 창에서는 캔버스 툴바를 줄이고 범례를 한 줄로 탐색할 수 있다. 기존 폰트·간격·반경·색 규칙은 유지한다.
+
 
 > Updated 2026-09-28 from the current product/interaction contracts and four reference studies:
 > Apple, Toss, Ohouse (오늘의집), and The Pinkfong Company.
@@ -10,8 +13,6 @@
 > These reference systems are **principle sources, not token sources**. Do not copy their brand colors,
 > fonts, logos, proprietary components, page compositions, or marketing treatment into this product.
 > Product behavior remains governed by `PRODUCT.md` and `INTERACTIONS.md`.
-
----
 
 ## 0. Authority and design decision order
 

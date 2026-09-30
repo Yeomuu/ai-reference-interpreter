@@ -1,5 +1,12 @@
 # Scene Edit implementation architecture
 
+## 독립 레이아웃과 호환 저장 · 2026-10-01
+
+저장 봉투/Project schemaVersion 1을 유지하고 선택 필드 layoutVersion=2, referenceBindings, 요소의 layoutKind/locked를 추가한다. LayoutItem은 출처 필드를 요구하지 않는 레이아웃 관점이며 실제 위치는 기존 elements.target에 단일 저장한다. ReferenceBinding은 referenceId/sourceRegion/layoutItemIds/scope를 저장한다. 기존 생성·검사 소비자를 위해 요소의 sourceReferenceId/sourceRegion도 같은 변경에서 투영한다. 바닥 배치가 이미지 연결 없이 유효할 때 origin=layout, 빈 출처를 명시하며 모델에는 중립적 형태임을 전달한다.
+
+domain/layoutMapping의 멱등 보완은 기존 요소 ID·배치·배제·과거 snapshot을 보존한다. 모든 읽기 진입과 새 프로젝트에서 적용하고 반복 호출로 공통 revision을 바꾸지 않는다. 변경/연결 해제/삭제와 실행 취소는 바인딩과 투영을 함께 다룬다. 기존 URL은 내부 호환 키이며 사용자 순서는 space → placement → references → camera/review/results이다. LayoutWorkspace, MappingWorkspace 및 LayoutSymbol이 App과 기존 PlanCanvas/validation을 사용한다. 별도의 캔버스 좌표나 중복 레이아웃 배열은 만들지 않는다.
+
+
 ## 화면 그룹과 URL 호환성 · 2026-09-30
 
 내부 데이터 모델과 `/projects/:id/{space,keep,references,placement,camera,review,results}` URL은 보존한다. 화면 내비게이션은 이들을 네 사용자 단계로 그룹화한다. 기본 프로젝트 진입은 실제 학교 졸업전시 사례를 앞세우며 AURA 팝업은 별도로 선택할 수 있다. 새 학교 사례의 사진은 실제 출처와 함께 표시하고 개략 도면을 실측·자동 추출 결과로 표현하지 않는다. 기존 브라우저 저장소와 과거 결과는 마이그레이션 과정에서 삭제하지 않는다.

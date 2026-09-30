@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-export const STEPS = ['space', 'keep', 'references', 'placement', 'camera', 'review', 'results'] as const
+export const STEPS = ['space', 'keep', 'placement', 'references', 'camera', 'review', 'results'] as const
 export type Step = typeof STEPS[number] | 'projects'
 export interface ProjectRoute { step: Step; projectId?: string; navigation?: 'ui' | 'history' }
 
