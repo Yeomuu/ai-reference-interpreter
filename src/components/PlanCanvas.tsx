@@ -834,7 +834,7 @@ export default function PlanCanvas({
       return <g key={element.id} className={`${classes} plan-element--product`} role={mode === 'place' ? 'button' : undefined} tabIndex={mode === 'place' ? 0 : undefined}
         aria-label={`${element.label}, ${host?.label ?? '진열대'} 위`} onPointerDown={event => event.stopPropagation()}
         onClick={event => { event.stopPropagation(); onElementSelect?.(element.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onElementSelect?.(element.id); } }}>
-        <title>{`${element.label} · 진열 상품 · ${host?.label} 위`}</title><g transform={`translate(${point.x * width} ${point.y * height}) scale(${1 / contentPixelScale})`}><rect x={-17} y={-17} width={34} height={34} rx={8} /><text x={0} y={5} textAnchor="middle">{number}</text>{selected && <text className="plan-product-label" x={0} y={-25} textAnchor="middle">진열 상품</text>}</g>
+        <title>{`${element.label} · 진열 상품 · ${host?.label} 위`}</title><g transform={`translate(${point.x * width} ${point.y * height}) scale(${1 / contentPixelScale})`}><rect x={-17} y={-17} width={34} height={34} rx={8} /><LayoutSymbol kind="product" width={24} height={24} />{selected && <text className="plan-product-label" x={0} y={-25} textAnchor="middle">진열 상품</text>}</g>
       </g>;
     }
     if (target.kind === 'wall-segment') {
@@ -902,7 +902,7 @@ export default function PlanCanvas({
       {plan!.areas.filter(area=>area.kind!=='passage').map(area=>renderMappingTarget(`area:${area.id}`,area.name,area.outline ? <polygon points={area.outline.map(p=>`${p.x*width},${p.y*height}`).join(' ')} /> : <rect x={area.bounds.x*width} y={area.bounds.y*height} width={area.bounds.width*width} height={area.bounds.height*height} />))}
       {plan!.structures.filter(item=>item.kind==='wall'&&item.geometry.kind==='segment').map(wall=>wall.geometry.kind==='segment'&&renderMappingTarget(`wall:${wall.id}`,wall.name,<polygon points={(() => { if(wall.geometry.kind!=='segment')return '';const a={x:wall.geometry.start.x*width,y:wall.geometry.start.y*height},b={x:wall.geometry.end.x*width,y:wall.geometry.end.y*height},length=Math.hypot(b.x-a.x,b.y-a.y)||1,offset=8/contentPixelScale,n={x:-(b.y-a.y)/length*offset,y:(b.x-a.x)/length*offset};return `${a.x+n.x},${a.y+n.y} ${b.x+n.x},${b.y+n.y} ${b.x-n.x},${b.y-n.y} ${a.x-n.x},${a.y-n.y}`;})()} />))}
 
-      {activeElements.filter(item=>item.target?.kind==='floor-point'||item.target?.kind==='wall-segment'||item.target?.kind==='fixture-surface'||item.target?.kind==='ceiling-zone').map(item=>{
+      {activeElements.filter(item=>item.target?.kind==='floor-point'||item.target?.kind==='wall-segment'||item.target?.kind==='fixture-surface'||item.target?.kind==='ceiling-zone').sort((a,b)=>Number(a.target?.kind==='fixture-surface')-Number(b.target?.kind==='fixture-surface')).map(item=>{
         const target=item.target!;const point=elementPlanPosition(project,item);if(!point)return null;
         const w=target.kind==='floor-point' ? (target.footprint?.width ?? .06)*width : 36/contentPixelScale;
         const h=target.kind==='floor-point' ? (target.footprint?.height ?? .06)*height : 36/contentPixelScale;
@@ -1073,18 +1073,20 @@ export default function PlanCanvas({
     {drawTool === 'polygon' && <div className="plan-outline-actions"><span aria-live="polite">윤곽 {outlineDraft.length}점</span><button type="button" disabled={outlineDraft.length < 3} onClick={finishOutline}>윤곽 저장</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft(points => points.slice(0, -1))}>마지막 점 취소</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft([])}>윤곽 취소</button></div>}
     {!drawTool && (mode === 'place' || mode === 'camera') ? <details className="plan-canvas__help"><summary>도면 조작 안내</summary><p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p></details> : <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
-      {plan.structures.some(s=>s.kind==='wall') && <span><i className="legend-wall" />기존 벽</span>}
+      {plan.structures.some(s=>s.kind==='wall'&&s.role!=='partition') && <span><i className="legend-wall" />기존 벽</span>}
       {(['window','door','entrance','pillar'] as const).filter(kind=>plan.structures.some(s=>s.kind===kind)).map(kind=><span key={kind}>{kind==='window'?'이중선 · 창':kind==='door'?'문짝·회전 호 · 문':kind==='entrance'?'열린 출입구':'채운 도형 · 기둥'}</span>)}
-      {[...new Set(activeElements.filter(e=>e.target?.kind==='floor-point'||e.target?.kind==='ceiling-zone').map(layoutKindFor))].map(kind=><span key={kind}><svg viewBox="-40 -28 80 56"><LayoutSymbol kind={kind} /></svg>{LAYOUT_LABELS[kind]}</span>)}
+      {[...new Set([...activeElements.filter(e=>e.target?.kind==='floor-point'||e.target?.kind==='ceiling-zone'||e.target?.kind==='fixture-surface').map(layoutKindFor),...(plan.structures.some(s=>s.kind==='existing-light')?['light' as const]:[])])].map(kind=><span key={kind}><svg viewBox="-40 -28 80 56"><LayoutSymbol kind={kind} /></svg>{LAYOUT_LABELS[kind]}</span>)}
       {plan.structures.some(s=>s.clearance) && <span>빗금 · 출입 여유</span>}
       {visibleAreas.some(a=>a.kind==='spatial') && <span>점선 윤곽 · 공간 영역</span>}
+      {visibleAreas.some(a=>a.kind==='ceiling') && <span>천장 영역</span>}
+      {selectedArea?.kind==='floor' && <span>사용 바닥</span>}
+      {plan.areas.some(a=>a.kind==='passage') && <span>빗금 · 통행 동선</span>}
       {mode==='mapping' && <span>보라 윤곽 · 연결·선택</span>}
       <span><img src="/icons/nucleo/IconLockOutline18.svg" width="14" height="14" alt="" />위치 고정 구조</span>
       {plan.structures.some(structure => structure.role === 'partition') && <span><i className="plan-canvas__legend-partition" aria-hidden="true" />점선 · 추가 가벽</span>}
-      {plan.areas.some(area => area.kind === 'spatial') && showAreas && <span><i className="plan-canvas__legend-area" aria-hidden="true" />긴 점선 · 공간 범위</span>}
       {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}
       {showElements && layers.elements && <span><i className="plan-canvas__legend-element" aria-hidden="true" />적용 요소</span>}
-      {showCameras && layers.cameras && <span>카메라 본체: 위치 이동 · 바깥 링/회전: 시선 변경</span>}
+      {showCameras && layers.cameras && <span>{mode==='camera'?'카메라 본체: 위치 이동 · 바깥 링/회전: 시선 변경':'카메라 · 생성 시점 위치'}</span>}
     </div>
   </section>;
 }
