@@ -42,7 +42,9 @@ export function quotaConfigured(): boolean { return Boolean(process.env.BLOB_REA
 const blobStore: QuotaStore = {
   async read() {
     const value = await get(QUOTA_PATH, {access:'private',useCache:false,abortSignal:AbortSignal.timeout(8_000)});
-    if (!value?.stream || !value.blob.size || value.blob.size > 65_000) throw new Error('Quota unavailable');
+    if (!value) throw new Error('Quota unavailable: record missing');
+    if (value.statusCode !== 200 || !value.stream) throw new Error('Quota unavailable: body missing');
+    if (!value.blob.size || value.blob.size > 65_000) throw new Error('Quota unavailable: invalid size');
     return {state:validateQuota(await new Response(value.stream).json()),etag:value.blob.etag};
   },
   async compareAndSwap(state, etag) {

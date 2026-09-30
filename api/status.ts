@@ -26,6 +26,9 @@ export default async function handler(request: IncomingMessage, response: Server
       // Classify without writing a Blob URL, token, or response body to logs.
       const message = error instanceof Error ? error.message : '';
       const category = /Invalid quota/.test(message) ? 'invalid-ledger'
+        : /record missing/.test(message) ? 'ledger-record-missing'
+        : /body missing/.test(message) ? 'ledger-body-missing'
+        : /invalid size/.test(message) ? 'ledger-size-invalid'
         : /Quota unavailable/.test(message) ? 'missing-ledger'
         : /Access denied|Unauthorized|Forbidden|401|403/i.test(message) ? 'blob-auth'
         : /timeout|fetch failed|network/i.test(message) ? 'blob-network'
