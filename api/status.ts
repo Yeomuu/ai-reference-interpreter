@@ -22,8 +22,14 @@ export default async function handler(request: IncomingMessage, response: Server
     try { quota = await generationQuota.status(generationIdentity(request, response)!); }
     catch (error) {
       available = false;
-      // Log only the error class. Blob error messages can contain credentials.
-      console.error('generation quota status failed', error instanceof Error ? error.name : 'unknown error');
+      // Classify without writing a Blob URL, token, or response body to logs.
+      const message = error instanceof Error ? error.message : '';
+      const category = /Invalid quota/.test(message) ? 'invalid-ledger'
+        : /Quota unavailable/.test(message) ? 'missing-ledger'
+        : /Access denied|Unauthorized|Forbidden|401|403/i.test(message) ? 'blob-auth'
+        : /timeout|fetch failed|network/i.test(message) ? 'blob-network'
+        : 'other';
+      console.error('generation quota status failed', category);
     }
   }
   const status: GenerationStatus = {
