@@ -286,10 +286,12 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const rectangularRoom = hasRectangularRoomShell(project);
   const exhibition = /전시|갤러리/.test(project.spaceType);
   const schoolSpace = /학교|교내|대학|프로젝트룸/.test(`${project.name} ${project.spaceType} ${project.concept}`);
+  const preserveWhiteboard = schoolSpace && /화이트보드/.test(project.concept);
   const prompt = [
     exhibition
       ? `Create ONE photorealistic interior concept photograph of ${schoolSpace ? 'a graduation exhibition installed in the existing school room' : 'an exhibition installed in the existing space'} from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy. Preserve the recognizable existing architecture and show the selected exhibits on appropriate supports.${schoolSpace ? ' Existing movable classroom desks and chairs may be rearranged unless the saved plan or Keep conditions preserve them; fixed walls, windows, doors and ceiling remain in place.' : ''}`
       : 'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
+    preserveWhiteboard ? 'The large existing wall-mounted whiteboard visible across the front wall in the existing-space photo is a preserved fixture, not a blank display wall. Keep its straight rectangular outline, visual scale and position visible and unobstructed. Do not replace or cover it with exhibition posters, projected graphics or display panels. Put removable wall graphics ONLY on their separately saved wall segment; if that segment lies behind the selected camera, leave the graphic out of frame instead of moving it onto the front wall.' : '',
     'Color fidelity: match the existing-space photo paint and material colors. With warm indirect lighting, use balanced daylight/neutral general illumination and exposure; show warmth locally around light emitters and nearby bounce, while white walls and unlit surfaces remain neutral white. Do not give the entire room an amber, brown or sepia wash. An explicit saved palette/material element may change only its own target.',
     'Input image roles, in order:',
     ...imageLines,

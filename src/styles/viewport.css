@@ -52,7 +52,8 @@ html { scroll-padding: 0; }
 .plan-panel-content > .plan-origin, .plan-detail-tabs, .plan-editor-focus-heading { flex: none; }
 .plan-editor-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
 .plan-editor-body > .plan-canvas { flex: 1 0 auto; min-height: auto; }
-.space-plan-panel .plan-canvas__instruction, .space-plan-panel .plan-canvas__legend { display: none; }
+.space-plan-panel .plan-canvas__instruction { display: none; }
+.space-plan-panel .plan-canvas__legend { padding-inline: var(--space-12); }
 .space-plan-panel .plan-canvas__surface { flex: 1; height: auto; min-height: var(--layout-canvas-min-height); }
 .space-plan-panel .plan-canvas__toolbar { flex: none; }
 .plan-task-hint, .plan-drawing-exit, .plan-caption, .plan-partitions, .plan-numeric-fallback { flex: none; }
@@ -164,6 +165,14 @@ html { scroll-padding: 0; }
 .plan-replacement-choice { padding: var(--space-8) var(--space-16); }
 .plan-replacement-choice span { font-size: 12px; }
 .plan-area-list, .structure-reshape { padding: var(--space-12) var(--space-16); border-top: 1px solid var(--border-default); }
+.plan-area-list { display: grid; gap: var(--space-8); }
+.plan-area-list h3 { margin: 0; }
+.plan-area-list__items { display: flex; gap: var(--space-8); overflow-x: auto; padding-bottom: var(--space-4); }
+.plan-area-list__items button { flex: none; min-height: var(--control-height-40); padding: var(--space-8) var(--space-12); border: 1px solid var(--border-default); border-radius: var(--radius-8); background: var(--surface-base); color: var(--text-primary); font: inherit; cursor: pointer; }
+.plan-area-list__items button.is-selected { border-color: var(--border-selected); background: var(--surface-selected); }
+.plan-area-list__items small { margin-left: var(--space-8); color: var(--text-secondary); }
+.plan-area-edit { display: grid; gap: var(--space-8); padding: var(--space-12); border: 1px solid var(--border-default); border-radius: var(--radius-8); }
+.plan-area-edit__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .plan-area-list > summary, .add-element > summary { cursor: pointer; min-height: var(--control-height-40); display: flex; align-items: center; font-weight: 600; }
 .element-panel > .add-element { flex: none; padding: var(--space-8) var(--space-16); }
 .element-panel > .add-element[open] { padding-bottom: var(--space-16); }

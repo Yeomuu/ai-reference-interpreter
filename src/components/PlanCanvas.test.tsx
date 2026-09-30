@@ -46,7 +46,8 @@ describe('area readability', () => {
     expect(html).not.toContain('>작업 영역 1</text>');
     expect(html).toContain('영역·동선 25개');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('통행 동선');
+    expect(html).toContain('data-constraint-id="passage-entrance"');
+    expect(html).not.toContain('>입구 동선</text>');
   });
 });
 

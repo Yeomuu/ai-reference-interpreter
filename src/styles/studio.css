@@ -74,6 +74,10 @@ html { scroll-padding-top: calc(var(--layout-header-height) + var(--space-16)); 
 .review-section { border: 0; border-bottom: 1px solid var(--border-default); border-radius: 0; padding: var(--space-20); }
 .review-section:last-child { border-bottom: 0; }
 .review-overview { padding: var(--space-20); }
+.review-plan { padding: var(--space-20); border-bottom: 1px solid var(--border-default); }
+.review-plan > .muted { margin-bottom: var(--space-12); }
+.review-plan .plan-canvas__surface { height: 300px; min-height: 300px; }
+.review-plan .plan-canvas__instruction { display: none; }
 .review-overview h2 { margin-bottom: var(--space-16); }
 .review-brief { margin: 0 0 var(--space-20); font-size: 14px; line-height: 22px; }
 .review-brief > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-16); padding: var(--space-16) 0; border-bottom: 1px solid var(--border-default); }

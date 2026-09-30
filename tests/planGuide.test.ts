@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { createSampleProject } from '../src/data/sample';
+import { createCampusProject } from '../src/data/campus';
 import { buildPlanGuideSvg, elementPlanPosition, matchesPlanGuide, planGuideManifest, type PlanGuidePalette } from '../src/services/planGuide';
 import { buildGenerationPrompt, type GenerationImage } from '../src/services/generationContract';
 
 const palette: PlanGuidePalette = { paper: 'white', ink: 'black', structure: 'gray', info: 'blue', selected: 'purple', subtle: 'white', border: 'gray' };
 
 describe('saved plan guide and scoped visual transfer', () => {
+  it('keeps the actual school whiteboard visible instead of moving graphics onto it', () => {
+    const project = createCampusProject('exhibition');
+    const prompt = buildGenerationPrompt(project, 'campus-camera', [{ role: 'existing-space', sourceId: 'campus-photo-front', dataUrl: '' }]);
+    expect(prompt).toContain('whiteboard visible across the front wall');
+    expect(prompt).toContain('leave the graphic out of frame');
+  });
   it('describes a graduation exhibition as a school-room exhibition, not a retail pop-up', () => {
     const project = createSampleProject();
     project.spaceType = '졸업전시';

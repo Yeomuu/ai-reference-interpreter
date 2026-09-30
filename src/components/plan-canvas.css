@@ -284,6 +284,7 @@
 
 .plan-structure__move-label text { pointer-events: none; }
 .plan-structure--movable .plan-structure__shape { stroke-dasharray: 12 5; }
+.plan-structure--partition .plan-structure__shape { stroke-dasharray: 8 5; }
 .plan-structure--draw-host { cursor: crosshair; }
 .plan-canvas__active-wall {
   stroke: var(--canvas-selection);
@@ -614,6 +615,15 @@
   border-style: dashed;
   background: var(--surface-selected);
 }
+.plan-canvas__legend i.plan-canvas__legend-partition,
+.plan-canvas__legend i.plan-canvas__legend-area {
+  width: 19px;
+  height: 0;
+  border: 0;
+  border-top: 2px dashed var(--canvas-wall);
+  border-radius: 0;
+}
+.plan-canvas__legend i.plan-canvas__legend-area { border-color: var(--border-strong); }
 
 @media (max-width: 767px) {
   .plan-canvas__controls button,

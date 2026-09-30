@@ -25,6 +25,7 @@ export interface PlanCanvasProps {
   selectedStructureId?: string;
   selectedCameraId?: string;
   selectedAreaId?: string;
+  showCameraPreview?: boolean;
   onAreaSelect?: (id: string) => void;
   mode: 'view' | 'keep' | 'place' | 'camera';
   drawTool?: 'point' | 'segment' | 'rect' | 'polygon';
@@ -132,6 +133,7 @@ export default function PlanCanvas({
   selectedStructureId,
   selectedCameraId,
   selectedAreaId,
+  showCameraPreview = false,
   onAreaSelect,
   mode,
   drawTool,
@@ -173,7 +175,7 @@ export default function PlanCanvas({
   const [outlineDraft, setOutlineDraft] = useState<Point[]>([]);
   const [gestureHint, setGestureHint] = useState<string | null>(null);
   const [layers, setLayers] = useState({ structures: true, elements: true, cameras: true });
-  const [areaLayers, setAreaLayers] = useState<AreaLayers>({ floor: true, ceiling: false, spatial: false, passage: true });
+  const [areaLayers, setAreaLayers] = useState<AreaLayers>({ floor: true, ceiling: false, spatial: true, passage: true });
   const [showAreaNames, setShowAreaNames] = useState(false);
   const [dimOtherAreas, setDimOtherAreas] = useState(true);
   const [localAreaId, setLocalAreaId] = useState<string>();
@@ -266,14 +268,14 @@ export default function PlanCanvas({
       : mode === 'keep'
         ? `구조를 선택하고 필수 보존을 켜거나 끄세요. ${movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌면 위치가 바뀝니다.' : '현재 이동 가능한 구조가 없습니다. 필수 보존을 끄면 도면 위치를 수정할 수 있습니다.'}`
         : movableStructures.length ? '‘이동 가능’ 이름표나 구조를 끌어 위치를 바꾸세요. 빈 공간을 끌면 도면은 이동하지 않습니다.' : '현재 이동 가능한 구조가 없습니다. 유지할 구조에서 위치 고정을 끄거나 ‘추가 가벽’을 그려 주세요.';
-  const showElements = mode === 'place' || mode === 'camera';
-  const showCameras = mode === 'camera';
+  const showElements = mode === 'place' || mode === 'camera' || showCameraPreview;
+  const showCameras = mode === 'camera' || showCameraPreview;
   const showStructureLayer = Boolean(drawTool) || layers.structures;
   const contentPixelScale = Math.max(0.01, canvasDisplay.scale * zoom);
   const selectedArea = plan.areas.find(area => area.id === (selectedAreaId ?? localAreaId));
   const showAreas = mode === 'view' || mode === 'place';
   const visibleAreas = plan.areas.filter(area => area.kind === 'passage' || showAreas && (areaLayers[area.kind] || area.id === selectedArea?.id));
-  const areaLabels = visibleAreas.filter(area => area.kind === 'passage' || showAreaNames || area.id === selectedArea?.id);
+  const areaLabels = visibleAreas.filter(area => showAreaNames || area.id === selectedArea?.id);
   const selectedDesignElement = project.elements.find(element => element.id === selectedElementId);
   const linkableAreaIds = mode === 'place' && onAreaSelect && selectedDesignElement ? new Set(plan.areas.filter(area => targetForArea(selectedDesignElement.kind, area)).map(area => area.id)) : undefined;
   function selectArea(id: string) {
@@ -287,8 +289,8 @@ export default function PlanCanvas({
   const editingStructure = drawStructureKind ?? plan.structures.find(item => item.id === (preview?.kind === 'structure-move' ? preview.id : selectedStructureId))?.kind;
   const showCameraOccupancy = !showCameras && (editingStructure === 'wall' || editingStructure === 'pillar') && (Boolean(drawStructureKind) || movableStructures.some(item => item.id === selectedStructureId));
   const clearanceNames = movedStructures.filter(item => item.clearance && (showAreaNames || item.id === selectedStructureId)).map(item => ({ id: `clearance-${item.id}`, name: `${item.name} · 여닫이`, hint: `${item.name} · 출입·여닫이 여유 공간`, x: item.clearance!.x + item.clearance!.width / 2, y: item.clearance!.y + item.clearance!.height / 2 }));
-  const occupancyNames = !showElements || !layers.elements ? activeElements.flatMap(element => { const bounds = physicalFloorBounds(project, element); return bounds ? [{ id: `occupancy-${element.id}`, name: element.label, hint: `${element.label} · 배치 점유 범위`, x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }] : []; }) : [];
-  const elementNames = showElements && layers.elements && !preview ? activeElements.flatMap(element => {
+  const occupancyNames = !showElements || !layers.elements ? activeElements.filter(element => element.id === selectedElementId).flatMap(element => { const bounds = physicalFloorBounds(project, element); return bounds ? [{ id: `occupancy-${element.id}`, name: element.label, hint: `${element.label} · 배치 점유 범위`, x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }] : []; }) : [];
+  const elementNames = showElements && layers.elements && !preview ? activeElements.filter(element => activeElements.length <= 4 || element.id === selectedElementId).flatMap(element => {
     if (!element.target || !['floor-point', 'fixture-surface', 'wall-segment'].includes(element.target.kind)) return [];
     const point = elementPlanPosition(project, element);
     return point ? [{ id: `element-name-${element.id}`, name: element.label, hint: element.label, x: point.x, y: point.y }] : [];
@@ -296,7 +298,9 @@ export default function PlanCanvas({
   const constraintNames = [...elementNames.sort((a, b) => Number(b.id === `element-name-${selectedElementId}`) - Number(a.id === `element-name-${selectedElementId}`)), ...clearanceNames, ...occupancyNames];
 
   const areaLabelCandidates = areaLabels.map(area => ({ id: `area-${area.id}`, x: (area.bounds.x + area.bounds.width / 2) * width * contentPixelScale, y: (area.bounds.y + area.bounds.height / 2) * height * contentPixelScale, width: Math.min(220, area.name.length * 14 + 32), height: 40 }));
-  const structureLabelCandidates = (showStructureLayer ? [...plan.structures] : []).map(structure => {
+  const showStructureNames = wallDrawing || plan.structures.length <= 5;
+  const labeledStructures = showStructureLayer ? plan.structures.filter(structure => showStructureNames || structure.id === selectedStructureId || !keptIds.has(structure.id)) : [];
+  const structureLabelCandidates = labeledStructures.map(structure => {
     const moved = movedStructures.find(item => item.id === structure.id);
     const center = structureCenter(moved ?? structure);
     const moving = !drawTool && movableStructures.some(item => item.id === structure.id) && mode !== 'camera';
@@ -667,6 +671,7 @@ export default function PlanCanvas({
     const classes = [
       'plan-structure',
       `plan-structure--${structure.kind}`,
+      structure.role === 'partition' ? 'plan-structure--partition' : '',
       structure.immutable ? 'plan-structure--immutable' : '',
       movable ? 'plan-structure--movable' : '',
       drawHost ? 'plan-structure--draw-host' : '',
@@ -729,7 +734,7 @@ export default function PlanCanvas({
           onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); onStructureLockToggle(structure.id); }}
           onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onStructureLockToggle(structure.id); } }}>
           <title>{kept ? '필수 보존 끄기' : '필수 보존 켜기'}</title><rect x={-20} y={-20} width={40} height={40} rx={8} />
-          <image href="/icons/nucleo/IconLockOutline18.svg" x={-9} y={-9} width={18} height={18} aria-hidden="true" />
+          <image href={kept ? '/icons/nucleo/IconLockOutline18.svg' : '/icons/user-provided/open-lock.svg'} x={-9} y={-9} width={18} height={18} aria-hidden="true" />
         </g>}
       </>}
 
@@ -866,7 +871,7 @@ export default function PlanCanvas({
     const reach = Math.min(width, height) * 0.29;
     const left = { x: x + Math.cos(angle - spread) * reach, y: y + Math.sin(angle - spread) * reach };
     const right = { x: x + Math.cos(angle + spread) * reach, y: y + Math.sin(angle + spread) * reach };
-    const selected = mode === 'camera' && (camera.id === selectedCameraId || (!selectedCameraId && camera.primary));
+    const selected = showCameras && (camera.id === selectedCameraId || (!selectedCameraId && camera.primary));
     const displayUnit = 1 / contentPixelScale;
     const bodyWidth = (canvasDisplay.narrow ? 64 : 96) * displayUnit;
     const bodyHeight = 36 * displayUnit;
@@ -953,7 +958,7 @@ export default function PlanCanvas({
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role="group"
-        aria-label={`${project.name} 공간 도면. ${plan.kind === 'schematic' ? '치수가 확인되지 않은 개략 도면' : '등록한 도면'}. Keep ${project.keeps.length}개${showElements ? `, 배치 요소 ${activeElements.length}개` : ''}${showCameras ? `, 카메라 ${project.cameras.length}개` : ''}.`}
+        aria-label={`${project.name} 공간 도면. ${plan.kind === 'schematic' ? '치수가 확인되지 않은 개략 도면' : '등록한 도면'}. 보존 구조 ${project.keeps.length}개${showElements ? `, 배치 요소 ${activeElements.length}개` : ''}${showCameras ? `, 카메라 ${project.cameras.length}개` : ''}.`}
         aria-describedby={instructionId}
         tabIndex={0}
         onClick={handleCanvasClick}
@@ -983,7 +988,7 @@ export default function PlanCanvas({
           </g>}
           {showElements && layers.elements && <g className="plan-canvas__layer plan-canvas__layer--elements" aria-label="적용 요소 레이어">{activeElements.filter(item => item.kind !== 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}{activeElements.filter(item => item.kind === 'display-product').map(item => renderElement(item, activeElements.indexOf(item)))}</g>}
           {showCameras && layers.cameras && <g className="plan-canvas__layer plan-canvas__layer--cameras" aria-label="카메라 레이어">{project.cameras.map(renderCamera)}</g>}
-          {showStructureLayer && <g aria-label="구조 이름표"><g aria-hidden="true">{plan.structures.map(structure => { const packed = labels.get(structure.id); const center = structureCenter(movedStructures.find(item => item.id === structure.id) ?? structure); return packed && <line key={structure.id} className="plan-label-leader" x1={center.x * width} y1={center.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} />; })}</g>{plan.structures.map(structure => renderStructure(structure, true))}</g>}
+          {showStructureLayer && <g aria-label="구조 이름표"><g aria-hidden="true">{labeledStructures.map(structure => { const packed = labels.get(structure.id); const center = structureCenter(movedStructures.find(item => item.id === structure.id) ?? structure); return packed && <line key={structure.id} className="plan-label-leader" x1={center.x * width} y1={center.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} />; })}</g>{labeledStructures.map(structure => renderStructure(structure, true))}</g>}
           <g className="plan-constraint-names" aria-label="보호·점유 범위 이름">{constraintNames.map(label => { const packed = labels.get(label.id); if (!packed) return null; return <g key={label.id}><line className="plan-label-leader" x1={label.x * width} y1={label.y * height} x2={packed.x / contentPixelScale} y2={packed.y / contentPixelScale} /><g className={`plan-area-label plan-area-label--constraint${label.id.startsWith('occupancy-') ? ' is-occupancy' : ''}`} transform={`translate(${packed.x / contentPixelScale} ${packed.y / contentPixelScale}) scale(${1 / contentPixelScale})`} aria-label={label.hint}><title>{label.hint}</title><rect x={-packed.width / 2} y={-12} width={packed.width} height={24} rx={4} /><text x={0} y={5} textAnchor="middle">{label.name.length > 13 ? `${label.name.slice(0, 12)}…` : label.name}</text></g></g>; })}</g>
           <g aria-label="영역 이름표">{areaLabels.map(area => {
             const packed = labels.get(`area-${area.id}`); if (!packed) return null;
@@ -1014,6 +1019,8 @@ export default function PlanCanvas({
     {!drawTool && (mode === 'place' || mode === 'camera') ? <details className="plan-canvas__help"><summary>도면 조작 안내</summary><p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p></details> : <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
     <div className="plan-canvas__legend" aria-label="도면 표기 설명">
       <span><i className="plan-canvas__legend-keep" aria-hidden="true" />위치 고정 구조</span>
+      {plan.structures.some(structure => structure.role === 'partition') && <span><i className="plan-canvas__legend-partition" aria-hidden="true" />점선 · 추가 가벽</span>}
+      {plan.areas.some(area => area.kind === 'spatial') && showAreas && <span><i className="plan-canvas__legend-area" aria-hidden="true" />긴 점선 · 공간 범위</span>}
       {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}
       {showElements && layers.elements && <span><i className="plan-canvas__legend-element" aria-hidden="true" />적용 요소</span>}
       {showCameras && layers.cameras && <span>카메라 본체: 위치 이동 · 바깥 링/회전: 시선 변경</span>}
