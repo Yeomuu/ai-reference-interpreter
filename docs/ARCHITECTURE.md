@@ -1,5 +1,11 @@
 # Scene Edit implementation architecture
 
+## 화면 정리 공통 구성 · 2026-10-01
+
+TimedNotice의 NOTICE_DURATION_MS=2000을 모든 transient feedback에서 공유한다. 표시 생명주기와 편집/삭제 history 생명주기를 분리한다. PlanLegend는 native details와 Escape/outside/close 처리를 사용한다. MappingWorkspace는 스크롤 목록과 적용 footer를 분리하고 native dialog로 9개 초과 기존 이미지 목록을 보여 준다.
+
+changeBindingScope는 원본 binding ID/출처/crop/대상 목록을 유지하면서 기존 bindReference 검증을 재사용하고 mapping-condition만 해석에 맞게 변경한다. translatedElementTarget은 도면 위치를 기존 floor/ceiling/product anchor로 변환하고 기존 검증·commit·undo 경로를 사용한다. planGuide.elementPlanPosition은 천장 offset까지 반영하여 물체·선택 영역·생성 도면 위치를 일치시킨다. 저장 스키마/한도/카메라 추천/유료 생성 및 quota는 변경하지 않는다.
+
 ## 최종 제한·카메라 호환 필드 · 2026-10-01 (우선 적용)
 
 prototypeConfig가 20/8 제한·노출 영역 유형·카메라 프리셋을 관리하고 prototypeLimits가 실제 elements와 고유 reference.imageId를 센다. App의 추가 경계/commit과 UI disabled가 같은 정의를 사용한다. history/recovery는 정확한 과거 초과 상태를 복구한다. 표면·영역 바인딩 투영은 origin=mapping-condition이며 unbind/delete 후에도 이 분류를 유지한다.

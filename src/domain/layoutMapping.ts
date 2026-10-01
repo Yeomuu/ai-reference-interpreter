@@ -60,6 +60,17 @@ export function unbindReference(project: Project, bindingId: string): Project {
   });
 }
 
+/** Change only the selected binding's interpretation, preserving its source/crop and geometry. */
+export function changeBindingScope(project: Project, bindingId: string, scope: NonNullable<ReferenceBinding['scope']>): { project: Project; error?: string } {
+  const binding = project.referenceBindings?.find(item => item.id === bindingId);
+  if (!binding) return { project, error: '현재 연결을 찾을 수 없습니다.' };
+  const elements = project.elements.map(item => binding.layoutItemIds.includes(item.id) && item.origin === 'mapping-condition' && item.target
+    ? { ...item, kind: targetCondition(project, item.id, item.target, scope).kind } : item);
+  const result = bindReference({ ...project, elements }, binding.referenceId, binding.layoutItemIds, binding.sourceRegion, scope);
+  if (result.error) return { project, error: result.error };
+  return { project: updateCommon(project, { elements: result.project.elements, referenceBindings: project.referenceBindings?.map(item => item.id === bindingId ? { ...item, scope } : item) }) };
+}
+
 /** A wall/area binding adds an appearance condition, never a duplicate physical structure. */
 export function targetCondition(project: Project, id: string, target: PlacementTarget, scope: ReferenceBinding['scope']): DesignElement {
   const wall = target.kind === 'wall-segment' ? project.floorPlan?.structures.find(item => item.id === target.wallId) : undefined;

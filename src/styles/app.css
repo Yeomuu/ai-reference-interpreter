@@ -83,9 +83,6 @@ p { line-height: 1.65; }
 .alert button:hover, .alert button:focus-visible { background: rgb(0 0 0 / 6%); }
 .alert-error { background: var(--state-error-bg); color: var(--state-error-fg); border-color: var(--state-error-fg); }
 .alert-info { background: var(--state-info-bg); color: var(--state-info-fg); border-color: var(--state-info-fg); }
-.alert-info { animation: notice-fade-out 500ms ease 3s forwards; }
-@keyframes notice-fade-out { to { opacity: 0; transform: translateY(-4px); } }
-@media (prefers-reduced-motion: reduce) { .alert-info { animation: none; } }
 .empty-state, .image-empty { min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-24); background: var(--surface-workspace); border: 1px dashed var(--border-strong); border-radius: var(--radius-8); color: var(--text-secondary); text-align: center; font-size: 14px; }
 .section-heading, .panel-heading, .group-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-12); }
 .section-heading { margin-bottom: var(--space-16); }

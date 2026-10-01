@@ -41,7 +41,7 @@ export function elementPlanPosition(project: Project, element: DesignElement): P
   }
   const id = target.kind === 'ceiling-zone' ? target.zoneId : target.kind === 'floor-area' || target.kind === 'named-area' ? target.areaId : undefined;
   const area = project.floorPlan.areas.find(item => item.id === id);
-  return area ? { x: area.bounds.x + area.bounds.width / 2, y: area.bounds.y + area.bounds.height / 2 } : null;
+  return area ? { x: area.bounds.x + area.bounds.width * (target.kind === 'ceiling-zone' ? target.offset?.x ?? .5 : .5), y: area.bounds.y + area.bounds.height * (target.kind === 'ceiling-zone' ? target.offset?.y ?? .5 : .5) } : null;
 }
 
 export interface PlanGuidePalette { paper: string; ink: string; structure: string; info: string; selected: string; subtle: string; border: string }

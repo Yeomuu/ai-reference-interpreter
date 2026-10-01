@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent, PointerEvent } from 'react'
+import type { DragEvent, KeyboardEvent, PointerEvent } from 'react'
 import type { Point, Rect } from '../domain/types'
 import AssetImage from './AssetImage'
+import TimedNotice from './TimedNotice'
 import './reference-region.css'
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   selection: Rect | null
   enabled: boolean
   onChange: (selection: Rect | null) => void
+  onReferenceDragStart?: (event: DragEvent) => void
 }
 
 const MIN_REGION = 0.04
@@ -34,7 +36,7 @@ export function validReferenceRegion(region: Rect): boolean {
     region.x + region.width <= 1.000001 && region.y + region.height <= 1.000001
 }
 
-export default function ReferenceRegionPicker({ uri, name, imageWidth, imageHeight, selection, enabled, onChange }: Props) {
+export default function ReferenceRegionPicker({ uri, name, imageWidth, imageHeight, selection, enabled, onChange, onReferenceDragStart }: Props) {
   const pickerRef = useRef<HTMLDivElement>(null)
   const [stageHeight, setStageHeight] = useState(460)
   useEffect(() => {
@@ -125,11 +127,12 @@ export default function ReferenceRegionPicker({ uri, name, imageWidth, imageHeig
       aria-description={enabled ? '포인터를 드래그해 영역을 선택합니다. 키보드는 Enter로 중앙 영역을 만든 뒤 방향키로 이동하고 Shift와 방향키로 크기를 조정합니다. Escape는 선택을 해제합니다.' : undefined}
       tabIndex={enabled ? 0 : undefined}
       onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}
-      onKeyDown={keyDown} onDragStart={(event) => event.preventDefault()}>
+      draggable={!!onReferenceDragStart && !enabled}
+      onKeyDown={keyDown} onDragStart={event => { if (onReferenceDragStart && (!enabled || (event.target as HTMLElement).classList.contains('reference-region-picker__selection'))) onReferenceDragStart(event); else event.preventDefault(); }}>
       <AssetImage uri={uri} alt={`${name} 참고 이미지`} className="reference-region-picker__image" />
-      {enabled && visible && validReferenceRegion(visible) && <div className="reference-region-picker__selection" aria-hidden="true" style={{ left: `${visible.x * 100}%`, top: `${visible.y * 100}%`, width: `${visible.width * 100}%`, height: `${visible.height * 100}%` }} />}
+      {enabled && visible && validReferenceRegion(visible) && <div className="reference-region-picker__selection" aria-hidden="true" draggable={!!onReferenceDragStart} onPointerDown={event => { if (onReferenceDragStart && !event.shiftKey) event.stopPropagation(); }} style={{ left: `${visible.x * 100}%`, top: `${visible.y * 100}%`, width: `${visible.width * 100}%`, height: `${visible.height * 100}%` }} />}
       {enabled && <span className="reference-region-picker__mode" aria-hidden="true">선택 영역</span>}
     </div>
-    {enabled && <p className="reference-region-picker__hint" role={hint ? 'status' : undefined}>{hint || '이미지에서 필요한 부분을 드래그하세요. 방향키로 이동하고 Shift+방향키로 크기를 조정할 수도 있습니다.'}</p>}
+    {enabled && (hint ? <TimedNotice lifetimeKey={hint} className="reference-region-picker__hint" onDismiss={()=>setHint('')}><span>{hint}</span></TimedNotice> : <p className="reference-region-picker__hint">{selection && onReferenceDragStart ? '선택한 부분을 도면에 끌어 놓을 수 있습니다. 다시 선택하려면 영역 바깥에서 그리거나 Shift를 누르고 그리세요.' : '이미지에서 필요한 부분을 드래그하세요. 방향키로 이동하고 Shift+방향키로 크기를 조정할 수도 있습니다.'}</p>)}
   </div>
 }

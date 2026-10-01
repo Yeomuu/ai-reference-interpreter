@@ -8,7 +8,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['scripts/qa-prototype.mjs'],
+    files: ['scripts/qa-*.mjs'],
     // Node harness with browser callbacks in the isolated Playwright page.
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },

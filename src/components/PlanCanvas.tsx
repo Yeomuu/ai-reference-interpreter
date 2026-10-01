@@ -16,7 +16,9 @@ import PlanAreaControls from './PlanAreaControls';
 import type { AreaLayers } from './PlanAreaControls';
 import PlanMovementOverlay from './PlanMovementOverlay';
 import { physicalFloorBounds } from '../domain/validation';
-import { validateMovementPreview, type MovementPreview } from '../domain/movementFeedback';
+import { translatedElementTarget, validateMovementPreview, type MovementPreview } from '../domain/movementFeedback';
+import PlanLegend from './PlanLegend';
+import TimedNotice from './TimedNotice';
 import { wallFaceLabel, wallFaceLine } from '../domain/wallFaces';
 import './plan-canvas.css';
 
@@ -274,6 +276,8 @@ export default function PlanCanvas({
       ? wallDrawing ? `${activeDrawWall?.name ?? '연결할 벽'}의 선에서 시작해 원하는 길이만큼 끌어 주세요. 다른 벽의 선을 누르면 연결 벽이 바뀝니다.` : '시작 위치를 누른 채 끝 위치까지 끌어 주세요. 마우스를 놓으면 선이 추가됩니다.'
       : drawTool === 'rect'
         ? '한쪽 모서리를 누른 채 반대쪽 모서리까지 끌어 주세요. 마우스를 놓으면 범위가 추가됩니다.'
+        : mode === 'mapping'
+          ? '도면에서 대상을 선택하고 참고 이미지를 적용하세요. Shift로 여러 대상을 선택합니다. 배치 요소를 끌면 위치를 조정할 수 있습니다.'
         : mode === 'place'
     ? '요소는 끌어서 이동하고 회전 손잡이로 각도를 조정하세요. ‘이동 가능’ 구조도 끌 수 있습니다. 벽에 붙은 창·문은 연결 벽을 따라 이동합니다. 빈 바닥 클릭은 선택한 디자인 요소를 배치합니다.'
     : mode === 'camera'
@@ -516,6 +520,7 @@ export default function PlanCanvas({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 3) return;
+    if (!drag.moved && mode === 'mapping' && drag.id && !mappingSelectedIds.includes(drag.id)) onMappingSelect?.(drag.id, false);
     drag.moved = true;
     const point = svgPosition(event);
     if (!point || !drag.id) return;
@@ -567,7 +572,14 @@ export default function PlanCanvas({
     setPreview(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (drag.id) dragEventRef.current?.(event.type === 'pointercancel' || !drag.moved || !last ? 'cancel' : 'end', drag.kind, drag.id);
-    if (!drag.moved) return;
+    if (!drag.moved) {
+      if (mode === 'mapping' && drag.id && event.type === 'pointerup') {
+        onMappingSelect?.(drag.id, event.shiftKey);
+        suppressClickRef.current = true;
+        window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+      }
+      return;
+    }
     suppressClickRef.current = true;
     window.setTimeout(() => { suppressClickRef.current = false; }, 0);
     if (event.type === 'pointercancel' || !last || last.id !== drag.id || last.kind !== drag.kind) return;
@@ -779,7 +791,7 @@ export default function PlanCanvas({
   }
 
   function renderElement(element: DesignElement, index: number) {
-    const target = element.target;
+    const target = preview?.kind === 'element-move' && preview.id === element.id && preview.point ? translatedElementTarget(project, element.id, preview.point) ?? element.target : element.target;
     if (!target) return null;
     const selected = mode === 'place' && element.id === selectedElementId || mode === 'mapping' && mappingSelectedIds.includes(element.id);
     // Scope conditions are not separate physical objects: focus one instead of stacking every outline.
@@ -829,7 +841,7 @@ export default function PlanCanvas({
       const host = project.elements.find(item => item.id === target.fixtureElementId);
       const hostPreview = host && preview?.id === host.id && host.target?.kind === 'floor-point'
         ? { ...host, target: { ...host.target, ...(preview.point ? preview.point : {}), ...(preview.degrees !== undefined ? { rotationDegrees: preview.degrees } : {}) } } : host;
-      const point = displayPosition(hostPreview ? { ...project, elements: project.elements.map(item => item.id === hostPreview.id ? hostPreview : item) } : project, element);
+      const point = displayPosition(hostPreview ? { ...project, elements: project.elements.map(item => item.id === hostPreview.id ? hostPreview : item) } : project, { ...element, target });
       if (!point) return null;
       return <g key={element.id} className={`${classes} plan-element--product`} role={mode === 'place' ? 'button' : undefined} tabIndex={mode === 'place' ? 0 : undefined}
         aria-label={`${element.label}, ${host?.label ?? '진열대'} 위`} onPointerDown={event => event.stopPropagation()}
@@ -886,11 +898,17 @@ export default function PlanCanvas({
 
   function renderMappingTarget(id: string, name: string, geometry: React.ReactNode) {
     const linked = project.referenceBindings?.some(binding => binding.layoutItemIds.includes(id));
+    const element = project.elements.find(item => item.id === id);
+    const point = element && elementPlanPosition(project, element);
+    const movable = !!onElementMove && !element?.locked && ['floor-point', 'ceiling-zone', 'fixture-surface'].includes(element?.target?.kind ?? '');
+    const wallId = element?.target?.kind === 'wall-segment' ? element.target.wallId : undefined;
+    const wall = plan!.structures.find(item => item.id === wallId);
+    const wallMovable = !!onWallElementMove && !!wall && !element?.locked;
     return <g key={id} data-mapping-target={id} className={`mapping-target ${mappingSelectedIds.includes(id) ? 'is-selected' : ''} ${dropTarget===id ? 'is-drop-target' : ''} ${linked ? 'is-linked' : ''}`} role="button" tabIndex={0} aria-label={`${name} 매핑 대상${linked ? ', 연결됨' : ''}`} aria-pressed={mappingSelectedIds.includes(id)}
       onMouseEnter={()=>setHoveredId(id.replace(/^wall:/,''))} onMouseLeave={()=>setHoveredId(undefined)}
-      onPointerDown={event=>event.stopPropagation()}
-      onClick={event=>{event.stopPropagation();onMappingSelect?.(id,event.shiftKey)}}
-      onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onMappingSelect?.(id,event.shiftKey)}}}
+      onPointerDown={event=>{event.stopPropagation();if(event.shiftKey){event.preventDefault();return;}if(movable&&point)startDrag(event,'element-move',id,point);else if(wallMovable&&element)startWallElementDrag(event,element,wall);}}
+      onClick={event=>{event.stopPropagation();if(!suppressClickRef.current)onMappingSelect?.(id,event.shiftKey)}}
+      onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onMappingSelect?.(id,event.shiftKey)}else if(movable&&point)handleMoveKeyDown(event,'element',id,point)}}
       onDragOver={event=>{if(event.dataTransfer.types.includes(REFERENCE_DRAG_TYPE)){event.preventDefault();event.stopPropagation();event.dataTransfer.dropEffect='copy';setDropTarget(id)}}}
       onDragLeave={()=>setDropTarget(undefined)} onDrop={event=>{event.preventDefault();event.stopPropagation();setDropTarget(undefined);try {const input=JSON.parse(event.dataTransfer.getData(REFERENCE_DRAG_TYPE));if(typeof input.referenceId==='string')onReferenceDrop?.(id,input.referenceId,input.region)} catch {setGestureHint('이미지를 다시 끌어 적용하세요.')}}}>{geometry}</g>;
   }
@@ -903,7 +921,7 @@ export default function PlanCanvas({
       {plan!.structures.filter(item=>item.kind==='wall'&&item.geometry.kind==='segment').map(wall=>wall.geometry.kind==='segment'&&renderMappingTarget(`wall:${wall.id}`,wall.name,<polygon points={(() => { if(wall.geometry.kind!=='segment')return '';const a={x:wall.geometry.start.x*width,y:wall.geometry.start.y*height},b={x:wall.geometry.end.x*width,y:wall.geometry.end.y*height},length=Math.hypot(b.x-a.x,b.y-a.y)||1,offset=8/contentPixelScale,n={x:-(b.y-a.y)/length*offset,y:(b.x-a.x)/length*offset};return `${a.x+n.x},${a.y+n.y} ${b.x+n.x},${b.y+n.y} ${b.x-n.x},${b.y-n.y} ${a.x-n.x},${a.y-n.y}`;})()} />))}
 
       {activeElements.filter(item=>item.target?.kind==='floor-point'||item.target?.kind==='wall-segment'||item.target?.kind==='fixture-surface'||item.target?.kind==='ceiling-zone').sort((a,b)=>Number(a.target?.kind==='fixture-surface')-Number(b.target?.kind==='fixture-surface')).map(item=>{
-        const target=item.target!;const point=elementPlanPosition(project,item);if(!point)return null;
+        const target=item.target!;const moved=preview?.id===item.id ? preview.point ? translatedElementTarget(project,item.id,preview.point) : preview.wall&&target.kind==='wall-segment'?{...target,...preview.wall}:undefined : undefined;const point=elementPlanPosition(project,moved?{...item,target:moved}:item);if(!point)return null;
         const w=target.kind==='floor-point' ? (target.footprint?.width ?? .06)*width : 36/contentPixelScale;
         const h=target.kind==='floor-point' ? (target.footprint?.height ?? .06)*height : 36/contentPixelScale;
         return renderMappingTarget(item.id,item.label,<rect x={point.x*width-w/2} y={point.y*height-h/2} width={w} height={h} rx={4} transform={`rotate(${target.kind==='floor-point'?target.rotationDegrees??0:0} ${point.x*width} ${point.y*height})`} />);
@@ -1004,7 +1022,7 @@ export default function PlanCanvas({
     {plan.kind === 'uploaded' && (imageError || !sourceUri) && <p className="plan-canvas__image-status" role="alert">{imageError ?? '등록한 도면 이미지를 찾을 수 없습니다. 다시 등록해 주세요.'}</p>}
     {(plan.areas.some(area => area.kind === 'passage') || plan.structures.some(structure => structure.clearance)) && <p className="plan-canvas__movement-key">{mode === 'camera' ? '빗금: 통행·여닫이 공간 · 시점 배치 가능' : '빗금: 비워 둘 통행·여닫이 공간'}</p>}
     <div className="plan-canvas__surface">
-    {validationMessage && <div className="plan-canvas__validation" role="alert"><div className="plan-validation-heading"><strong>표시를 저장하지 않았습니다.</strong>{onValidationDismiss && <button type="button" aria-label="도면 안내 닫기" onClick={onValidationDismiss}>닫기</button>}</div><p>{validationMessage}</p></div>}
+    {validationMessage && <TimedNotice lifetimeKey={validationMessage} className="plan-canvas__validation" role="alert" closeLabel="도면 안내 닫기" onDismiss={onValidationDismiss}><strong>표시를 저장하지 않았습니다.</strong><p>{validationMessage}</p></TimedNotice>}
       <svg
         ref={svgRef}
         className={`plan-canvas__svg plan-canvas__svg--${mode}${drawTool ? ` plan-canvas__svg--draw-${drawTool}` : ''}`}
@@ -1068,11 +1086,11 @@ export default function PlanCanvas({
           {attachmentMarkers()}
         </g>
       </svg>
-    {movementValidation ? <div className={`plan-canvas__movement-feedback${previewBlocked ? ' is-blocked' : ''}${movingPosition && movingPosition.y > .5 ? ' is-top' : ''}`} role="status"><strong>{previewBlocked ? '놓을 수 없는 위치' : '놓을 수 있는 위치'}</strong><span>{movementReason ?? '놓으면 이 위치로 저장합니다.'}</span></div> : gestureHint ? <p className="plan-canvas__gesture-hint" role="status">{gestureHint}</p> : null}
+    {movementValidation ? <TimedNotice lifetimeKey={`${preview?.kind}-${preview?.id}`} className={`plan-canvas__movement-feedback${previewBlocked ? ' is-blocked' : ''}${movingPosition && movingPosition.y > .5 ? ' is-top' : ''}`}><strong>{previewBlocked ? '놓을 수 없는 위치' : '놓을 수 있는 위치'}</strong><span>{movementReason ?? '놓으면 이 위치로 저장합니다.'}</span></TimedNotice> : gestureHint ? <TimedNotice lifetimeKey={gestureHint} className="plan-canvas__gesture-hint" onDismiss={()=>setGestureHint(null)}><span>{gestureHint}</span></TimedNotice> : null}
     </div>
     {drawTool === 'polygon' && <div className="plan-outline-actions"><span aria-live="polite">윤곽 {outlineDraft.length}점</span><button type="button" disabled={outlineDraft.length < 3} onClick={finishOutline}>윤곽 저장</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft(points => points.slice(0, -1))}>마지막 점 취소</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft([])}>윤곽 취소</button></div>}
     {!drawTool && (mode === 'place' || mode === 'camera') ? <details className="plan-canvas__help"><summary>도면 조작 안내</summary><p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p></details> : <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
-    <div className="plan-canvas__legend" aria-label="도면 표기 설명">
+    <PlanLegend>
       {showStructureLayer&&plan.structures.some(s=>s.kind==='wall'&&s.role!=='partition') && <span><i className="legend-wall" />기존 벽</span>}
       {(['window','door','entrance','pillar'] as const).filter(kind=>showStructureLayer&&plan.structures.some(s=>s.kind===kind)).map(kind=>{const actual=plan.structures.find(s=>s.kind===kind)!;return <span key={kind}><svg viewBox="0 0 70 55"><PlanSymbol width={70} height={55} structure={{...actual,geometry:kind==='pillar'?{kind:'rect',bounds:{x:.3,y:.2,width:.4,height:.5}}:{kind:'segment',start:{x:.2,y:.2},end:{x:.8,y:.2}}}} /></svg>{kind==='window'?'창':kind==='door'?actual.doorSwing?'여닫이문':'문 · 열림 방향 미지정':kind==='entrance'?'열린 출입구':'기둥'}</span>})}
       {[...new Set([...activeElements.filter(e=>showElements&&layers.elements&&['floor-point','ceiling-zone','fixture-surface','wall-segment'].includes(e.target?.kind??'')).map(layoutKindFor),...(showStructureLayer&&plan.structures.some(s=>s.kind==='existing-light')?['light' as const]:[])])].map(kind=><span key={kind}><svg viewBox="-40 -28 80 56"><LayoutSymbol kind={kind} /></svg>{LAYOUT_LABELS[kind]}</span>)}
@@ -1086,6 +1104,6 @@ export default function PlanCanvas({
       {showStructureLayer&&plan.structures.some(structure => structure.role === 'partition') && <span><i className="plan-canvas__legend-partition" aria-hidden="true" />점선 · 추가 가벽</span>}
       {!drawTool && mode !== 'camera' && movableStructures.length > 0 && <span><i className="plan-canvas__legend-movable" aria-hidden="true" />이동 가능한 구조 {movableStructures.length}개</span>}
       {showCameras && layers.cameras && <span>{mode==='camera'?'카메라 본체: 위치 이동 · 바깥 링/회전: 시선 변경':'카메라 · 생성 시점 위치'}</span>}
-    </div>
+    </PlanLegend>
   </section>;
 }
