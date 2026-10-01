@@ -1,12 +1,21 @@
 /* Layout-first editing, using the shared semantic palette and controls. */
-.app-shell--project { grid-template-columns: minmax(0,1fr); grid-template-rows: var(--layout-header-height) 64px minmax(0,1fr); }
-.app-shell--project .step-nav { grid-column:1; grid-row:2; display:block; height:64px; min-height:64px; padding:0 var(--space-24); border-right:0; border-bottom:1px solid var(--border-default); background:var(--surface-base); overflow:hidden; }
-.app-shell--project .step-nav-inner { display:flex; flex-direction:row; align-items:center; justify-content:center; width:100%; height:100%; gap:var(--space-32); min-width:0; }
-.app-shell--project .step-link { position:relative; width:auto; flex:0 1 auto; gap:var(--space-12); padding:var(--space-8) var(--space-12); min-width:0; border-radius:var(--radius-12); }
-.app-shell--project .step-link.is-current { background:var(--surface-selected); color:var(--action-selected); border-bottom:0; }
-.app-shell--project .step-number { display:grid; place-items:center; width:32px; height:32px; border:1px solid var(--border-default); border-radius:50%; color:var(--text-secondary); background:var(--surface-base); font-size:var(--font-size-caption); }
-.app-shell--project .step-link.is-current .step-number { background:var(--action-selected); border-color:var(--action-selected); color:var(--text-inverse); }
-.app-shell--project .main-content { grid-column:1; grid-row:3; padding:var(--space-16) 0; }
+.app-shell--project { grid-template-columns: minmax(0,1fr); grid-template-rows: var(--layout-header-height) minmax(0,1fr); }
+/* Progress shares the task heading row, immediately before the task actions. */
+.app-shell--project .page-intro { display:grid; grid-template-columns:minmax(180px,1fr) minmax(400px,560px) max-content; align-items:center; gap:var(--space-24); }
+.app-shell--project .step-nav { grid-column:2; grid-row:1; position:relative; top:auto; display:block; width:100%; height:auto; min-height:0; padding:0; border:0; background:transparent; backdrop-filter:none; overflow:visible; }
+.app-shell--project .step-nav-inner { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:100%; height:auto; gap:0; min-width:0; margin:0; }
+.app-shell--project .step-link { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; width:100%; height:auto; min-height:var(--control-height-48); gap:var(--space-8); padding:var(--space-4) 0; min-width:0; border:0; border-radius:var(--radius-8); background:transparent; font-size:var(--font-size-caption); line-height:var(--space-20); }
+.app-shell--project .step-link:not(:last-child)::after { content:''; position:absolute; top:calc(var(--space-4) + var(--space-16)); left:calc(50% + var(--space-24)); width:calc(100% - var(--space-48)); height:2px; background:var(--border-default); pointer-events:none; }
+.app-shell--project .step-link.is-before::after { background:var(--action-selected); }
+.app-shell--project .step-link.is-current { background:transparent; color:var(--action-selected); }
+.app-shell--project .step-marker { display:grid; place-items:center; flex:none; width:var(--space-32); height:var(--space-32); border:1px solid var(--border-strong); border-radius:50%; color:var(--text-secondary); background:var(--surface-base); transition:background-color var(--motion-fast),border-color var(--motion-fast),color var(--motion-fast); }
+.app-shell--project .step-marker .nucleo-icon { width:var(--space-16); height:var(--space-16); }
+.app-shell--project .step-link.is-before .step-marker { color:var(--action-selected); border-color:var(--border-selected); background:var(--surface-selected); }
+.app-shell--project .step-link.is-current .step-marker { background:var(--action-selected); border-color:var(--action-selected); color:var(--text-inverse); outline:2px solid var(--border-selected); outline-offset:2px; }
+.app-shell--project .step-link:hover .step-marker { border-color:var(--action-selected); }
+.app-shell--project .step-link:active .step-marker { background:var(--surface-selected); color:var(--action-selected); }
+.app-shell--project .step-label { white-space:nowrap; }
+.app-shell--project .main-content { grid-column:1; grid-row:2; padding:var(--space-16) 0; }
 .app-shell--project .content-wrap { width:calc(100% - var(--space-40)); max-width:none; gap:var(--space-12); }
 .app-shell--project .page-intro h1 { font-size:var(--font-size-workspace-title); }
 .app-shell--project .page-intro .eyebrow { display:none; }
@@ -88,7 +97,8 @@
 .result-camera-summary .plan-canvas { max-height:220px; padding:0; }
 .result-camera-summary .plan-canvas__surface { min-height:150px; height:150px; }
 .result-camera-summary .plan-canvas__toolbar,.result-camera-summary .plan-canvas__instruction,.result-camera-summary .plan-canvas__legend,.result-camera-summary .plan-canvas__movement-key { display:none; }
-@media(max-width:1199px) { .layout-editor { grid-template-columns:180px minmax(0,1fr) 220px; gap:var(--space-12); } .app-shell--project .step-nav-inner { gap:var(--space-8); } .app-shell--project .step-link { font-size:var(--font-size-caption); gap:var(--space-8); } .mapping-editor,.space-direction { gap:var(--space-12); } }
+@media(max-width:1199px) { .layout-editor { grid-template-columns:180px minmax(0,1fr) 220px; gap:var(--space-12); } .app-shell--project .page-intro { gap:var(--space-12); } .mapping-editor,.space-direction { gap:var(--space-12); } }
+@media(max-width:999px) { .app-shell--project .page-intro { grid-template-columns:minmax(0,1fr) max-content; } .app-shell--project .step-nav { grid-column:1 / -1; grid-row:2; max-width:560px; justify-self:center; } }
 @media(max-height:750px) { .app-shell--project .main-content { padding:var(--space-8) 0; } .app-shell--project .page-intro .lede { display:none; } .app-shell--project .page-intro h1 { font-size:20px; } }
 
 .space-direction .mapping-tabs { min-width:220px; }
@@ -140,10 +150,9 @@
 
 /* Compact canvas chrome on the evaluation laptop viewport. All legend items remain horizontally reachable. */
 @media(max-height:750px) {
-  .app-shell--project { grid-template-rows:56px 52px minmax(0,1fr); }
+  .app-shell--project { grid-template-rows:56px minmax(0,1fr); }
   .app-shell--project .app-header { height:56px; min-height:56px; }
   .app-shell--project .header-inner { height:56px; min-height:56px; }
-  .app-shell--project .step-nav { height:52px; min-height:52px; }
   .app-shell--project .page-status { display:none; }
   .app-shell--project .page-intro { align-items:center; }
   .app-shell--project .experiment-panel>summary { min-height:32px; padding:var(--space-4) var(--space-16); }
