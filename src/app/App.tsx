@@ -6,7 +6,7 @@ import TimedNotice from '../components/TimedNotice';
 import { translatedElementTarget } from '../domain/movementFeedback';
 import type { LayoutKind } from '../domain/types';
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import type { Area, Camera, CommonPatch, DesignElement, ElementKind, FloorPlan, PlacementTarget, Point, Project, Rect, Reference, Result, SourceImage, Structure, ValidationIssue } from '../domain'
 import { addCamera, allowedTargetKinds, isDisplaySupport, outlineBounds, reshapeStructure, appendResult, cameraConditionsChanged, createEmptyProject, isStructureLocked, moveStructure, placeElement, removeDesignElement, removeReference, removeCamera, setResultApproved, setStructurePreservation, structureMovementReason, structurePosition, targetLabel, updateCamera, updateCommon, updateElement, updateKeep, updatePhotoAnchor, validateAreaDrawing, validateCamera, validatePreflight, validateStructureDrawing, validateStructureOperation } from '../domain'
 import { createSampleProject } from '../data/sample'
@@ -658,6 +658,16 @@ export default function App() {
     if (!commitDeletion(removeDesignElement(project, element.id), '디자인 요소를 삭제', { referenceId: element.sourceReferenceId })) return
     setEditingElementId(null); setRegionEditingElementId(null); setPendingPlacement(null)
     setSelectedElementId(projectRef.current.elements[0]?.id ?? '')
+  }
+  function deleteLayoutSelection(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (step !== 'placement' || event.key !== 'Backspace' || event.defaultPrevented || busy ||
+        event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing ||
+        planDetailTab !== 'plan' || layoutTool || layoutWallDraft || pendingPlacement ||
+        placementSelection !== 'element' || selectedAreaId || !selectedElement) return
+    if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]')) return
+    event.preventDefault()
+    // Holding the key must not delete the next automatically selected object.
+    if (!event.repeat) deleteElement(selectedElement)
   }
   function beginConditionEdit(element: DesignElement) {
     experiment.record('condition_edit_start', 'element', element.id)
@@ -1636,7 +1646,7 @@ export default function App() {
         <div className="page-intro-right"><div className="page-actions" aria-label="단계 이동"><Button tone="quiet" icon="previous" onClick={()=>go(workflowIndex(step)===0?'projects':WORKFLOW[workflowIndex(step)-1].steps[0])}>{workflowIndex(step)===0?'프로젝트 목록':'이전 단계'}</Button>{stepIndex>=0 && workflowIndex(step)<3 && <Button tone="primary" icon="next" iconAfter onClick={()=>go(WORKFLOW[workflowIndex(step)+1].steps[0])}>{project.layoutVersion===2?WORKFLOW[workflowIndex(step)+1].label:NEXT_ACTIONS[step]}</Button>}</div><div className="page-status"><Badge tone="info">{project.floorPlan?.geometryConfidence === 'schematic' ? '개략 도면' : project.floorPlan ? '도면 등록' : '도면 없음'}</Badge><span>수정 버전 {project.commonRevision}</span></div></div>
       </div>}
       {workflowIndex(step)===3 && <div className="generation-stage-tabs" aria-label="시안 생성 작업">{step==='camera'&&<Button icon="previous" tone="quiet" onClick={()=>go('review')}>생성 전 확인으로 돌아가기</Button>}{(['review','results'] as const).map(item=><button key={item} disabled={item==='results'&&!project.results.length} title={item==='results'&&!project.results.length?'시안을 만들면 결과를 확인할 수 있습니다.':undefined} aria-current={step===item?'page':undefined} onClick={()=>go(item)}><NucleoIcon name={item==='review'?'check':'images'} />{item==='review'?'생성 전 확인':'결과 확인·수정'}</button>)}</div>}
-      <div className={`page-workspace page-workspace--${step}`} role="region" aria-label={`${STEP_LABELS[step]} 작업 영역`}>{step === 'projects' && renderProjects()}{step === 'space' && (project.layoutVersion===2?renderSpaceSetup():renderSpace())}{step === 'keep' && renderKeep()}{step === 'references' && (project.layoutVersion===2?renderMapping():renderReferences())}{step === 'placement' && (project.layoutVersion===2?renderLayout():renderPlacement())}{step === 'camera' && renderCamera()}{step === 'review' && renderReview()}{step === 'results' && renderResults()}</div>
+      <div className={`page-workspace page-workspace--${step}`} role="region" aria-label={`${STEP_LABELS[step]} 작업 영역`} onKeyDown={step === 'placement' ? deleteLayoutSelection : undefined}>{step === 'projects' && renderProjects()}{step === 'space' && (project.layoutVersion===2?renderSpaceSetup():renderSpace())}{step === 'keep' && renderKeep()}{step === 'references' && (project.layoutVersion===2?renderMapping():renderReferences())}{step === 'placement' && (project.layoutVersion===2?renderLayout():renderPlacement())}{step === 'camera' && renderCamera()}{step === 'review' && renderReview()}{step === 'results' && renderResults()}</div>
       <ExperimentPanel recorder={experiment} project={project} step={step} />
     </div></main>
 

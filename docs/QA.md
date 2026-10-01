@@ -171,3 +171,7 @@ Actual current results are recorded in QA_SPATIAL_BATCH_20260929.md; older dated
 - scripts/qa-element-visibility.mjs: 격리 브라우저에서 새 프로젝트 사진 업로드가 도면을 만들지 않음, 직접 만든 개략 도면 저장/reload, 천장 물체 표시, 미배치/제외/없는 받침 표시, 레이어 숨김 시 hit target 제거, 선택 시 전체 보기, 기존 데이터 유지, 원본 사진+도면의 생성 입력 순서와 결과 저장을 확인한다. API 모델 응답은 mock이며 유료 호출과 실제 결과 품질 검증은 하지 않는다.
 - scripts/qa-workspace.mjs 기존 흐름도 함께 검증한다. 이 테스트 또한 mock이며 실제 모델 실행을 뜻하지 않는다.
 - 이번 수정 검증 결과: 전체 28개 파일의 자동 테스트 237개, ESLint, 앱/API TypeScript 검사, production build 통과. 격리 브라우저의 기존 workspace 시나리오와 요소 가시성/새 프로젝트/생성 입력 시나리오 통과. 이 검증의 유료 모델 호출은 0회이며 실제 이미지 품질은 재검증하지 않았다.
+
+## 2단계 Backspace 삭제 검증 · 2026-10-01
+- 격리 브라우저에서 선택 배치 요소 삭제, 이름/숫자 입력 보호, 길게 누름 반복 삭제 방지, Ctrl+Z/다시 실행/새로고침, 구조·영역 보존, 1·3·4단계 비적용, 다각형 그리기 Backspace 유지와 JS 오류 없음 확인. 유료 모델 호출 0회.
+- 관련 편집/매핑/저장 테스트 32개, ESLint, 앱/API TypeScript, production build 통과. 기존 큰 JS 묶음 경고는 유지된다.
