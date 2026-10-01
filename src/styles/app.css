@@ -45,6 +45,9 @@ p { line-height: 1.65; }
 .button { display: inline-flex; justify-content: center; align-items: center; min-height: var(--control-height-40); padding: 0 var(--space-16); border: 1px solid transparent; border-radius: var(--radius-12); font-size: 14px; line-height: 22px; font-weight: 600; white-space: nowrap; text-decoration: none; transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
 .button:has(.nucleo-icon), .file-pick:has(.nucleo-icon) { gap: var(--space-8); }
 .nucleo-icon { display: inline-block; width: 20px; height: 20px; flex: none; background-color: currentColor; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+:is(h1, h2, h3):has(> .nucleo-icon),
+.field > span:has(> .nucleo-icon),
+.checkbox-row > span:has(> .nucleo-icon) { display: flex; align-items: center; gap: var(--space-8); }
 .button-primary { background: var(--action-primary); color: var(--action-primary-text); border-color: var(--action-primary); }
 .button-primary:hover:not(:disabled) { background: var(--action-primary-hover); border-color: var(--action-primary-hover); }
 .button-primary:active:not(:disabled) { background: var(--action-primary-pressed); border-color: var(--action-primary-pressed); }

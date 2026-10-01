@@ -1,4 +1,4 @@
-# Scene Edit implementation architecture
+# ReSpace implementation architecture
 
 ## 화면 정리 공통 구성 · 2026-10-01
 

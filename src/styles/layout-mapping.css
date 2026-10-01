@@ -58,7 +58,7 @@
 .plan-canvas .plan-canvas__legend { position:relative; display:block; width:100%; overflow:visible; white-space:normal; padding:0; min-height:var(--control-height-32); }
 .plan-canvas__legend>summary { display:flex; align-items:center; gap:var(--space-8); min-height:var(--control-height-32); padding:0 var(--space-8); border:1px solid var(--border-default); border-radius:var(--radius-8); color:var(--text-secondary); cursor:pointer; list-style:none; }
 .plan-canvas__legend>summary::-webkit-details-marker { display:none; }
-.plan-canvas__legend>summary>span { display:inline-flex; gap:var(--space-8); margin-left:auto; }
+.plan-canvas__legend>summary>span { display:inline-flex; align-items:center; gap:var(--space-8); margin-left:auto; }
 .plan-legend-popover { position:absolute; bottom:calc(100% + var(--space-8)); left:0; right:0; z-index:var(--layer-popover); padding:var(--space-16); border:1px solid var(--border-default); border-radius:var(--radius-12); background:var(--surface-base); box-shadow:var(--shadow-float); max-height:50dvh; overflow-y:auto; }
 .plan-legend-items { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:var(--space-8) var(--space-16); }
 .plan-legend-items>span { display:inline-flex; align-items:center; gap:var(--space-8); min-height:var(--control-height-32); white-space:normal; }

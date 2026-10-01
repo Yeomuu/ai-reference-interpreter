@@ -1,4 +1,4 @@
-# Product brief — Scene Edit · 전시·팝업 공간 디자인
+# Product brief — ReSpace · 전시·팝업 공간 디자인
 
 ## 주석 기반 화면·알림 정리 · 2026-10-01 (우선 적용)
 
