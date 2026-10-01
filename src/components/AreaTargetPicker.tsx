@@ -1,6 +1,7 @@
 import type { Area, DesignElement, PlacementTarget, Project } from '../domain/types';
 import { allowedTargetKinds, validatePlacement } from '../domain/validation';
 import { areaTargetOptions, scopeTargetKey } from '../domain/areaTargets';
+import NucleoIcon from './NucleoIcon';
 
 interface Props {
   project: Project;
@@ -36,6 +37,6 @@ export default function AreaTargetPicker({ project, element, onChange, onCreateA
     {currentError && <p className="area-target-error" role="status">{currentError}</p>}
     {checkedOptions.some(option => option.reason) && <details className="area-target-reasons"><summary>연결할 수 없는 위치 확인</summary>{checkedOptions.filter(option => option.reason).map(option => <p key={option.key}><strong>{option.label}</strong><br />{option.reason}</p>)}</details>}
     {options.filter(option => option.target.kind !== 'whole-space').length === 0 && <p className="muted small">{areaKind === 'ceiling' ? '천장 영역' : areaKind === 'spatial' ? '특정 공간 영역' : '바닥 영역'}이 아직 없습니다.</p>}
-    <button className="button button-quiet" type="button" onClick={() => onCreateArea(areaKind)}>도면에서 {areaKind === 'ceiling' ? '천장' : areaKind === 'spatial' ? '공간' : '바닥'} 영역 추가</button>
+    {areaKind === 'spatial' ? <button className="button button-quiet" type="button" onClick={() => onCreateArea('spatial')}><NucleoIcon name="add" />도면에서 분위기 영역 추가</button> : options.length === 0 && <p className="muted small">공간·방향 설정에서 평면도의 실내 윤곽을 먼저 확인하세요.</p>}
   </div>;
 }

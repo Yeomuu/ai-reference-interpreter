@@ -3,6 +3,8 @@ import { planSymbol } from '../domain/planSymbols'
 
 export default function PlanSymbol({ structure, width, height }: { structure: Structure; width: number; height: number }) {
   const symbol = planSymbol(structure, width, height)
+  if (structure.kind === 'wall' && structure.geometry.kind === 'segment') return <g className={`plan-symbol plan-tool-wall${structure.role==='partition'?' plan-tool-wall--partition':''}`} aria-hidden="true"><line x1={structure.geometry.start.x*width} y1={structure.geometry.start.y*height} x2={structure.geometry.end.x*width} y2={structure.geometry.end.y*height} /></g>;
+  if (structure.kind === 'pillar' && structure.geometry.kind === 'rect') { const r=structure.geometry.bounds; return <g className="plan-symbol plan-tool-pillar" aria-hidden="true"><rect x={r.x*width} y={r.y*height} width={r.width*width} height={r.height*height} /></g>; }
   return symbol && <g className="plan-symbol" aria-hidden="true">
     <path className="plan-symbol__gap" d={symbol.gap} />
     {symbol.paths.map((d, i) => <path key={i} className="plan-symbol__line" d={d} />)}

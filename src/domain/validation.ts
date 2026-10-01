@@ -302,6 +302,9 @@ export function validatePartitionPlacement(project: Project, start: Point, end: 
   const width = Math.max(1, plan.width);
   const height = Math.max(1, plan.height);
   for (const camera of project.cameras) {
+    // Untouched recommendations are provisional, hidden layout helpers.
+    // STEP 04 recovers them after geometry edits; manual cameras stay protected.
+    if (camera.recommendation === 'automatic') continue;
     if (segmentIntersectsCircle(start, end,
       { center: camera, radius: CAMERA_WALL_TOLERANCE }, width, height)) {
       issues.push({ ...error('partition-conflict', `가벽이 ${camera.name} 카메라 위치와 겹칩니다. 카메라나 가벽을 옮겨 주세요.`), cameraId: camera.id });
@@ -411,6 +414,7 @@ export function validateStructureDrawing(project: Project, candidate: Structure,
         if (opening.clearance && geometryIntersectsRect(project, geometry, opening.clearance)) issues.push(error('door-clearance', `${opening.name}의 여닫이·출입 공간과 겹칩니다.`, undefined, opening.id));
       }
       for (const camera of project.cameras) {
+        if (camera.recommendation === 'automatic') continue;
         const inside = geometry.kind === 'rect' ? containsPoint(geometry.bounds, camera)
           : geometry.kind === 'circle' && circleContainsPoint(geometry, camera, plan.width, plan.height);
         if (inside) issues.push({ ...error('invalid-camera', `${camera.name} 카메라가 있는 위치입니다. 카메라를 먼저 옮기거나 다른 위치를 선택해 주세요.`), cameraId: camera.id });

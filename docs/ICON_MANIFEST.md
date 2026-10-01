@@ -54,3 +54,15 @@
 기존 `IconCameraOutline18.svg`는 기둥/가벽 편집 시 기존 시점 위치를 알려주는 읽기 전용 marker에도 재사용한다. 이동/회전/시야 cone은 시점 편집에서만 제공한다. 동선 빗금과 점유 윤곽은 실제 계획 데이터의 도형 표시이며 새 아이콘 자산이 아니다.
 
 2026-09-29: 기존 `IconCameraOutline18.svg`를 저장 배치 가이드의 단일 시점 표시에 재사용한다. HTMLImageElement로 로컬 SVG를 JPEG 도면에 렌더링하며 원본 아이콘 경로/자산은 수정하지 않는다.
+
+## 최종 UI semantic 연결 · 2026-10-01
+
+기존 공식 SVG를 재사용하며 새 파일/아이콘 라이브러리를 추가하지 않았다.
+
+| 공식 컴포넌트 → 로컬 SVG | semantic | 적용 |
+|---|---|---|
+| IconRotation360Outline18.js → IconRotation360Outline18.svg | NucleoIcon.rotate | 속성 회전 |
+| IconSitemap4Outline18.js → IconSitemap4Outline18.svg | NucleoIcon.structure | 매핑 현황 |
+| IconMinusOutline18.js → IconMinusOutline18.svg | NucleoIcon.minus | 연결 해제 |
+
+그 외 기존 image/images/file/layers/camera/edit/add/trash/lock/check/info/warning/refresh/previous/next를 제목·업로드·도구·요약·생성·수정에 확대한다. 전시대/가구/전구는 LayoutSymbol, 벽/문/창/기둥 도구는 PlanSymbol의 실제 기하 표현이며 UI 아이콘으로 대체하지 않는다. 정확한 Save/Undo/Redo/Crop용 자산은 현재 확보 목록에 없어 저장/실행 취소/다시 실행은 텍스트를 유지하고 영역 선택에는 편집 의미의 edit를 텍스트와 함께 사용한다.

@@ -17,6 +17,9 @@ const ICON_FILES = {
   refresh: 'IconRefresh2Outline18.svg',
   edit: 'IconPen3Outline18.svg',
   camera: 'IconCameraOutline18.svg',
+  rotate: 'IconRotation360Outline18.svg',
+  structure: 'IconSitemap4Outline18.svg',
+  minus: 'IconMinusOutline18.svg',
 } as const
 
 export type NucleoIconName = keyof typeof ICON_FILES

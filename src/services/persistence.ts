@@ -1,4 +1,5 @@
 import { migrateLayout } from '../domain/layoutMapping.js';
+import { migrateCameraPresets } from '../domain/cameraRecommendations.js';
 import { outlineBounds, validOutline } from '../domain/geometry.js';
 import type { FloorPlan, Project } from '../domain/types.js';
 
@@ -138,7 +139,7 @@ function isElement(value: unknown): boolean {
     (value.target === null || isPlacementTarget(value.target)) &&
     (value.appearance === undefined || typeof value.appearance === 'string') &&
     (value.conditions === undefined || typeof value.conditions === 'string') &&
-    (value.origin === undefined || value.origin === 'basic-support' || value.origin === 'layout') &&
+    (value.origin === undefined || value.origin === 'basic-support' || value.origin === 'layout' || value.origin === 'mapping-condition') &&
     (value.layoutKind === undefined || ['display','table','chair','light','wall-art','product','area'].includes(String(value.layoutKind))) &&
     (value.locked === undefined || typeof value.locked === 'boolean');
 }
@@ -147,12 +148,19 @@ function isBindings(value: unknown): boolean {
   return value === undefined || (Array.isArray(value) && value.every(item => isRecord(item) && typeof item.id === 'string' && typeof item.referenceId === 'string' && isStringArray(item.layoutItemIds) && item.layoutItemIds.length > 0 && new Set(item.layoutItemIds).size === item.layoutItemIds.length && (item.sourceRegion === undefined || isRect(item.sourceRegion)) && (item.scope === undefined || ['appearance','lighting','material'].includes(String(item.scope)))));
 }
 
+function isCameraView(value: Record<string, unknown>): boolean {
+  return (value.viewPreset === undefined || ['overview','entry','secondary','custom'].includes(String(value.viewPreset))) &&
+    (value.eyeHeightPreset === undefined || ['average-female','average-male','custom'].includes(String(value.eyeHeightPreset))) &&
+    (value.heightMeters === undefined || typeof value.heightMeters === 'number' && Number.isFinite(value.heightMeters) && value.heightMeters >= .5 && value.heightMeters <= 10) &&
+    (value.pitchDegrees === undefined || typeof value.pitchDegrees === 'number' && Number.isFinite(value.pitchDegrees) && value.pitchDegrees >= -90 && value.pitchDegrees <= 90) &&
+    (value.recommendation === undefined || ['automatic','modified'].includes(String(value.recommendation)));
+}
 function isCamera(value: unknown): boolean {
   return isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string' &&
     isFraction(value.x) && isFraction(value.y) &&
     typeof value.directionDegrees === 'number' && Number.isFinite(value.directionDegrees) &&
     (value.fovPreset === undefined || ['narrow', 'standard', 'wide'].includes(String(value.fovPreset))) &&
-    typeof value.primary === 'boolean';
+    isCameraView(value) && typeof value.primary === 'boolean';
 }
 
 function isConditionsSnapshot(value: unknown): boolean {
@@ -163,7 +171,7 @@ function isConditionsSnapshot(value: unknown): boolean {
       typeof value.camera.id !== 'string' || !isFraction(value.camera.x) || !isFraction(value.camera.y) ||
       typeof value.camera.directionDegrees !== 'number' || !Number.isFinite(value.camera.directionDegrees) ||
       (value.camera.fovPreset !== undefined && !['narrow', 'standard', 'wide'].includes(String(value.camera.fovPreset))) ||
-      (value.camera.name !== undefined && typeof value.camera.name !== 'string')) return false;
+      (value.camera.name !== undefined && typeof value.camera.name !== 'string') || !isCameraView(value.camera)) return false;
   if (value.common === undefined) return true;
   const common = value.common;
   return isRecord(common) && typeof common.concept === 'string' &&
@@ -189,6 +197,7 @@ export function isProject(value: unknown): value is Project {
   const project = value;
   return project.schemaVersion === SCHEMA_VERSION &&
     (project.layoutVersion === undefined || project.layoutVersion === 2) && isBindings(project.referenceBindings) &&
+    (project.cameraRecommendationVersion === undefined || project.cameraRecommendationVersion === 1) &&
     typeof project.id === 'string' &&
     typeof project.name === 'string' &&
     typeof project.spaceType === 'string' &&
@@ -221,7 +230,7 @@ export function loadProjects(): Project[] {
     if (!parsed || typeof parsed !== 'object') return [];
     const envelope = parsed as Partial<StoredProjects>;
     if (envelope.schemaVersion !== SCHEMA_VERSION || !Array.isArray(envelope.projects)) return [];
-    return envelope.projects.filter(isProject).map(migrateLayout);
+    return envelope.projects.filter(isProject).map(project => migrateCameraPresets(migrateLayout(project)));
   } catch {
     return [];
   }

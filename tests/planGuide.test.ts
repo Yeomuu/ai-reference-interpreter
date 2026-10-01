@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createSampleProject } from '../src/data/sample';
+import { prepareRecommendedCameras } from '../src/domain/cameraRecommendations';
 import { createCampusProject } from '../src/data/campus';
 import { buildPlanGuideSvg, elementPlanPosition, matchesPlanGuide, planGuideManifest, type PlanGuidePalette } from '../src/services/planGuide';
 import { buildGenerationPrompt, type GenerationImage } from '../src/services/generationContract';
@@ -8,8 +9,8 @@ const palette: PlanGuidePalette = { paper: 'white', ink: 'black', structure: 'gr
 
 describe('saved plan guide and scoped visual transfer', () => {
   it('keeps the actual school whiteboard visible instead of moving graphics onto it', () => {
-    const project = createCampusProject('exhibition');
-    const prompt = buildGenerationPrompt(project, 'campus-camera', [{ role: 'existing-space', sourceId: 'campus-photo-front', dataUrl: '' }]);
+    const project = prepareRecommendedCameras(createCampusProject('exhibition'));
+    const prompt = buildGenerationPrompt(project, project.cameras.find(camera=>camera.primary)!.id, [{ role: 'existing-space', sourceId: 'campus-photo-front', dataUrl: '' }]);
     expect(prompt).toContain('whiteboard visible across the front wall');
     expect(prompt).toContain('leave the graphic out of frame');
   });

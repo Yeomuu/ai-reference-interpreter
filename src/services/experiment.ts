@@ -3,6 +3,8 @@ import { validatePreflight } from '../domain'
 import type { Step } from '../app/routes'
 import { STEPS } from '../app/routes'
 import { textZip } from './zip'
+import { countLayoutItems, countReferenceImages } from '../domain/prototypeLimits'
+import { MAX_LAYOUT_ITEMS, MAX_REFERENCE_IMAGES } from '../domain/prototypeConfig'
 
 export const EXPERIMENT_KEY = 'ai-reference-interpreter:experiment:v1'
 export const SURVEY_QUESTIONS = [
@@ -29,6 +31,7 @@ export interface ExperimentState { sessions: ExperimentSession[]; activeId: stri
 const stepNames: Record<Step, string> = { projects: 'projects', space: 'space', keep: 'preservation', references: 'reference', placement: 'placement', camera: 'viewpoint', review: 'review', results: 'result' }
 const allowedPayload = new Set(['drag_kind', 'from_step', 'to_step', 'navigation', 'duration_ms', 'structure_type', 'mandatory', 'source', 'role', 'region_used', 'element_type', 'layout_kind', 'target_count', 'apply_state', 'target_type', 'target_id', 'wall_face', 'x_norm', 'y_norm', 'rotation', 'heading_deg', 'fov', 'invalid_reason', 'issue_count', 'common_revision', 'changed_fields', 'origin', 'edit_duration_ms', 'character_count', 'diff_length', 'request_id', 'outcome_unknown', 'approved'])
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+for(const key of ['count','limit','view_preset','height_m','pitch_deg'])allowedPayload.add(key);
 
 /** Final assessment artifact only. Filenames, image pixels/URIs, credentials and browser history are excluded. */
 export function assessmentOutput(project: Project) {
@@ -173,6 +176,8 @@ export class ExperimentRecorder {
   }
   changes(before: Project, after: Project) {
     if (!this.active || this.active.project_id !== after.id || before.id !== after.id) return
+    if(countLayoutItems(before)<MAX_LAYOUT_ITEMS&&countLayoutItems(after)>=MAX_LAYOUT_ITEMS)this.record('layout_limit_reached','project',after.id,{count:countLayoutItems(after),limit:MAX_LAYOUT_ITEMS});
+    if(countReferenceImages(before)<MAX_REFERENCE_IMAGES&&countReferenceImages(after)>=MAX_REFERENCE_IMAGES)this.record('reference_limit_reached','project',after.id,{count:countReferenceImages(after),limit:MAX_REFERENCE_IMAGES});
     if (this.reviewAway && (before.commonRevision !== after.commonRevision || !same(before.cameras, after.cameras))) this.reviewEdited = true
     const previousKeeps = new Set(before.keeps.map((keep) => keep.structureId)), nextKeeps = new Set(after.keeps.map((keep) => keep.structureId))
     for (const id of new Set([...previousKeeps, ...nextKeeps])) {
@@ -207,9 +212,10 @@ export class ExperimentRecorder {
     for (const old of before.references) if (!after.references.some((r) => r.id === old.id)) this.record('reference_remove', 'reference', old.id)
     for (const camera of this.cameraEditStart ? [] : after.cameras) {
       const old = before.cameras.find((c) => c.id === camera.id)
-      const payload = { x_norm: camera.x, y_norm: camera.y, heading_deg: camera.directionDegrees, fov: camera.fovPreset ?? 'standard' }
-      if (!old) this.record('camera_create', 'camera', camera.id, payload)
+      const payload = { x_norm: camera.x, y_norm: camera.y, heading_deg: camera.directionDegrees, fov: camera.fovPreset ?? 'standard', view_preset:camera.viewPreset??'custom',height_m:camera.heightMeters??null,pitch_deg:camera.pitchDegrees??null }
+      if (!old) { this.record('camera_create', 'camera', camera.id, payload); if(camera.recommendation==='automatic')this.record('camera_recommendation_created','camera',camera.id,payload); }
       else if (!same(old, camera)) {
+        if(old.recommendation==='automatic'&&camera.recommendation==='modified')this.record('camera_recommendation_modified','camera',camera.id,payload);
         if (old.x !== camera.x || old.y !== camera.y) this.record('camera_move', 'camera', camera.id, payload)
         if (old.directionDegrees !== camera.directionDegrees) this.record('camera_rotate', 'camera', camera.id, payload)
         this.record('camera_save', 'camera', camera.id, payload)

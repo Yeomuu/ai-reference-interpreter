@@ -14,6 +14,7 @@ import type {
   ValidationResult,
 } from './types.js';
 import { validatePlacement } from './validation.js';
+import { CAMERA_PRESETS } from './prototypeConfig.js';
 
 function same(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -33,7 +34,7 @@ export function markCommonChange(project: Project): Project {
 }
 
 export type CommonPatch = Partial<Pick<Project,
-  'name' | 'spaceType' | 'concept' | 'sourceImages' | 'floorPlan' | 'planAlignmentPending' | 'keeps' | 'references' | 'elements' | 'referenceBindings'
+  'name' | 'spaceType' | 'concept' | 'sourceImages' | 'floorPlan' | 'planAlignmentPending' | 'keeps' | 'references' | 'elements' | 'referenceBindings' | 'cameraRecommendationVersion'
 >>;
 
 export function updateCommon(project: Project, patch: CommonPatch): Project {
@@ -144,7 +145,7 @@ export function removeReference(project: Project, referenceId: string): Project 
     references,
     sourceImages: references.some((item) => item.imageId === reference.imageId)
       ? project.sourceImages : project.sourceImages.filter((item) => item.id !== reference.imageId),
-    elements: cleanDisplayTargets(project.elements.flatMap(item => item.sourceReferenceId !== referenceId ? [item] : item.layoutKind ? [{ ...item, origin: 'layout' as const, sourceReferenceId: '', sourceRegion: undefined }] : [])),
+    elements: cleanDisplayTargets(project.elements.flatMap(item => item.sourceReferenceId !== referenceId ? [item] : item.layoutKind ? [{ ...item, origin: item.origin === 'mapping-condition' ? 'mapping-condition' as const : 'layout' as const, sourceReferenceId: '', sourceRegion: undefined }] : [])),
     referenceBindings: project.referenceBindings?.filter(item => item.referenceId !== referenceId),
   });
 }
@@ -195,13 +196,14 @@ function staleCameraResults(results: Result[], cameraId: string): Result[] {
   return results.map((result) => result.cameraId === cameraId ? { ...result, stale: true } : result);
 }
 
-export function updateCamera(project: Project, cameraId: string, patch: Partial<Omit<Camera, 'id'>>): Project {
+export function updateCamera(project: Project, cameraId: string, patch: Partial<Omit<Camera, 'id'>>, automatic = false): Project {
   const current = project.cameras.find((camera) => camera.id === cameraId);
   if (!current) return project;
   const next = { ...current, ...patch };
   if (same(current, next)) return project;
+  if (current.recommendation && !automatic) next.recommendation = 'modified';
   const geometryChanged = current.x !== next.x || current.y !== next.y ||
-    current.directionDegrees !== next.directionDegrees || current.fovPreset !== next.fovPreset;
+    current.directionDegrees !== next.directionDegrees || current.fovPreset !== next.fovPreset || current.heightMeters !== next.heightMeters || current.pitchDegrees !== next.pitchDegrees || current.viewPreset !== next.viewPreset;
   return {
     ...project,
     cameras: project.cameras.map((camera) => camera.id === cameraId ? next :
@@ -222,7 +224,10 @@ export function addCamera(project: Project, camera: Camera): Project {
 export function cameraConditionsChanged(current: Camera | undefined, saved: ConditionsSnapshot['camera']): boolean {
   return !current || current.x !== saved.x || current.y !== saved.y ||
     current.directionDegrees !== saved.directionDegrees ||
-    (current.fovPreset ?? 'standard') !== (saved.fovPreset ?? 'standard');
+    (current.fovPreset ?? 'standard') !== (saved.fovPreset ?? 'standard') ||
+    (current.viewPreset ?? 'custom') !== (saved.viewPreset ?? 'custom') ||
+    (current.heightMeters ?? CAMERA_PRESETS[current.viewPreset ?? 'custom'].heightMeters) !== (saved.heightMeters ?? CAMERA_PRESETS[saved.viewPreset ?? 'custom'].heightMeters) ||
+    (current.pitchDegrees ?? CAMERA_PRESETS[current.viewPreset ?? 'custom'].pitchDegrees) !== (saved.pitchDegrees ?? CAMERA_PRESETS[saved.viewPreset ?? 'custom'].pitchDegrees);
 }
 
 export function createConditionsSnapshot(project: Project, cameraId: string, existingPhotoId?: string): ConditionsSnapshot | null {
@@ -233,7 +238,7 @@ export function createConditionsSnapshot(project: Project, cameraId: string, exi
     appliedElementIds: project.elements.filter((element) => element.status === 'apply').map((element) => element.id),
     excludedElementIds: project.elements.filter((element) => element.status === 'exclude').map((element) => element.id),
     ...(existingPhotoId ? { existingPhotoId } : {}),
-    camera: { id: camera.id, name: camera.name, x: camera.x, y: camera.y, directionDegrees: camera.directionDegrees, fovPreset: camera.fovPreset ?? 'standard' },
+    camera: { id: camera.id, name: camera.name, x: camera.x, y: camera.y, directionDegrees: camera.directionDegrees, fovPreset: camera.fovPreset ?? 'standard', viewPreset:camera.viewPreset, heightMeters:camera.heightMeters, eyeHeightPreset:camera.eyeHeightPreset, pitchDegrees:camera.pitchDegrees },
     common: structuredClone({
       concept: project.concept,
       floorPlan: project.floorPlan,

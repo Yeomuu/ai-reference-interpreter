@@ -56,7 +56,7 @@ export function unbindReference(project: Project, bindingId: string): Project {
   if (!binding) return project;
   return updateCommon(project, {
     referenceBindings: project.referenceBindings!.filter(item => item.id !== bindingId),
-    elements: project.elements.map(item => binding.layoutItemIds.includes(item.id) ? { ...item, origin: 'layout', sourceReferenceId: '', sourceRegion: undefined } : item),
+    elements: project.elements.map(item => binding.layoutItemIds.includes(item.id) ? { ...item, origin: item.origin === 'mapping-condition' ? 'mapping-condition' : 'layout', sourceReferenceId: '', sourceRegion: undefined } : item),
   });
 }
 
@@ -64,6 +64,6 @@ export function unbindReference(project: Project, bindingId: string): Project {
 export function targetCondition(project: Project, id: string, target: PlacementTarget, scope: ReferenceBinding['scope']): DesignElement {
   const wall = target.kind === 'wall-segment' ? project.floorPlan?.structures.find(item => item.id === target.wallId) : undefined;
   const area = target.kind === 'named-area' || target.kind === 'ceiling-zone' || target.kind === 'floor-area' ? project.floorPlan?.areas.find(item => item.id === ('zoneId' in target ? target.zoneId : target.areaId)) : undefined;
-  return { id, origin: 'layout', layoutKind: target.kind === 'wall-segment' ? 'wall-art' : 'area', sourceReferenceId: '', label: wall?.name ?? area?.name ?? '전체 공간 분위기', status: 'apply', target,
+  return { id, origin: 'mapping-condition', layoutKind: target.kind === 'wall-segment' ? 'wall-art' : 'area', sourceReferenceId: '', label: wall?.name ?? area?.name ?? '전체 공간 분위기', status: 'apply', target,
     kind: scope === 'lighting' ? target.kind === 'wall-segment' ? 'wall-light' : 'ambient-light' : scope === 'material' ? target.kind === 'wall-segment' ? 'wall-material' : target.kind === 'floor-area' ? 'floor-material' : 'global-palette' : target.kind === 'wall-segment' ? 'wall-graphic' : 'global-palette' };
 }

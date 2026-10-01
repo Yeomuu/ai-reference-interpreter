@@ -33,9 +33,10 @@ export function createCampusProject(purpose: 'exhibition' | 'popup'): Project {
       { id: 'campus-passage', name: '출입 통로', kind: 'passage', bounds: { x: .74, y: .15, width: .16, height: .70 } },
     ] },
     keeps: structures.filter(item => item.protected).map(item => ({ id: `keep-${item.id}`, structureId: item.id, intent: 'preserve', description: `${item.name}의 등록된 위치·형태 유지. 설명용 개략 표시이며 현장 확인 필요.` })),
-    references: sample.references.map(item => item.id === 'ref-atmosphere' ? { ...item, note: '조명 방식만 선택. 사진 속 공간 구조와 색을 복제하지 않음', extractedElements: ['element-warm-light'], exclusions: [] } : item.id === 'ref-product' && purpose === 'exhibition' ? { ...item, role: 'element', note: '졸업작품을 올릴 이동식 전시 가구의 형태만 참고' } : item),
-    elements: sample.elements.filter(item => item.id !== 'element-cool-light').map(item => ({ ...(item.id === 'element-display' ? { ...item, label: purpose === 'exhibition' ? '학생 작품 전시대' : '브랜드 제품 체험대', target: null, appearance: purpose === 'exhibition' ? '직선형 백색 모듈 전시대. 학생 작품 모형을 놓고 충분한 통로 확보' : item.appearance, conditions: '기존 책상·의자는 임시 이동을 가정. 이동식 전시대, 출입 통로를 비워 둠' } : item.id === 'element-graphic' ? { ...item, label: purpose === 'exhibition' ? '졸업전시 안내 그래픽' : '브랜드 안내 그래픽', target: { kind: 'wall-segment' as const, wallId: 'campus-right', start: .42, end: .72 }, appearance: purpose === 'exhibition' ? '졸업전시 안내 문구와 학생 작품 정보를 담은 탈착식 벽 그래픽' : item.appearance, conditions: '탈착식 그래픽. 출입문 여닫이 범위·창·화이트보드를 가리지 않음' } : item.id === 'element-warm-light' ? { ...item, label: '작품 주변 보조 조명', appearance: '기존 백색 천장 조명과 자연광 유지. 작품 주변에만 은은한 보조광', conditions: '사진의 백색 벽과 회색 바닥을 유지. 전체 공간에 노란 필터를 씌우지 않음' } : item), status: 'exclude' as const })),
-    cameras: [{ id: 'campus-camera', name: '출입문에서 실내 방향', x: .73, y: .32, directionDegrees: 147, fovPreset: 'standard', primary: true }],
+    // Fresh layout-first scenario: references are available, but nothing is
+    // placed/mapped until the participant chooses it. Stored projects migrate separately.
+    references: sample.references.map(item => ({ ...item, extractedElements: [], exclusions: [], ...(item.id === 'ref-product' && purpose === 'exhibition' ? { role: 'element' as const, note: '졸업작품 전시 가구의 형태 참고' } : {}) })),
+    elements: [], referenceBindings: [], cameras: [],
     results: [], commonRevision: 1,
   }
 }

@@ -140,7 +140,7 @@ export interface DesignElement {
   appearance?: string;
   conditions?: string;
   /** A user-added basic support is not extracted from the product photo. */
-  origin?: 'basic-support' | 'layout';
+  origin?: 'basic-support' | 'layout' | 'mapping-condition';
   /** Reference-independent layout identity; geometry stays in target for compatibility. */
   layoutKind?: LayoutKind;
   locked?: boolean;
@@ -162,6 +162,12 @@ export interface Camera extends Point {
   name: string;
   directionDegrees: number;
   fovPreset?: 'narrow' | 'standard' | 'wide';
+  viewPreset?: 'overview' | 'entry' | 'secondary' | 'custom';
+  heightMeters?: number;
+  eyeHeightPreset?: 'average-female' | 'average-male' | 'custom';
+  /** Negative pitch looks down; a suggested render height is not a measurement. */
+  pitchDegrees?: number;
+  recommendation?: 'automatic' | 'modified';
   primary: boolean;
 }
 
@@ -172,7 +178,7 @@ export interface ConditionsSnapshot {
   /** Existing-space photograph selected for AI input; absent on older results. */
   existingPhotoId?: string;
   /** Older saved results may omit fovPreset; that means the standard view. */
-  camera: Pick<Camera, 'id' | 'x' | 'y' | 'directionDegrees' | 'fovPreset'> & { name?: string };
+  camera: Pick<Camera, 'id' | 'x' | 'y' | 'directionDegrees' | 'fovPreset' | 'viewPreset' | 'heightMeters' | 'eyeHeightPreset' | 'pitchDegrees'> & { name?: string };
   /** Full values preserve the original review state after later partial revisions. */
   common?: {
     concept: string;
@@ -216,6 +222,8 @@ export interface Project {
   commonRevision: number;
   layoutVersion?: 2;
   referenceBindings?: ReferenceBinding[];
+  /** Prepare once; deleting suggested cameras must not recreate them on reload. */
+  cameraRecommendationVersion?: 1;
 }
 
 export interface ValidationIssue {

@@ -1,5 +1,15 @@
 # Acceptance test matrix
 
+## 최종 UT 단순화 검증 · 2026-10-01 (최신 결과)
+
+- 전체 27개 파일 / 222개 자동 테스트 통과. lint, 프론트·서버 TypeScript, production build 통과.
+- 추가 29개 테스트: 19→20/20→21, 구형 >20/8 유지, 7→8/8→9, 반복 연결 count, spatial/passage, 도구에서 floor/ceiling 숨김, 추천 시점 유효 위치·가벽/가구/문 여유 회피·다양성·마이그레이션·높이/stale·로그·노출 단계.
+- 실제 격리 Chrome: 학교 자료 → 전시대4/테이블/의자/조명/영역 → crop+Shift/HTML drop/벽·전체 연결 → 추천3/선택 시점 편집 → 모의 응답 결과/부분 수정/로그. 가벽 A/B·삭제 Undo·속성·잠금·구형 reload·사전 제공 샘플도 통과.
+- 별도 실제 화면 검사: 20/8 버튼·업로드 비활성, Undo/Redo·reload, 구형23개/9장 보존, 가벽으로 막힌 입구 대안, optional 눈높이 같은 ID·복원, 새 업로드의 종횡비/이전 표시 제거/실내 윤곽/Undo/Redo.
+- browser harness: scripts/qa-prototype.mjs (격리 프로필, 유료 생성 불가). 1070×671/1280×720/1600×900 문서 overflow·JS 오류 없음.
+- 유료 모델을 이번 작업에서 호출하지 않았다. 모의 응답은 AI 품질 증거가 아니며 실제 도면 재현·서로 다른 시점 품질은 별도 검증 대상이다. build의 기존 >500kB bundle 경고는 남는다.
+- 상세/UT 전 확인 사항: PROTOTYPE_FINAL_REVIEW_20261001.md.
+
 ## 레이아웃 우선 4단계 최종 회귀 · 2026-10-01
 
 - 24개 테스트 파일 / 193개 테스트, lint, 프론트·서버 TypeScript 및 production build 통과.

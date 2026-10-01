@@ -1,5 +1,13 @@
 # Scene Edit implementation architecture
 
+## 최종 제한·카메라 호환 필드 · 2026-10-01 (우선 적용)
+
+prototypeConfig가 20/8 제한·노출 영역 유형·카메라 프리셋을 관리하고 prototypeLimits가 실제 elements와 고유 reference.imageId를 센다. App의 추가 경계/commit과 UI disabled가 같은 정의를 사용한다. history/recovery는 정확한 과거 초과 상태를 복구한다. 표면·영역 바인딩 투영은 origin=mapping-condition이며 unbind/delete 후에도 이 분류를 유지한다.
+
+Camera에는 선택 필드 viewPreset/heightMeters/eyeHeightPreset/pitchDegrees/recommendation, Project에는 cameraRecommendationVersion=1을 보완한다. migrateCameraPresets는 기존 위치·ID·대표 여부·이름과 과거 snapshot을 바꾸지 않고 없는 값만 채운다. 읽기/복구 경로에서 반복 가능하며 저장 스키마 버전은 유지한다. 새 snapshot과 모델 프롬프트에 실제 저장된 높이/각도를 전달한다. eyeHeightPreset 숫자는 prototypeConfig 한 곳에 있으며 공식 눈높이 자료 검증 전 임시임을 명시한다.
+
+cameraRecommendations는 2D 후보 검증/가시성 근사/거리·각도 다양성으로 결정한다. 추천 완료 여부도 편집 history에 포함한다. 기존 카메라가 있으면 보존하고 최대 세 개의 남은 자리에 서로 떨어진 제안을 더하며, 삭제·수동 수정은 존중한다. 신규 학교 시작 데이터는 레퍼런스만 준비하고 배치·바인딩·카메라를 비워 사용자 선택을 기다린다. 공용 quota/재실행 방지/Production·Preview 공유 저장소는 변경하지 않는다.
+
 ## 독립 레이아웃과 호환 저장 · 2026-10-01
 
 저장 봉투/Project schemaVersion 1을 유지하고 선택 필드 layoutVersion=2, referenceBindings, 요소의 layoutKind/locked를 추가한다. LayoutItem은 출처 필드를 요구하지 않는 레이아웃 관점이며 실제 위치는 기존 elements.target에 단일 저장한다. ReferenceBinding은 referenceId/sourceRegion/layoutItemIds/scope를 저장한다. 기존 생성·검사 소비자를 위해 요소의 sourceReferenceId/sourceRegion도 같은 변경에서 투영한다. 바닥 배치가 이미지 연결 없이 유효할 때 origin=layout, 빈 출처를 명시하며 모델에는 중립적 형태임을 전달한다.

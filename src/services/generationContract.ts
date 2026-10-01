@@ -1,6 +1,7 @@
 import type { DesignElement, PlacementTarget, Point, Project, Rect, Structure, StructureGeometry } from '../domain/types.js';
 import { elementPlanPosition, type PlanGuideManifest } from './planGuide.js';
 import { wallFaceLabel, wallFaceOfPoint } from '../domain/wallFaces.js';
+import { CAMERA_PRESETS } from '../domain/prototypeConfig.js';
 
 /** One low-quality draft, with no automatic variants or hidden model calls. */
 export const GENERATION_MODEL = 'gpt-image-1-mini' as const;
@@ -298,8 +299,9 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const exhibition = /전시|갤러리/.test(project.spaceType);
   const schoolSpace = /학교|교내|대학|프로젝트룸/.test(`${project.name} ${project.spaceType} ${project.concept}`);
   const preserveWhiteboard = schoolSpace && /화이트보드/.test(project.concept);
+  const overview = camera.viewPreset === 'overview';
   const prompt = [
-    exhibition
+    overview ? 'Create ONE photorealistic elevated oblique overview of the existing room with the proposed exhibition/retail installation. Show the overall real room layout and circulation from the saved higher camera position looking down. It is a spatial overview render, not a technical floor plan, diagram, collage, dollhouse cutaway or a copy of a reference room. Keep the saved straight walls, openings and existing architectural structure.' : exhibition
       ? `Create ONE photorealistic interior concept photograph of ${schoolSpace ? 'a graduation exhibition installed in the existing school room' : 'an exhibition installed in the existing space'} from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy. Preserve the recognizable existing architecture and show the selected exhibits on appropriate supports.${schoolSpace ? ' Existing movable classroom desks and chairs may be rearranged unless the saved plan or Keep conditions preserve them; fixed walls, windows, doors and ceiling remain in place.' : ''}`
       : 'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
     preserveWhiteboard ? 'The large existing wall-mounted whiteboard visible across the front wall in the existing-space photo is a preserved fixture, not a blank display wall. Keep its straight rectangular outline, visual scale and position visible and unobstructed. Do not replace or cover it with exhibition posters, projected graphics or display panels. Put removable wall graphics ONLY on their separately saved wall segment; if that segment lies behind the selected camera, leave the graphic out of frame instead of moving it onto the front wall.' : '',
@@ -327,8 +329,8 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     'Excluded design elements and appearance:',
     ...(excluded.length ? excluded.map((element) => `- Do not add ${boundedText(element.label)}. ${boundedText(element.conditions ?? '')}`) : ['- None specified.']),
     ...project.references.flatMap((reference) => reference.exclusions.map((excludedNote) => `- Do not add ${boundedText(excludedNote)} from reference ${boundedText(project.sourceImages.find((image) => image.id === reference.imageId)?.name ?? reference.imageId)}.`)),
-    `Viewpoint: camera at (${percent(camera.x)}, ${percent(camera.y)}), direction ${Math.round(camera.directionDegrees)} degrees, where 0 degrees points right, 90 down, 180 left and 270 up. Field of view: ${camera.fovPreset ?? 'standard'}. Compose from this approximate viewpoint.`,
-    `Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible eye-level perspective, realistic ${exhibition ? 'graduation exhibition display' : 'commercial display'} scale, appropriate display supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.`,
+    `Viewpoint: camera at (${percent(camera.x)}, ${percent(camera.y)}), direction ${Math.round(camera.directionDegrees)} degrees, where 0 degrees points right, 90 down, 180 left and 270 up. Field of view: ${camera.fovPreset ?? 'standard'}. View preset: ${camera.viewPreset ?? 'custom'}. Intended rendering height: ${camera.heightMeters ?? CAMERA_PRESETS.custom.heightMeters} m; pitch: ${camera.pitchDegrees ?? 0} degrees (negative looks down). These are approximate visualization settings, not surveyed geometry or verified population eye-height statistics. Compose from this approximate viewpoint.`,
+    `Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible ${overview?'elevated oblique overview':'eye-level'} perspective, realistic ${exhibition ? 'graduation exhibition display' : 'commercial display'} scale, appropriate display supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.`,
   ].join('\n');
   if (prompt.length > 16_000) throw new Error('생성 조건이 너무 길어 요청할 수 없습니다. 구조와 조건을 정리해 주세요.');
   return prompt;

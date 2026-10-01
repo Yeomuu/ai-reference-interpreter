@@ -4,6 +4,7 @@ import { createCampusProject } from '../data/campus'
 import { suggestNextCamera } from './cameraDefaults'
 import { displayName } from './displayName'
 import { validateCamera } from './validation'
+import { prepareRecommendedCameras } from './cameraRecommendations'
 import { addCamera } from './revisions'
 
 describe('new plan labels and camera suggestions', () => {
@@ -23,7 +24,7 @@ describe('new plan labels and camera suggestions', () => {
   })
 
   it('keeps the school starting view on usable floor', () => {
-    const project = createCampusProject('exhibition')
+    const project = prepareRecommendedCameras(createCampusProject('exhibition'))
     expect(validateCamera(project, project.cameras[0].id).valid).toBe(true)
   })
 })
