@@ -103,3 +103,10 @@ API와 API에서 참조하는 도메인/서비스 모듈은 NodeNext 타입 검�
 `services/planGuide.ts`는 저장 좌표/형상, typed anchor, 진열대 위 제품 위치, 선택 카메라에서 순수 SVG를 구성한다. 측정/자동 추정/3D 엔진은 없다. `planGuideImage.ts`는 프로젝트 의미 토큰과 기존 Nucleo 카메라 SVG를 사용해 로컬 SVG를 JPEG로 변환한다. `imageProvider`는 업로드 도면을 압축해 가이드 배경으로 포함하고 두 번째 입력 슬롯에 가이드를 넣는다. 기존 공간 1 + 가이드 1 + 레퍼런스 최대 3 슬롯 = 최대 5장, 한 시점당 모델 요청 1번, 입력 550KB/전체 4MB 제한은 유지한다.
 `GenerationImage.planGuide`는 version/commonRevision/cameraId/planKind/width/height/includesUploadedPlan이다. API는 현재 저장 조건/시점과 일치하는 manifest를 quota 예약 전에 요구한다. 이 메타데이터는 전송 조건의 일관성 확인이며 픽셀의 진위나 결과 공간 정확도 인증이 아니다. 오래된 클라이언트의 가이드 누락 요청은 비용 차감 전 거절한다.
 `PlanGuidePreview`는 결과의 common/camera 스냅샷을 렌더링한다. 현재 카메라 삭제/배치 변경 이후에도 과거 기록을 유지한다. schemaVersion 1, 결과 이미지/이력/자산 보존 규칙은 유지한다.
+
+
+## 캔버스와 생성 가이드의 물체 일치 · 2026-10-01
+- PlanCanvas는 isCountedLayoutItem으로 물리 배치와 mapping-condition을 구분한다. 활성 물체와 위치 해석 가능한 물체 수를 구분하고 LayoutWorkspace는 target 누락·제외·elementPlanPosition 실패를 명시한다. 프로젝트 카드도 동일한 countLayoutItems를 사용한다.
+- 표시 레이어 필터와 명시적 선택 예외를 renderElement 및 mappingTargets에 공통 적용한다. other-ceiling 등 legacy 물체도 기존 LayoutSymbol을 사용한다.
+- buildPlanGuideSvg는 천장 위치/offset과 물리 floor-area 윤곽을 포함하며 매핑 조건의 wall-segment도 유지한다. 원본 사진 첫 입력, 도면 가이드 두 번째 입력, 레퍼런스 후속 입력 계약은 유지한다.
+- buildGenerationPrompt의 공통 지침에 가구가 있는 원본 공간 사진에서 보존하지 않은 이동식 물체를 비우는 조건을 적용한다. 16,000자 한도와 단일 생성 호출·quota 계약을 유지하며 구조/데이터를 자동 변경하지 않는다.

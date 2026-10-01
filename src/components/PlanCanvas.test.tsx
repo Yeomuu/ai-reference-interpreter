@@ -5,6 +5,25 @@ import { createSampleProject } from '../data/sample';
 import PlanCanvas from './PlanCanvas';
 
 describe('plan canvas floor layers', () => {
+  it.each(['place', 'mapping', 'camera'] as const)('shows unselected legacy ceiling objects in %s while hiding the ceiling area hit target', mode => {
+    const project = createSampleProject();
+    project.elements.push({ id: 'ceiling-exhibit', label: '매달린 작품', kind: 'other-ceiling', sourceReferenceId: '', status: 'apply', target: { kind: 'ceiling-zone', zoneId: 'ceiling-main', offset: { x: .2, y: .3 } } });
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode }));
+    expect(html).toContain('data-element-id="ceiling-exhibit"');
+    expect(html).toContain('매달린 작품, 천장 요소');
+    expect(html).toContain('위치 지정 배치 요소 3개, 공간·표면 연출 조건 1개');
+    if (mode === 'mapping') {
+      expect(html).toContain('data-mapping-target="ceiling-exhibit"');
+      expect(html).not.toContain('data-mapping-target="area:ceiling-main"');
+    }
+  });
+
+  it('shows the explicitly selected ceiling area for mapping instead of an invisible target', () => {
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project: createSampleProject(), mode: 'mapping', mappingSelectedIds: ['area:ceiling-main'] }));
+    expect(html).toContain('data-mapping-target="area:ceiling-main"');
+    expect(html).toContain('class="plan-canvas__area plan-canvas__area--ceiling');
+  });
+
   it('shows every registered floor area and applies a whole-space overlay to each one', () => {
     const project = createSampleProject();
     project.floorPlan!.areas.push({

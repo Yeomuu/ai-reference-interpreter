@@ -8,6 +8,34 @@ import { buildGenerationPrompt, type GenerationImage } from '../src/services/gen
 const palette: PlanGuidePalette = { paper: 'white', ink: 'black', structure: 'gray', info: 'blue', selected: 'purple', subtle: 'white', border: 'gray' };
 
 describe('saved plan guide and scoped visual transfer', () => {
+  it('includes physical ceiling objects and floor footprints without losing mapped wall spans', () => {
+    const project = createSampleProject();
+    project.elements.push({ id: 'ceiling-exhibit', label: '천장 작품', kind: 'other-ceiling', status: 'apply', sourceReferenceId: '', target: { kind: 'ceiling-zone', zoneId: 'ceiling-main', offset: { x: .2, y: .3 } } });
+    project.elements.push({ id: 'floor-exhibit', label: '바닥 작품', kind: 'freestanding-fixture', status: 'apply', sourceReferenceId: '', target: { kind: 'floor-area', areaId: 'floor-main' } });
+    project.elements.find(item => item.id === 'element-graphic')!.origin = 'mapping-condition';
+    const guide = buildPlanGuideSvg(project, 'camera-entrance', palette);
+    const position = elementPlanPosition(project, project.elements.find(item => item.id === 'ceiling-exhibit')!)!;
+    expect(position.x).toBeCloseTo(.08 + .84 * .2);
+    expect(position.y).toBeCloseTo(.10 + .80 * .3);
+    expect(guide).toContain('<g data-element-id="ceiling-exhibit"><circle');
+    expect(guide).toContain('>천장</text>');
+    expect(guide).toMatch(/<(rect|polygon) [^>]*data-element-id="floor-exhibit"/);
+    expect(guide).toContain('<line data-element-id="element-graphic"');
+  });
+
+  it.each(['overview', 'entry'] as const)('uses the furnished real photo as the architecture base and clears only unsaved movable furnishings for %s', view => {
+    const project = prepareRecommendedCameras(createCampusProject('exhibition'));
+    const camera = project.cameras.find(item => item.viewPreset === view)!;
+    const prompt = buildGenerationPrompt(project, camera.id, [{ role: 'existing-space', sourceId: 'campus-photo-front', dataUrl: '' }]);
+    expect(prompt).toContain('FIRST existing-space photograph as the architectural base');
+    expect(prompt).toContain('unless retained by saved preservation conditions or specified in the proposed layout');
+    expect(prompt).toContain('Install ONLY saved layout objects at their registered positions');
+    expect(prompt).toContain('NEVER removes fixed walls, windows, doors, pillars, ceiling, permanent fixtures');
+    expect(prompt).toContain('single concept image, not a second image-generation call');
+    expect(prompt).toContain('including a kept whiteboard');
+    expect(prompt).not.toContain('Existing movable classroom desks and chairs may be rearranged');
+  });
+
   it('keeps the actual school whiteboard visible instead of moving graphics onto it', () => {
     const project = prepareRecommendedCameras(createCampusProject('exhibition'));
     const prompt = buildGenerationPrompt(project, project.cameras.find(camera=>camera.primary)!.id, [{ role: 'existing-space', sourceId: 'campus-photo-front', dataUrl: '' }]);

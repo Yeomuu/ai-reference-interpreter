@@ -15,6 +15,19 @@ import { WORKFLOW } from '../src/app/workflow';
 
 const noop=()=>{};
 describe('simplified prototype controls and logging',()=>{
+  it('explains retained items that have no visible placement without deleting their data',()=>{
+    const project=createCampusProject('exhibition');
+    const unplaced=createLayoutItem(project,'unplaced','display');
+    const excluded={...createLayoutItem(project,'excluded','chair'),status:'exclude' as const};
+    const orphaned={...createLayoutItem(project,'orphaned','product'),target:{kind:'fixture-surface' as const,fixtureElementId:'missing-support',offset:{x:.5,y:.5}}};
+    project.elements=[unplaced,excluded,orphaned];
+    const before=JSON.stringify(project);
+    const html=renderToStaticMarkup(createElement(LayoutWorkspace,{project,canvas:null,inspector:null,tools:null,onItemTool:noop,onStructureTool:noop,onAreaTool:noop,onSelect:noop}));
+    expect(html).toContain('배치 요소 3 /');
+    expect(html).toContain('위치 미지정');expect(html).toContain('적용 제외');
+    expect(html).toContain('위치 확인 필요 · 연결한 벽·영역·진열대를 확인하세요.');
+    expect(JSON.stringify(project)).toBe(before);
+  });
   it('uses one tool panel, only two new area tools, shapes for plan objects and icons for actions',()=>{
     const project=createCampusProject('exhibition');
     const html=renderToStaticMarkup(createElement(LayoutWorkspace,{project,canvas:null,inspector:null,tools:null,onItemTool:noop,onStructureTool:noop,onAreaTool:noop,onSelect:noop}));

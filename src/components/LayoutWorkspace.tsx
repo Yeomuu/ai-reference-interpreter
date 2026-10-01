@@ -6,6 +6,7 @@ import PlanSymbol from './PlanSymbol';
 import NucleoIcon from './NucleoIcon';
 import { countLayoutItems, isCountedLayoutItem } from '../domain/prototypeLimits';
 import { LAYOUT_LIMIT_MESSAGE, MAX_LAYOUT_ITEMS, USER_AREA_KINDS } from '../domain/prototypeConfig';
+import { elementPlanPosition } from '../services/planGuide';
 
 interface Props {
   project: Project; canvas: ReactNode; inspector: ReactNode; tools: ReactNode;
@@ -24,7 +25,7 @@ export default function LayoutWorkspace({ project, canvas, inspector, tools, act
         <h3>영역</h3><div className="layout-tool-grid">{USER_AREA_KINDS.map(kind=><button key={kind} aria-pressed={activeTool===kind} onClick={()=>onAreaTool(kind)}><NucleoIcon name={kind==='spatial'?'layers':'next'} />{kind==='spatial'?'분위기 영역':'통행 동선'}</button>)}</div>
         <h3>배치 요소</h3><div className="layout-tool-grid">{(['display','table','chair','light','product','wall-art'] as const).map(kind=><button key={kind} disabled={limitReached} aria-pressed={activeTool===kind} onClick={()=>onItemTool(kind)}><svg viewBox="-45 -32 90 64"><LayoutSymbol kind={kind} /></svg>{LAYOUT_LABELS[kind]}</button>)}</div>
         {limitReached&&<p className="limit-guidance" role="status"><NucleoIcon name="info" />{LAYOUT_LIMIT_MESSAGE}</p>}
-        <details className="layout-item-list"><summary>배치 목록 · {count}개</summary>{project.elements.filter(isCountedLayoutItem).map(item=><button key={item.id} aria-pressed={selectedId===item.id} onClick={()=>onSelect(item)}>{item.label}{!item.target && <small>위치 미지정</small>}</button>)}</details>
+        <details className="layout-item-list"><summary>배치 목록 · {count}개</summary>{project.elements.filter(isCountedLayoutItem).map(item=><button key={item.id} aria-pressed={selectedId===item.id} onClick={()=>onSelect(item)}>{item.label}{item.status==='exclude'?<small>적용 제외</small>:!item.target?<small>위치 미지정</small>:!elementPlanPosition(project,item)&&<small>위치 확인 필요 · 연결한 벽·영역·진열대를 확인하세요.</small>}</button>)}</details>
       </div>
     </aside>
     <section className="layout-canvas-panel">{canvas}</section>

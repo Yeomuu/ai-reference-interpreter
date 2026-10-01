@@ -3,6 +3,7 @@ import { displayPosition } from '../domain/display.js';
 import { arrangePlanLabels } from '../components/plan-labels.js';
 import { planSymbol } from '../domain/planSymbols.js';
 import { wallFaceLine } from '../domain/wallFaces.js';
+import { isCountedLayoutItem } from '../domain/prototypeLimits.js';
 
 export interface PlanGuideManifest {
   version: 1;
@@ -61,7 +62,7 @@ export function buildPlanGuideSvg(project: Project, cameraId: string, palette: P
     ? `<polygon points="${area.outline.map(point => `${point.x * width},${point.y * height}`).join(' ')}" ${attrs}/>` : `<rect ${rect(area.bounds)} ${attrs}/>`;
   const center = (geometry: StructureGeometry): Point => geometry.kind === 'segment' ? { x: (geometry.start.x + geometry.end.x) / 2, y: (geometry.start.y + geometry.end.y) / 2 } : geometry.kind === 'circle' ? geometry.center : { x: geometry.bounds.x + geometry.bounds.width / 2, y: geometry.bounds.y + geometry.bounds.height / 2 };
   const kept = new Set(project.keeps.map(item => item.structureId));
-  const physical = project.elements.filter(item => item.status === 'apply' && item.target && ['floor-point', 'fixture-surface', 'wall-segment'].includes(item.target.kind));
+  const physical = project.elements.filter(item => item.status === 'apply' && item.target && (isCountedLayoutItem(item) || item.target.kind === 'wall-segment'));
   const anchors = [
     ...plan.structures.map(item => ({ id: item.id, name: item.name, point: center(item.geometry), preserved: kept.has(item.id) })),
     ...physical.flatMap(item => { const point = elementPlanPosition(project, item); return point ? [{ id: item.id, name: item.label, point, preserved: false }] : []; }),
@@ -101,6 +102,13 @@ export function buildPlanGuideSvg(project: Project, cameraId: string, palette: P
       const x2 = faceLine?.end.x ?? (start.x + (end.x - start.x) * target.end) * width;
       const y2 = faceLine?.end.y ?? (start.y + (end.y - start.y) * target.end) * height;
       return `<line data-element-id="${escape(item.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color.selected}" stroke-width="5"/>${faceLine ? `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 8}" text-anchor="middle" fill="${color.selected}" font-size="12">${target.face!.toUpperCase()}면</text>` : ''}`;
+    }
+    if (target.kind === 'floor-area') {
+      const area = plan.areas.find(area => area.id === target.areaId);
+      return area ? areaShape(area, `data-element-id="${escape(item.id)}" fill="none" stroke="${color.structure}" stroke-width="2"`) : '';
+    }
+    if (target.kind === 'ceiling-zone') {
+      return `<g data-element-id="${escape(item.id)}"><circle cx="${point.x * width}" cy="${point.y * height}" r="10" fill="${color.paper}" stroke="${color.structure}" stroke-width="2"/><text x="${point.x * width + 14}" y="${point.y * height + 5}" font-size="12" fill="${color.ink}">천장</text></g>`;
     }
     return `<circle data-element-id="${escape(item.id)}" cx="${point.x * width}" cy="${point.y * height}" r="8" fill="${color.paper}" stroke="${color.structure}" stroke-width="2"/>`;
   }).join('');
