@@ -2,7 +2,7 @@ import LayoutSymbol from './LayoutSymbol';
 import { layoutKindFor, LAYOUT_LABELS } from '../domain/layoutMapping';
 import { isCountedLayoutItem } from '../domain/prototypeLimits';
 import { REFERENCE_DRAG_TYPE } from './MappingWorkspace';
-import PlanSymbol, { PlanSymbolLegend } from './PlanSymbol'
+import PlanSymbol from './PlanSymbol'
 import { displayPosition } from '../domain/display';
 import { arrangePlanLabels } from './plan-labels';
 import { elementPlanPosition } from '../services/planGuide';
@@ -1027,7 +1027,6 @@ export default function PlanCanvas({
         <button type="button" onClick={() => setZoom(1)}>보기 초기화</button>
       </div>
       <div className="plan-canvas__layer-controls" aria-label="표시 레이어">
-        <PlanSymbolLegend />
         <button type="button" aria-pressed={showStructureLayer} disabled={Boolean(drawTool)} onClick={() => setLayers((current) => ({ ...current, structures: !current.structures }))}>구조 {showStructureLayer ? '표시' : '숨김'}</button>
         {showElements && <button type="button" title="선택한 요소는 숨김 설정과 관계없이 표시됩니다." aria-pressed={layers.elements} onClick={() => setLayers((current) => ({ ...current, elements: !current.elements }))}>요소 {layers.elements ? '표시' : '숨김'}</button>}
         {showCameras && <button type="button" aria-pressed={layers.cameras} onClick={() => setLayers((current) => ({ ...current, cameras: !current.cameras }))}>카메라 {layers.cameras ? '표시' : '숨김'}</button>}
@@ -1035,7 +1034,6 @@ export default function PlanCanvas({
       </div>
     </div>
     {plan.kind === 'uploaded' && (imageError || !sourceUri) && <p className="plan-canvas__image-status" role="alert">{imageError ?? '등록한 도면 이미지를 찾을 수 없습니다. 다시 등록해 주세요.'}</p>}
-    {(plan.areas.some(area => area.kind === 'passage') || plan.structures.some(structure => structure.clearance)) && <p className="plan-canvas__movement-key">{mode === 'camera' ? '빗금: 통행·여닫이 공간 · 시점 배치 가능' : '빗금: 비워 둘 통행·여닫이 공간'}</p>}
     <div className="plan-canvas__surface">
     {validationMessage && <TimedNotice lifetimeKey={validationMessage} className="plan-canvas__validation" role="alert" closeLabel="도면 안내 닫기" onDismiss={onValidationDismiss}><strong>표시를 저장하지 않았습니다.</strong><p>{validationMessage}</p></TimedNotice>}
       <svg
@@ -1104,16 +1102,16 @@ export default function PlanCanvas({
     {movementValidation ? <TimedNotice lifetimeKey={`${preview?.kind}-${preview?.id}`} className={`plan-canvas__movement-feedback${previewBlocked ? ' is-blocked' : ''}${movingPosition && movingPosition.y > .5 ? ' is-top' : ''}`}><strong>{previewBlocked ? '놓을 수 없는 위치' : '놓을 수 있는 위치'}</strong><span>{movementReason ?? '놓으면 이 위치로 저장합니다.'}</span></TimedNotice> : gestureHint ? <TimedNotice lifetimeKey={gestureHint} className="plan-canvas__gesture-hint" onDismiss={()=>setGestureHint(null)}><span>{gestureHint}</span></TimedNotice> : null}
     </div>
     {drawTool === 'polygon' && <div className="plan-outline-actions"><span aria-live="polite">윤곽 {outlineDraft.length}점</span><button type="button" disabled={outlineDraft.length < 3} onClick={finishOutline}>윤곽 저장</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft(points => points.slice(0, -1))}>마지막 점 취소</button><button type="button" disabled={!outlineDraft.length} onClick={() => setOutlineDraft([])}>윤곽 취소</button></div>}
-    {!drawTool && (mode === 'place' || mode === 'camera') ? <details className="plan-canvas__help"><summary>도면 조작 안내</summary><p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p></details> : <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
-    <PlanLegend>
+    {drawTool && <p className="plan-canvas__instruction" id={instructionId}>{modeInstruction}</p>}
+    <PlanLegend instruction={modeInstruction} instructionId={!drawTool ? instructionId : undefined}>
       {showStructureLayer&&plan.structures.some(s=>s.kind==='wall'&&s.role!=='partition') && <span><i className="legend-wall" />기존 벽</span>}
       {(['window','door','entrance','pillar'] as const).filter(kind=>showStructureLayer&&plan.structures.some(s=>s.kind===kind)).map(kind=>{const actual=plan.structures.find(s=>s.kind===kind)!;return <span key={kind}><svg viewBox="0 0 70 55"><PlanSymbol width={70} height={55} structure={{...actual,geometry:kind==='pillar'?{kind:'rect',bounds:{x:.3,y:.2,width:.4,height:.5}}:{kind:'segment',start:{x:.2,y:.2},end:{x:.8,y:.2}}}} /></svg>{kind==='window'?'창':kind==='door'?actual.doorSwing?'여닫이문':'문 · 열림 방향 미지정':kind==='entrance'?'열린 출입구':'기둥'}</span>})}
       {[...new Set([...visibleElements.filter(isCountedLayoutItem).filter(e=>['floor-point','ceiling-zone','fixture-surface','wall-segment'].includes(e.target?.kind??'')).map(layoutKindFor),...(showStructureLayer&&plan.structures.some(s=>s.kind==='existing-light')?['light' as const]:[])])].map(kind=><span key={kind}><svg viewBox="-40 -28 80 56"><LayoutSymbol kind={kind} /></svg>{LAYOUT_LABELS[kind]}</span>)}
-      {plan.structures.some(s=>s.clearance) && <span><i className="legend-hatch" />빗금 · 출입 여유</span>}
+      {plan.structures.some(s=>s.clearance) && <span><i className="legend-hatch" />빗금 · 비워 둘 출입 여유</span>}
       {visibleAreas.some(a=>a.kind==='spatial') && <span><i className="legend-area" />점선 윤곽 · 분위기 영역</span>}
       {visibleAreas.some(a=>a.kind==='ceiling') && <span>천장 영역</span>}
       {selectedArea?.kind==='floor' && <span>사용 바닥</span>}
-      {plan.areas.some(a=>a.kind==='passage') && <span><i className="legend-hatch" />빗금 · 통행 동선</span>}
+      {plan.areas.some(a=>a.kind==='passage') && <span><i className="legend-hatch" />빗금 · 비워 둘 통행 동선{mode==='camera'?' (시점 배치 가능)':''}</span>}
       {mode==='mapping' && <span>보라 윤곽 · 연결·선택</span>}
       {showStructureLayer&&plan.structures.some(s=>keptIds.has(s.id))&&<span><img src="/icons/nucleo/IconLockOutline18.svg" width="14" height="14" alt="" />위치 고정 구조</span>}
       {showStructureLayer&&plan.structures.some(structure => structure.role === 'partition') && <span><i className="plan-canvas__legend-partition" aria-hidden="true" />점선 · 추가 가벽</span>}
