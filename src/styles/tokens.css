@@ -34,9 +34,10 @@
   --motion-fast:150ms; --motion-base:200ms; --motion-slow:220ms;
   --ease-standard:cubic-bezier(.2, 0, 0, 1);
   --layout-header-height:64px; --layout-nav-width:176px;
-  --layout-list-width:clamp(220px, 17vw, 260px);
-  --layout-inspector-width:clamp(260px, 22vw, 320px);
-  --layout-detail-width:360px; --layout-review-width:440px;
+  --layout-list-width:clamp(232px, 18vw, 280px);
+  --layout-tools-width:248px; --layout-tools-compact-width:200px; --layout-tool-scale:1.15;
+  --layout-inspector-width:clamp(272px, 23vw, 336px);
+  --layout-detail-width:376px; --layout-review-width:456px;
   --layout-reference-list-width:clamp(200px, 16vw, 240px);
   --layout-canvas-min-height:280px; --layout-notice-width:560px;
   --layout-popover-width:720px; --layout-drawing-tools-width:240px;
