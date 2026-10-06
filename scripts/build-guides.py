@@ -5,6 +5,7 @@ Run with the bundled Python runtime (reportlab). Content is intentionally separa
 so operator task answers/recording notes do not enter the public participant guide.
 """
 from pathlib import Path
+import argparse
 import json
 import re
 import shutil
@@ -13,9 +14,10 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, Image
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'output/pdf'
@@ -29,6 +31,7 @@ MAX_REFERENCES = int(re.search(r'MAX_REFERENCE_IMAGES = (\d+)', prototype_config
 def token(name):
     return re.search(r'--' + re.escape(name) + r'\s*:\s*(#[0-9a-fA-F]{6})', tokens).group(1)
 INK, MUTED, LINE, ACCENT, TINT = [token(n) for n in ['neutral-900', 'neutral-600', 'neutral-200', 'violet-700', 'violet-50']]
+QUIET = token('neutral-50')
 
 def p(text): return {'type': 'p', 'text': text}
 def h(text): return {'type': 'h', 'text': text}
@@ -36,77 +39,9 @@ def note(text): return {'type': 'note', 'text': text}
 def table(head, rows): return {'type': 'table', 'head': head, 'rows': rows}
 def steps(items): return {'type': 'steps', 'items': items}
 
-participant = [
- {'id': 'start', 'title': '공간의 조건을 정리하고, 시안을 비교하세요', 'tag': '사용 · 실험 참여 가이드', 'blocks': [
-   p('ReSpace는 실제 공간 사진과 도면을 확인하고 전시대·가구 등의 레이아웃을 만든 뒤, 참고 이미지의 디자인을 연결해 AI 공간 시안을 확인하는 서비스입니다. 기본 예시는 한국공학대학교 프로젝트룸을 졸업전시 공간으로 꾸미는 상황입니다.'),
-   note('핵심 흐름: 공간·방향 설정 → 레이아웃 구성 → 레퍼런스 적용 → 시안 생성'),
-   h('처음이라면'),
-   steps(['PC에서 한국공학대학교 프로젝트룸 예시를 열어 공간 사진과 개략 도면을 확인합니다.', '상단의 사용 가이드에서 이 안내를 다시 열 수 있습니다. 프로젝트는 현재 브라우저에 자동 저장됩니다.', '진행자가 실험을 안내한 경우에만 하단의 실험 기록을 시작합니다. 연습은 기록을 시작하지 않고 진행합니다.']),
-   h('자료마다 역할이 다릅니다'),
-   table(['자료', '무엇을 정하는 데 쓰나요?'], [
-    ['기존 공간 사진', '현재 공간의 외관과 재질을 참고합니다. 사진에서 실제 치수를 자동 측정하지 않습니다.'],
-    ['평면도', '구조·영역·배치·시점의 기준입니다. 업로드 후 필요한 위치를 직접 표시합니다.'],
-    ['분위기·요소 참고 이미지', '조명, 색감, 그래픽 등 적용할 내용을 선택합니다. 참고 사진의 방 구조를 복제하는 자료가 아닙니다.'],
-    ['제품 이미지', '진열할 상품이나 사용할 물체를 지정합니다. 상품은 놓을 진열대와 연결할 수 있습니다.']]),
-   p('도면이 없으면 가로·세로 개략 도면이나 직접 그린 윤곽을 사용할 수 있습니다. 개략 도면은 치수가 확인된 설계 도면이 아닙니다.') ]},
- {'id': 'prepare', 'title': '01-02 · 공간을 확인하고 레이아웃 구성', 'tag': '서비스 사용법', 'blocks': [
-   h('01 공간·방향 설정'),
-   p('실제 공간 사진과 평면도를 확인합니다. 사진은 현재 모습, 도면은 배치 기준입니다. 도면을 새로 올리면 이전 표시와 현재 배치를 지우거나 명시적으로 유지할 수 있습니다. 이미지에서 벽이나 치수를 자동 추출하지 않습니다.'),
-   p('오른쪽에서 공간 정보와 유지할 구조를 확인합니다. 전체 분위기·색·소재를 보여 주는 컨셉 이미지는 선택 사항입니다. 전시대나 조명 등 구체적인 요소 이미지는 3단계에서 연결합니다.'),
-   note('자물쇠는 기존 구조의 위치와 형태를 보존한다는 뜻입니다. 잠긴 벽에도 탈착식 포스터나 조명을 붙일 수 있습니다. 잠금을 끈다고 실제 철거·이전 가능성이 확인되는 것은 아닙니다.'),
-   h('02 레이아웃 구성'),
-   p(f'왼쪽 레이아웃 도구에서 구조·영역·배치 요소를 함께 찾습니다. 전시대·테이블·의자·조명을 고르고 도면의 허용 위치를 누릅니다. 배치 요소는 최대 {MAX_LAYOUT}개이며 구조·영역은 이 개수에 포함되지 않습니다. 이름은 자동으로 구분되며 오른쪽에서 바꿀 수 있습니다.'),
-   table(['하려는 일', '조작'], [
-    ['배치·크기·회전', '선택·이동으로 바꾼 뒤 몸체를 끌거나 회전 손잡이를 사용합니다. 선택한 요소의 크기·위치는 오른쪽에서 도면 비율로 조정합니다.'],
-    ['벽·가벽 표시', '구조 도구에서 시작점부터 끝점까지 끕니다. 오른쪽 그리기 설정에서 이름·윤곽·선 방향 등을 정합니다.'],
-    ['창·문·출입구 표시', '강조된 연결 벽을 확인하고 그 벽을 따라 끕니다. 여닫이문은 문 여유 공간을 비워 둡니다.'],
-    ['기둥·조명 표시', '기둥은 위치를 누릅니다. 조명은 바닥·벽·천장 중 설치 위치를 선택합니다. 업로드 도면은 1단계에서 실내 윤곽을 먼저 표시합니다.'],
-    ['영역·동선 표시', '분위기 영역은 같은 조명·색·소재를 적용할 범위, 통행 동선은 비워 둘 이동 공간입니다. 도구를 고르고 대각선으로 끕니다. 선택한 영역의 이름·범위는 오른쪽에서 수정합니다.'],
-    ['가벽에 부착', '벽면 연출이나 벽 조명을 고르고 가벽을 누릅니다. A/B 표시를 보고 붙일 면과 구간을 정합니다. 반대 면에서는 보이지 않는 조건입니다.'],
-    ['진열 상품', '사용할 전시대 위에 놓기를 선택합니다. 상품과 전시대의 겹침은 허용됩니다.']]),
-   p('이름은 선택·마우스 올림 때만 보입니다. 도면 아래 도면 기호·조작 안내를 누르면 범례와 조작 방법이 펼쳐지고 X·Escape·바깥 클릭으로 닫힙니다. 빗금은 비워 둘 통행·문 여유 공간입니다. 잘못된 배치는 거절되고 기존 위치가 유지됩니다.'),
-   p('그린 항목은 자동 저장됩니다. 끝낼 때 오른쪽의 그리기 마치기 또는 선택·이동을 누르세요.') ]},
- {'id': 'mapping', 'title': '03 · 레퍼런스를 기존 요소에 연결', 'tag': '서비스 사용법', 'blocks': [
-   p('레퍼런스 추가로 이미지를 등록합니다. 상품 자체의 사진일 때만 상품 사진을 등록하나요?를 펼쳐 선택합니다. 이미지 목록은 3열·최대 3행입니다. 더 많은 과거 자료는 전체 보기에서 확인합니다.'),
-   steps(['이미지를 선택하고 전체 이미지 또는 영역 선택으로 필요한 부분을 고릅니다.', '도면의 전시대·벽·영역 등 적용할 대상을 선택합니다. 여러 대상은 Shift+클릭 또는 다중 선택으로 고릅니다.', '패널 하단에서 가져올 내용을 고르고 선택한 n개에 적용을 누릅니다. 방 전체를 복제하지 않고 대상의 디자인만 연결합니다.']),
-   p('이미지 또는 선택 영역을 도면 대상으로 끌어 놓아도 적용할 수 있습니다. 드래그는 선택 사항입니다. 선택 영역을 다시 그릴 때는 영역 바깥에서 끌거나 Shift를 누르고 끕니다.'),
-   p(f'컨셉·가구·제품 참고 이미지를 합해 최대 {MAX_REFERENCES}장까지 등록합니다. 한 이미지를 여러 요소에 연결해도 한 장으로 셉니다. 공간 사진·평면도·생성 결과는 이 제한에 포함되지 않습니다.'),
-   p('가져올 내용은 형태·디자인, 조명 분위기, 색·소재 중 선택합니다. 조명 분위기는 조명·공간 영역에, 전체 컨셉은 전체 공간에 연결합니다. 가벽에는 A/B 면을 명시합니다. 호환되지 않는 대상이 포함되면 이유를 확인하고 선택을 수정합니다.'),
-   p('매핑 현황의 변경은 같은 탭에서 가져올 내용만 수정합니다. 연결 해제 또는 이미지 삭제 후에도 레이아웃과 이전 결과는 보관되며 삭제는 되돌릴 수 있습니다. 도면에서 배치 요소를 끌어 위치를 바꿔도 연결은 유지됩니다. 고정된 요소는 이동할 수 없고 충돌하는 위치는 거절됩니다.') ]},
- {'id': 'place', 'title': '04 · 시점 설정, 생성과 부분 수정', 'tag': '서비스 사용법', 'blocks': [
-   h('시점 설정'),
-   p('4단계의 시안에서 바라볼 위치에서 준비된 시점을 확인합니다. 시점을 누르면 도면의 해당 카메라가 강조됩니다. 카메라를 직접 만들 필요는 없습니다. 위치·방향을 바꾸려면 시점 수정을 누릅니다. 다른 단계에서는 카메라가 숨겨집니다.'),
-   h('생성 전 확인'),
-   p('위 도면에서 배치와 시점을 확인하고 오른쪽에서 생성할 시점을 선택합니다. 오류 항목의 수정하기를 누르면 관련 위치로 돌아갑니다. AI 이미지 생성은 선택한 시점마다 한 장씩 만듭니다. 생성 가능 여부 확인은 남은 횟수와 접수 가능 상태를 갱신합니다.'),
-   p('오늘 내 남은 생성은 같은 익명 브라우저 기준 하루 20회, 서비스 전체는 하루 60회입니다. 한국 시간 자정에 갱신됩니다. 요청이 접수되면 실패해도 차감될 수 있으며 여러 시점은 장수만큼 차감됩니다. 처리 중에는 중복 요청이 막힙니다.'),
-   h('결과 확인·수정'),
-   p('결과가 저장되면 결과 확인·수정이 활성화됩니다. 큰 이미지와 이력을 보고 오른쪽의 당시 시점·참고 이미지·유지 구조·배치를 대조합니다. 필요한 요소·배치·시점만 수정해 다시 생성할 수 있습니다. 앞 단계로 돌아가도 선택은 유지됩니다.'),
-   p('조건을 바꾸면 이전 이미지에 이전 조건 표시가 붙으며 이미지가 사라지지 않습니다. 검토 후 승인한 이미지를 내보낼 수 있습니다.'),
-   note('사전 제공 샘플은 현재 조건으로 생성한 이미지가 아닙니다. 실제 AI 시안도 도면과 정확히 일치하는지 직접 확인해야 합니다. 여러 시점 중 일부가 실패하면 먼저 완성된 이미지는 유지됩니다.') ]},
- {'id': 'experiment', 'title': '실험 참여 · A와 B는 무엇인가요?', 'tag': '참여자 안내', 'blocks': [
-   p('과업 A·B는 실험 진행자가 구분하는 두 자료 묶음의 이름입니다. 서비스의 기본 조작 예시는 학교 프로젝트룸 졸업전시이며, 실제 평가 자료와 과업 종료 기준은 진행자가 제공한 과업지를 따릅니다.'),
-   note('과업 A·B와 사용 방식은 별개입니다. 현재 앱의 A/B 선택은 기록에 과업 이름을 붙입니다. 선택만으로 사진·도면·기능이 바뀌지 않습니다. 현재 앱은 두 과업 모두 제안 인터페이스 방식으로 기록합니다.'),
-   h('참여 순서'),
-   steps(['진행자에게 익명 번호, 과업 A/B, 사용할 자료·프로젝트, 종료 기준을 받습니다. 이름과 학번은 입력하지 않습니다.', '다른 연습 예시로 조작을 익힙니다. 본 과업 자료의 정답을 미리 따라 만들지 않습니다.', '진행자가 지정한 프로젝트를 열고 하단 실험 기록을 펼칩니다. 익명 번호(예: P01), 과업, 기록 수집 동의를 확인합니다.', '이 프로젝트 기록 시작을 누른 뒤 과업을 수행합니다. 같은 브라우저의 한 탭을 사용하고 사이트 데이터를 삭제하지 않습니다.', '과업지의 종료 기준에 도달하면 기록을 시작한 프로젝트에서 과업 종료를 누릅니다. 종료 시점의 조건이 고정됩니다.', '과업 직후 설문 6개에 응답하고, 실험 기록 ZIP 받기를 누릅니다. 파일의 참여 번호·과업을 확인해 진행자에게 전달합니다.']),
-   h('종료 기준은 시작 전에 확인하세요'),
-   p('조건 지정 과업은 생성 전 확인에서 최종 조건 검토를 마쳤을 때 끝낼 수 있습니다. 이미지 평가를 포함하는 과업은 진행자가 지정한 생성·비교 절차까지 수행합니다. 모든 참여자에게 같은 기준을 적용해야 합니다.'),
-   p('설문을 바꿨다면 ZIP을 다시 다운로드하세요. 과업을 종료한 뒤 프로젝트를 수정해도 이미 종료한 과업의 최종 조건은 바뀌지 않습니다. 다음 과업은 별도 기록으로 시작합니다.') ]},
- {'id': 'recover', 'title': '복구·제출·자주 묻는 질문', 'tag': '빠른 참고', 'blocks': [
-   table(['상황', '할 일'], [
-    ['실수로 이동하거나 삭제함', '캔버스에서 Ctrl+Z, 다시 실행은 Ctrl+Shift+Z. 텍스트 입력 중에는 글 편집 단축키가 동작합니다. 삭제 안내가 사라져도 되돌리기 기록은 유지됩니다.'],
-    ['겹친 영역이 많아 보기 어려움', '영역·동선 표시 설정에서 필요한 종류와 선택 영역을 확인합니다. 동선과 문 여유 공간은 항상 표시됩니다.'],
-    ['잠금을 껐는데 벽이 움직이지 않음', '연결된 창·문이 잠겨 있는지, 다른 구조나 동선을 침범하는지 이유를 확인합니다.'],
-    ['생성이 일부만 완료됨', '시안에서 완성된 이미지를 먼저 확인합니다. 실패 원인과 남은 횟수를 확인한 뒤 필요한 시점만 선택합니다.'],
-    ['응답이 불확실하다는 안내', '자동 재전송하지 않습니다. 안내된 대기와 확인 절차를 따르거나 진행자에게 알립니다.'],
-    ['브라우저 저장 오류', '탭을 닫기 전에 실험 기록 ZIP과 필요한 이미지부터 받습니다. 진행자에게 알리고 임의로 데이터를 지우지 않습니다.']]),
-   h('제출 파일에는 무엇이 들어가나요?'),
-   p('실험 ZIP에는 익명 번호·과업·시각, 단계 이동·수정·오류 등 행동 기록, 시작·최종 조건, 설문, 계산 지표와 평가 양식이 들어갑니다. 원본 사진·도면·결과 이미지 파일은 들어가지 않습니다. 최종 조건에는 작성한 문장이 포함될 수 있으므로 개인 정보를 쓰지 마세요.'),
-   p('파일은 진행자에게 직접 전달해야 합니다. 서버 자동 제출이나 다른 기기 간 동기화는 제공하지 않습니다. 완료 전 ZIP은 중간 백업입니다. 실제 시안 이미지를 별도로 요청받았다면 진행자의 제출 방법을 따릅니다.'),
-   h('포커스와 저장'),
-   p('알림은 2초 뒤 사라지며 X 버튼을 누르면 바로 닫힙니다. 알림이 닫혀도 저장 상태와 되돌리기 기록은 유지됩니다. 삭제 여부를 묻는 확인 화면은 직접 선택하거나 X로 취소합니다.'),
-   p('마우스로 버튼을 클릭할 때 기본 검은 테두리는 표시하지 않습니다. 텍스트 입력에는 입력 중 표시가 남고, Tab 키로 조작할 때는 현재 조작 위치가 보입니다. 단계는 브라우저 뒤로 가기·앞으로 가기로 이동할 수 있습니다.'),
-   p('이 안내는 2026-10-01 구현과 제공된 14페이지 기획서의 절차를 기준으로 작성했습니다. 세부 과업 내용과 수집 동의·제출 방법은 진행자의 안내를 우선합니다.') ]},
-]
+GUIDE_DATE = '2026.10.06'
+participant_text = (ROOT / 'docs/USER_GUIDE_CONTENT.json').read_text(encoding='utf-8')
+participant = json.loads(participant_text.replace('{{MAX_LAYOUT}}', str(MAX_LAYOUT)).replace('{{MAX_REFERENCES}}', str(MAX_REFERENCES)))
 
 operator = [
  {'id': 'protocol', 'title': '실험 진행 전, 과업과 방식을 구분하세요', 'tag': '진행자 전용 · 배포 가이드와 별도', 'blocks': [
@@ -193,14 +128,20 @@ styles = {
  'cell': ParagraphStyle('cell', fontName='Guide', fontSize=9, leading=14, textColor=colors.HexColor(INK), wordWrap='CJK'),
  'head': ParagraphStyle('head', fontName='GuideBold', fontSize=9, leading=14, textColor=colors.HexColor(INK), wordWrap='CJK'),
  'tag': ParagraphStyle('tag', fontName='GuideBold', fontSize=9, leading=14, textColor=colors.HexColor(ACCENT), spaceAfter=9, wordWrap='CJK'),
+ 'caption': ParagraphStyle('caption', fontName='Guide', fontSize=8.5, leading=13, textColor=colors.HexColor(MUTED), spaceAfter=10, wordWrap='CJK'),
 }
 def para(text, style='p'): return Paragraph(escape(text), styles[style])
 def render_block(block, width):
     typ = block['type']
     if typ in ['p', 'h']: return [para(block['text'], typ)]
+    if typ == 'figure':
+        path = PUBLIC / block['src']
+        image_width, image_height = ImageReader(str(path)).getSize()
+        image = Image(str(path), width=width, height=width*image_height/image_width)
+        return [KeepTogether([image, Spacer(1,6), para(block['caption'],'caption')])]
     if typ == 'note':
         box = Table([[para(block['text'])]], colWidths=[width])
-        box.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.HexColor(TINT)),('BOX',(0,0),(-1,-1),.5,colors.HexColor(LINE)),('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
+        box.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.HexColor(QUIET)),('BOX',(0,0),(-1,-1),.5,colors.HexColor(LINE)),('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
         return [box, Spacer(1,9)]
     if typ == 'steps': return [para(f'{i+1}. {text}') for i,text in enumerate(block['items'])]
     if typ == 'table':
@@ -208,16 +149,16 @@ def render_block(block, width):
         widths = [width*.26,width*.74] if count == 2 else [width*.19,width*.37,width*.44]
         data = [[para(text,'head') for text in block['head']]] + [[para(text,'cell') for text in row] for row in block['rows']]
         t=Table(data,colWidths=widths,repeatRows=1,hAlign='LEFT')
-        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(TINT)),('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBELOW',(0,0),(-1,-1),.5,colors.HexColor(LINE)),('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8)]))
+        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(QUIET)),('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBELOW',(0,0),(-1,-1),.5,colors.HexColor(LINE)),('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8)]))
         return [t,Spacer(1,10)]
     raise ValueError(typ)
 
-def make_pdf(name,pages):
+def make_pdf(name,pages,date=GUIDE_DATE):
     out=OUT/name
     doc=SimpleDocTemplate(str(out),pagesize=A4,rightMargin=44,leftMargin=44,topMargin=54,bottomMargin=46,title=name.removesuffix('.pdf'),author='ReSpace')
     def footer(canvas,doc):
         canvas.setFillColor(colors.HexColor(MUTED));canvas.setFont('Guide',8)
-        canvas.drawString(44,A4[1]-30,'ReSpace · 전시·팝업 공간 디자인  /  2026.10.01')
+        canvas.drawString(44,A4[1]-30,'ReSpace · 전시·팝업 공간 디자인  /  '+date)
         canvas.drawRightString(A4[0]-44,25,f'{doc.page}')
         canvas.setStrokeColor(colors.HexColor(LINE));canvas.line(44,40,A4[0]-44,40)
     story=[]
@@ -230,6 +171,9 @@ def make_pdf(name,pages):
 
 def html_block(block):
     typ=block['type']
+    if typ=='figure':
+        image_width,image_height=ImageReader(str(PUBLIC/block['src'])).getSize()
+        return f'<figure class="guide-screen"><a href="{escape(block["src"])}" target="_blank" rel="noopener" aria-label="{escape(block["alt"])} 원본 크기로 보기"><img src="{escape(block["src"])}" alt="{escape(block["alt"])}" width="{image_width}" height="{image_height}" loading="lazy"></a><figcaption>{escape(block["caption"])} <span>이미지를 누르면 원본 크기로 열립니다.</span></figcaption></figure>'
     if typ in ['p','h','note']:
         tag='h3' if typ=='h' else 'p'
         return f'<{tag}'+(' class="note"' if typ=='note' else '')+'>'+escape(block['text'])+f'</{tag}>'
@@ -244,18 +188,29 @@ def markdown(pages):
             if block['type']=='h':result += ['## '+block['text'],'']
             elif block['type'] in ['p','note']:result += [block['text'],'']
             elif block['type']=='steps':result += [f'{i+1}. {x}' for i,x in enumerate(block['items'])]+['']
+            elif block['type']=='figure':result += [f'![{block["alt"]}](../public/guide/{block["src"]})','',block['caption'],'']
             else:result += ['| '+' | '.join(block['head'])+' |','| '+' | '.join(['---']*len(block['head']))+' |']+['| '+' | '.join(row)+' |' for row in block['rows']]+['']
     return '\n'.join(result)
 
+def html_section(page,index):
+    heading='h1' if index==0 else 'h2'
+    return f'<section id="{page["id"]}"><p class="eyebrow">{escape(page["tag"])}</p><{heading}>{escape(page["title"])}</{heading}>'+''.join(html_block(block) for block in page['blocks'])+'</section>'
+
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--participant-only',action='store_true',help='Build only the public participant guide; preserve facilitator files.')
+args=parser.parse_args()
 participant_path=make_pdf('서비스_사용_실험_참여_가이드.pdf',participant)
-operator_path=make_pdf('실험_진행_및_소개영상_구성안.pdf',operator)
+pdf_paths=[participant_path]
+if not args.participant_only:
+    operator_path=make_pdf('실험_진행_및_소개영상_구성안.pdf',operator,date='2026.10.01')
+    pdf_paths.append(operator_path)
+    (ROOT/'docs/EXPERIMENT_RUNBOOK_AND_VIDEO.md').write_text(markdown(operator),encoding='utf-8')
 shutil.copyfile(participant_path,PUBLIC/'user-guide.pdf')
 (ROOT/'docs/USER_GUIDE.md').write_text(markdown(participant),encoding='utf-8')
-(ROOT/'docs/EXPERIMENT_RUNBOOK_AND_VIDEO.md').write_text(markdown(operator),encoding='utf-8')
-html='''<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>사용·실험 참여 가이드 | ReSpace</title><link rel="icon" href="/brand/mark.svg"><link rel="stylesheet" href="guide.css"></head><body><header><a class="identity" href="/"><img src="/brand/mark.svg" alt="" width="30" height="30">ReSpace · 전시·팝업 공간 디자인</a><a class="download" href="user-guide.pdf" download>가이드 PDF 받기</a></header><div class="layout"><nav aria-label="가이드 목차"><strong>사용 가이드</strong>'''+''.join(f'<a href="#{page["id"]}">{escape(page["title"])}</a>' for page in participant)+'''<p>가이드는 새 탭에서 열립니다.<br>작업 탭으로 돌아가 계속하세요.</p></nav><main>'''+''.join(f'<section id="{page["id"]}"><p class="eyebrow">{escape(page["tag"])}</p><h1>{escape(page["title"])}</h1>'+''.join(html_block(block) for block in page['blocks'])+'</section>' for page in participant)+'''</main></div><footer>2026.10.01 · 프로젝트와 실험 기록은 현재 브라우저에 저장됩니다.</footer></body></html>'''
-(PUBLIC/'index.html').write_text(html,encoding='utf-8')
+html='''<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>사용·실험 참여 가이드 | ReSpace</title><link rel="icon" href="/brand/mark.svg"><link rel="stylesheet" href="guide.css"></head><body><header><a class="identity" href="/"><img src="/brand/mark.svg" alt="" width="30" height="30">ReSpace · 전시·팝업 공간 디자인</a><a class="download" href="user-guide.pdf" download>가이드 PDF 받기</a></header><div class="layout"><nav aria-label="가이드 목차"><strong>사용 가이드</strong>'''+''.join(f'<a href="#{page["id"]}">{escape(page["title"])}</a>' for page in participant)+'''<p>가이드는 새 탭에서 열립니다.<br>작업 탭으로 돌아가 계속하세요.</p></nav><main>'''+''.join(html_section(page,index) for index,page in enumerate(participant))+'''</main></div><footer>{{GUIDE_DATE}} · 프로젝트와 실험 기록은 현재 브라우저에 저장됩니다.</footer></body></html>'''
+(PUBLIC/'index.html').write_text(html.replace('{{GUIDE_DATE}}',GUIDE_DATE),encoding='utf-8')
 css=f''':root{{--ink:{INK};--muted:{MUTED};--line:{LINE};--accent:{ACCENT};--tint:{TINT};--paper:{token('neutral-white')};--workspace:{token('neutral-50')};}}\n'''+'''
-*{box-sizing:border-box}html{scroll-padding-top:90px}body{margin:0;color:var(--ink);background:var(--workspace);font:16px/1.8 "Noto Sans KR",system-ui,sans-serif}a{color:var(--accent);text-underline-offset:3px}a:focus:not(:focus-visible){outline:none}a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 32px;border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:2}.identity{display:flex;align-items:center;gap:12px;font-weight:700;text-decoration:none;color:var(--ink);font-size:16px}.download{padding:8px 16px;border:1px solid var(--line);border-radius:12px;min-height:44px;white-space:nowrap;font-size:14px}.layout{display:grid;grid-template-columns:240px minmax(0,780px);gap:32px;max-width:1120px;margin:32px auto;padding:0 24px}nav{position:sticky;top:110px;align-self:start;font-size:14px}nav strong{display:block;margin-bottom:16px}nav a{display:block;padding:10px 0;text-decoration:none}nav a:hover{text-decoration:underline}nav p{color:var(--muted);font-size:12px;margin-top:24px}main{min-width:0}section{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:32px;margin-bottom:24px;scroll-margin-top:16px}.eyebrow{color:var(--accent);font-size:12px;font-weight:700;margin:0 0 8px}h1{font-size:26px;line-height:1.5;margin:0 0 24px;word-break:keep-all}h3{font-size:18px;margin:24px 0 8px}p{margin:0 0 16px;overflow-wrap:anywhere}.note{background:var(--tint);border-radius:8px;padding:16px}ol{padding-left:24px}li{margin-bottom:12px}.table-scroll{overflow:auto;margin:16px 0}table{border-collapse:collapse;width:100%;font-size:14px;min-width:380px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:12px}th{background:var(--tint)}td:first-child{width:27%;font-weight:600}footer{max-width:1120px;margin:auto;padding:16px 24px 40px;color:var(--muted);font-size:12px}@media(max-width:800px){.layout{display:block;margin-top:16px;padding:0 16px}nav{position:static;margin-bottom:20px}nav a{padding:6px 0}nav p{display:none}section{padding:20px}header{padding:12px 16px;flex-wrap:wrap}.identity{font-size:14px}h1{font-size:22px}}@media(print){header,nav,footer{display:none}.layout{display:block;margin:0;padding:0}body{background:var(--paper)}section{border:0;padding:0;break-before:page}.table-scroll{overflow:visible}table{min-width:0}}
+*{box-sizing:border-box}html{scroll-padding-top:90px}body{margin:0;color:var(--ink);background:var(--workspace);font:16px/1.8 "Noto Sans KR",system-ui,sans-serif}a{color:var(--accent);text-underline-offset:3px}a:focus:not(:focus-visible){outline:none}a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 32px;border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:2}.identity{display:flex;align-items:center;gap:12px;font-weight:700;text-decoration:none;color:var(--ink);font-size:16px}.download{padding:8px 16px;border:1px solid var(--line);border-radius:8px;min-height:44px;white-space:nowrap;font-size:14px}.layout{display:grid;grid-template-columns:240px minmax(0,780px);gap:32px;max-width:1120px;margin:32px auto;padding:0 24px}nav{position:sticky;top:110px;align-self:start;font-size:14px;max-height:calc(100dvh - 126px);overflow:auto}nav strong{display:block;margin-bottom:16px}nav a{display:block;padding:10px 0;text-decoration:none}nav a:hover{text-decoration:underline}nav p{color:var(--muted);font-size:12px;margin-top:24px}main{min-width:0}section{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:32px;margin-bottom:24px;scroll-margin-top:16px}.eyebrow{color:var(--accent);font-size:12px;font-weight:700;margin:0 0 8px}h1,h2{font-size:26px;line-height:1.5;margin:0 0 24px;word-break:keep-all}h3{font-size:18px;margin:24px 0 8px}p{margin:0 0 16px;overflow-wrap:anywhere}.note{background:var(--workspace);border:1px solid var(--line);border-radius:8px;padding:16px}ol{padding-left:24px}li{margin-bottom:12px}.table-scroll{overflow:auto;margin:16px 0}table{border-collapse:collapse;width:100%;font-size:14px;min-width:380px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:12px}th{background:var(--workspace)}td:first-child{width:27%;font-weight:600}footer{max-width:1120px;margin:auto;padding:16px 24px 40px;color:var(--muted);font-size:12px}@media(max-width:800px){.layout{display:block;margin-top:16px;padding:0 16px}nav{position:static;margin-bottom:20px;max-height:none;overflow:visible}nav a{padding:6px 0}nav p{display:none}section{padding:20px}header{padding:12px 16px;flex-wrap:wrap}.identity{font-size:14px}h1,h2{font-size:22px}}.guide-screen{margin:0 0 24px}.guide-screen>a{display:block;line-height:0;border:1px solid var(--line);border-radius:4px;overflow:hidden}.guide-screen img{display:block;width:100%;height:auto}.guide-screen figcaption{margin-top:8px;font-size:13px;line-height:1.65;color:var(--muted)}.guide-screen figcaption span{display:block;font-size:12px}@media(print){header,nav,footer{display:none}.layout{display:block;margin:0;padding:0}body{background:var(--paper)}section{border:0;padding:0;break-before:page}.table-scroll{overflow:visible}table{min-width:0}}
 '''
 (PUBLIC/'guide.css').write_text(css,encoding='utf-8')
-print(json.dumps({'pdfs':[str(participant_path),str(operator_path)],'public':'/guide/index.html'},ensure_ascii=False))
+print(json.dumps({'pdfs':[str(path) for path in pdf_paths],'public':'/guide/index.html'},ensure_ascii=False))

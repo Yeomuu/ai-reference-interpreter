@@ -1,0 +1,43 @@
+{
+  "capturedAt": "2026-10-06T01:17:49.570Z",
+  "appCommit": "7c5beb9",
+  "source": "https://ai-reference-interpreter.vercel.app",
+  "scenario": "한국공학대학교 프로젝트룸 졸업전시 기본 예시",
+  "profile": "격리된 일회용 브라우저",
+  "generationCalls": 0,
+  "originalImages": "서비스에 포함된 기본 자료만 사용",
+  "captures": [
+    {
+      "file": "01-space.png",
+      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/space",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "02-layout.png",
+      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/placement",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "03-references.png",
+      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/references",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "04-generate.png",
+      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/review",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    }
+  ]
+}
