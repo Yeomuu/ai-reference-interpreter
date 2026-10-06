@@ -1,5 +1,9 @@
 # ReSpace implementation architecture
 
+## A/B 선택 상태 공유 · 2026-10-06
+
+WallTargetEditor와 PlanCanvas는 WallFaceSelection을 공유한다. wallFaceDraft는 프로젝트/요소/저장 target 또는 새 부착 draft의 편집 키에 묶인 임시 상태이며 URL 전환과 undo/redo에서 초기화한다. 입력 중인 부착 구간은 면 클릭 때문에 remount하지 않는다. PlanCanvas의 selectedWallFace/onWallFaceSelect가 attachmentWallId 또는 현재 mapping wall 선택에 대응하고, mappingFace는 기존 적용 경로를 사용한다. 중복 A/B 표시를 한 쌍으로 모았으며 저장 스키마·typed target·validation·generation 입력은 바꾸지 않는다.
+
 ## 설치 층과 편집 복귀 · 2026-10-06
 
 layoutDefaults.LIGHT_PLAN_FOOTPRINT는 스탠드 조명 기본 점유 크기와 위치가 있는 ceiling-light의 개략 점유 검사를 공유한다. ceilingBounds는 기존 offset을 읽으며 offset 없는 조명·크기가 미지정된 다른 천장 물체의 전체 영역 예약은 보존한다. 스키마 및 저장 데이터 migration은 변경하지 않는다. PlanCanvas의 pointPlacementMode/supportPlacementMode는 현재 도구의 클릭·키보드 동작만 구분하고 기존 placement/validation/commit/undo 경로로 전달한다. previousWorkflowStep(camera)는 review를 반환하며 review의 이전 단계는 references로 유지한다.

@@ -5,6 +5,36 @@ import { createSampleProject } from '../data/sample';
 import PlanCanvas from './PlanCanvas';
 import { createLayoutItem } from '../domain/layoutMapping';
 
+describe('partition face controls', () => {
+  function projectWithPartition() {
+    const project = createSampleProject();
+    project.floorPlan!.structures.push({ id: 'face-wall', name: '전시 가벽', kind: 'wall', role: 'partition', protected: false, geometry: { kind: 'segment', start: { x: .4, y: .2 }, end: { x: .4, y: .7 } } });
+    return project;
+  }
+  it('exposes accessible A/B buttons only when selection can be handled', () => {
+    const project = projectWithPartition();
+    const props = { project, mode: 'place' as const, attachmentWallId: 'face-wall', selectedWallFace: 'b' as const };
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { ...props, onWallFaceSelect: () => {} }));
+    expect(html.match(/class="plan-wall-face-marker is-interactive/g)).toHaveLength(2);
+    expect(html).toContain('B면 · 도면의 B 표시 쪽 선택');
+    expect(html).toMatch(/aria-pressed="true" data-wall-face="b"/);
+    expect(html).toContain('class="plan-wall-face-marker__hit"');
+    const readonly = renderToStaticMarkup(createElement(PlanCanvas, props));
+    expect(readonly).not.toContain('plan-wall-face-marker is-interactive');
+    expect(readonly).not.toContain('도면의 B 표시 쪽 선택');
+  });
+  it('renders one pair when a saved wall attachment is selected and shares the mapping face', () => {
+    const project = projectWithPartition();
+    const graphic = project.elements.find(e => e.kind === 'wall-graphic')!;
+    graphic.target = { kind: 'wall-segment', wallId: 'face-wall', start: .1, end: .25, face: 'a' };
+    const saved = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', selectedElementId: graphic.id, attachmentWallId: 'face-wall', selectedWallFace: 'b', onWallFaceSelect: () => {} }));
+    expect(saved.match(/data-wall-face=/g)).toHaveLength(2);
+    expect(saved).toMatch(/aria-pressed="true" data-wall-face="b"/);
+    const mapping = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'mapping', mappingSelectedIds: ['wall:face-wall'], selectedWallFace: 'a', onWallFaceSelect: () => {} }));
+    expect(mapping).toMatch(/aria-pressed="true" data-wall-face="a"/);
+  });
+});
+
 describe('active placement tools', () => {
   it('offers support picking for a new product even before any product is selected', () => {
     const project = createSampleProject();

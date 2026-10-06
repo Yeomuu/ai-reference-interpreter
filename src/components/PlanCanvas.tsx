@@ -38,6 +38,8 @@ export interface PlanCanvasProps {
   quietLabels?: boolean;
   mappingSelectedIds?: string[];
   attachmentWallId?: string;
+  selectedWallFace?: 'a' | 'b';
+  onWallFaceSelect?: (wallId: string, face: 'a' | 'b') => void;
   wallAttachmentMode?: boolean;
   areaSelectionMode?: boolean;
   onMappingSelect?: (id: string, multi: boolean) => void;
@@ -142,7 +144,7 @@ function areaBounds(plan: FloorPlan, areaId: string) {
 
 /** Plan values remain normalized. Only this component maps them to SVG units. */
 export default function PlanCanvas({
-  project, quietLabels = false, mappingSelectedIds = [], attachmentWallId, wallAttachmentMode = false, areaSelectionMode = false, onMappingSelect, onReferenceDrop,
+  project, quietLabels = false, mappingSelectedIds = [], attachmentWallId, selectedWallFace, onWallFaceSelect, wallAttachmentMode = false, areaSelectionMode = false, onMappingSelect, onReferenceDrop,
   onUndo, onRedo, canUndo, canRedo,
   onDragEvent,
   selectedElementId,
@@ -355,7 +357,16 @@ export default function PlanCanvas({
     ...movedStructures.flatMap(item => item.clearance ? [{ id: `range-${item.id}`, bounds: item.clearance }] : []),
     ...activeElements.filter(element => !preview || preview.id !== element.id).flatMap(element => { const bounds = physicalFloorBounds(project, element); return bounds ? [{ id: `range-${element.id}`, bounds }] : []; }),
   ].map(item => ({ id: item.id, x: (item.bounds.x + item.bounds.width / 2) * width * contentPixelScale, y: (item.bounds.y + item.bounds.height / 2) * height * contentPixelScale, width: item.bounds.width * width * contentPixelScale, height: item.bounds.height * height * contentPixelScale }));
+  const savedWallTarget = mode === 'place' && selectedDesignElement?.target?.kind === 'wall-segment' ? selectedDesignElement.target : undefined;
+  const wallFaceMarkers = plan.structures.filter(wall => wall.role === 'partition' && (
+    mappingSelectedIds.includes(`wall:${wall.id}`) || attachmentWallId === wall.id ||
+    !attachmentWallId && savedWallTarget?.wallId === wall.id
+  )).flatMap(wall => (['a', 'b'] as const).flatMap(face => {
+    const point = wallFaceLine(wall, .5, .5, face, width, height, 24 / contentPixelScale)?.start;
+    return point ? [{ wall, face, point }] : [];
+  }));
   const markerObstacles = [
+    ...wallFaceMarkers.map(({ wall, face, point }) => ({ id: `face-${wall.id}-${face}`, x: point.x * contentPixelScale, y: point.y * contentPixelScale, width: 40, height: 40 })),
     ...(showCameras && layers.cameras ? project.cameras.map(camera => ({ id: `camera-${camera.id}`, x: camera.x * width * contentPixelScale, y: camera.y * height * contentPixelScale, width: 108, height: 52 })) : []),
     ...(showCameraOccupancy ? project.cameras.map(camera => ({ id: `camera-${camera.id}`, x: camera.x * width * contentPixelScale, y: camera.y * height * contentPixelScale, width: 28, height: 28 })) : []),
     ...movedStructures.filter(item => item.kind === 'pillar').flatMap(item => {
@@ -896,10 +907,6 @@ export default function PlanCanvas({
           onClick={wallEditable ? (event) => event.stopPropagation() : undefined}>
           <line className="plan-element__wall" x1={faceLine?.start.x ?? start.x * width} y1={faceLine?.start.y ?? start.y * height} x2={faceLine?.end.x ?? end.x * width} y2={faceLine?.end.y ?? end.y * height} />
         </g>
-        {partition && selected && (['a', 'b'] as const).map(face => {
-          const marker = wallFaceLine(wall, .08, .08, face, width, height, 32)?.start;
-          return marker && <g className={`plan-wall-face-marker ${target.face === face ? 'is-active' : ''}`} key={face} aria-hidden="true"><circle cx={marker.x} cy={marker.y} r={14} /><text x={marker.x} y={marker.y + 5} textAnchor="middle">{face.toUpperCase()}</text></g>;
-        })}
         {selected && wallEditable && <text className="plan-element__wall-hint" x={middle.x * width} y={middle.y * height + (middle.y > 0.75 ? -35 : 52)} textAnchor="middle" aria-hidden="true">벽 따라 이동</text>}
       </g>;
     }
@@ -936,7 +943,23 @@ export default function PlanCanvas({
       onDragLeave={()=>setDropTarget(undefined)} onDrop={event=>{event.preventDefault();event.stopPropagation();setDropTarget(undefined);try {const input=JSON.parse(event.dataTransfer.getData(REFERENCE_DRAG_TYPE));if(typeof input.referenceId==='string')onReferenceDrop?.(id,input.referenceId,input.region)} catch {setGestureHint('이미지를 다시 끌어 적용하세요.')}}}>{geometry}</g>;
   }
   function attachmentMarkers() {
-    return plan!.structures.filter(wall=>wall.role==='partition'&&(mappingSelectedIds.includes(`wall:${wall.id}`)||attachmentWallId===wall.id)).flatMap(wall=>(['a','b'] as const).map(face=>{const point=wallFaceLine(wall,.5,.5,face,width,height,24/contentPixelScale)?.start;return point&&<g className="plan-wall-face-marker" pointerEvents="none" key={`${wall.id}-${face}`} aria-hidden="true" transform={`translate(${point.x} ${point.y}) scale(${1/contentPixelScale})`}><circle r={12} /><text y={5} textAnchor="middle">{face.toUpperCase()}</text></g>}));
+    return wallFaceMarkers.map(({ wall, face, point }) => {
+      const editable = !!onWallFaceSelect && (mode === 'place' && attachmentWallId === wall.id || mode === 'mapping' && mappingSelectedIds.includes(`wall:${wall.id}`));
+      const activeFace = attachmentWallId === wall.id || mode === 'mapping' ? selectedWallFace : savedWallTarget?.face;
+      return <g key={`${wall.id}-${face}`} className={`plan-wall-face-marker${editable ? ' is-interactive' : ''}${activeFace === face ? ' is-active' : ''}`}
+        transform={`translate(${point.x} ${point.y}) scale(${1 / contentPixelScale})`}
+        role={editable ? 'button' : undefined} tabIndex={editable ? 0 : undefined} aria-hidden={editable ? undefined : true}
+        aria-label={editable ? `${wallFaceLabel(project, wall.id, face)} 선택` : undefined} aria-pressed={editable ? activeFace === face : undefined}
+        data-wall-face={face} data-wall-id={wall.id}
+        onPointerDown={editable ? event => event.stopPropagation() : undefined}
+        onClick={editable ? event => { event.stopPropagation(); onWallFaceSelect?.(wall.id, face); } : undefined}
+        onKeyDown={editable ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onWallFaceSelect?.(wall.id, face); } } : undefined}>
+        <title>{wallFaceLabel(project, wall.id, face)}</title>
+        {editable && <rect className="plan-wall-face-marker__hit" x={-20} y={-20} width={40} height={40} />}
+        <circle r={12} /><text y={5} textAnchor="middle">{face.toUpperCase()}</text>
+        {editable && <circle className="plan-wall-face-marker__focus" r={16} />}
+      </g>;
+    });
   }
   function mappingTargets() {
     return <g className="mapping-targets">
