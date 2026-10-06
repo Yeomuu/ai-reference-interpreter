@@ -3,7 +3,7 @@ import { layoutKindFor, LAYOUT_LABELS } from '../domain/layoutMapping';
 import { isCountedLayoutItem } from '../domain/prototypeLimits';
 import { REFERENCE_DRAG_TYPE } from './MappingWorkspace';
 import PlanSymbol from './PlanSymbol'
-import { displayPosition } from '../domain/display';
+import { displayPosition, isDisplaySupport } from '../domain/display';
 import { arrangePlanLabels } from './plan-labels';
 import { elementPlanPosition } from '../services/planGuide';
 import { useEffect, useId, useRef, useState } from 'react';
@@ -48,6 +48,8 @@ export interface PlanCanvasProps {
   onDrawPolygon?: (points: Point[]) => boolean;
   onStructureLockToggle?: (id: string) => void;
   onSupportSelect?: (id: string) => void;
+  supportPlacementMode?: boolean;
+  pointPlacementMode?: boolean;
   drawWallId?: string;
   validationMessage?: string;
   onDrawWallSelect?: (id: string) => void;
@@ -156,6 +158,8 @@ export default function PlanCanvas({
   onDrawPolygon,
   onStructureLockToggle,
   onSupportSelect,
+  supportPlacementMode = false,
+  pointPlacementMode = false,
   drawWallId,
   validationMessage,
   onValidationDismiss,
@@ -418,6 +422,10 @@ export default function PlanCanvas({
       target.classList.contains('plan-canvas__floor') ||
       target.classList.contains('plan-canvas__image')
     ))) return;
+    placeAtPointer(event);
+  }
+
+  function placeAtPointer(event: MouseEvent<SVGElement>) {
     const point = svgPosition(event);
     if (!point || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) return;
     onPlacePoint?.(point.x, point.y);
@@ -702,9 +710,9 @@ export default function PlanCanvas({
       ? previewStructureTranslation(project, preview.id, preview.structure).find((item) => item.id === structure.id) : undefined;
     const geometry = translated?.geometry ?? structure.geometry;
     const center = structureCenter({ ...structure, geometry });
-    const movable = !drawTool && !(wallAttachmentMode && structure.kind === 'wall') && movableStructures.some((item) => item.id === structure.id)
+    const movable = !drawTool && !pointPlacementMode && !(wallAttachmentMode && structure.kind === 'wall') && movableStructures.some((item) => item.id === structure.id)
       && Boolean(onStructureMove) && mode !== 'camera';
-    const selectable = drawHost || (!drawTool && (movable || (mode === 'place' && structure.kind === 'wall'
+    const selectable = pointPlacementMode || drawHost || (!drawTool && (movable || (mode === 'place' && structure.kind === 'wall'
       ? Boolean(onWallSelect || onStructureSelect)
       : Boolean(onStructureSelect))));
     const isOpening = structure.kind === 'window' || structure.kind === 'door' || structure.kind === 'entrance';
@@ -750,17 +758,17 @@ export default function PlanCanvas({
     {!labelsOnly && <g
       role={selectable ? 'button' : undefined}
       tabIndex={selectable ? 0 : undefined}
-      aria-label={selectable ? `${structure.name}${drawHost ? ', 연결 벽으로 선택, 벽 선을 따라 드래그해 그리기' : movable ? ', 이동 가능한 구조, 끌어서 이동 또는 방향키로 1% 이동' : ', 위치 고정, 선택하여 보존 조건 확인'}${kept ? ', Keep 보존 대상' : ''}` : undefined}
+      aria-label={pointPlacementMode ? `${structure.name}, 여기에 요소 배치` : selectable ? `${structure.name}${drawHost ? ', 연결 벽으로 선택, 벽 선을 따라 드래그해 그리기' : movable ? ', 이동 가능한 구조, 끌어서 이동 또는 방향키로 1% 이동' : ', 위치 고정, 선택하여 보존 조건 확인'}${kept ? ', Keep 보존 대상' : ''}` : undefined}
       aria-pressed={selectable ? selected : undefined}
-      onClick={selectable ? (event) => { event.stopPropagation(); if (!suppressClickRef.current) handleStructureSelect(structure); } : undefined}
-      onKeyDown={selectable ? (event) => handleStructureKeyDown(event, structure) : undefined}
-      onPointerDown={movable ? (event) => startStructureDrag(event, structure) : undefined}
+      onClick={selectable ? (event) => { event.stopPropagation(); if (pointPlacementMode) placeAtPointer(event); else if (!suppressClickRef.current) handleStructureSelect(structure); } : undefined}
+      onKeyDown={pointPlacementMode ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onPlacePoint?.(center.x,center.y)}} : selectable ? (event) => handleStructureKeyDown(event, structure) : undefined}
+      onPointerDown={pointPlacementMode ? event=>event.stopPropagation() : movable ? (event) => startStructureDrag(event, structure) : undefined}
     >
       <title>{`${structure.name}${kept ? ' · Keep' : ''}`}</title>
       {shape}
       {structure.kind === 'existing-light' && <LayoutSymbol kind="light" x={center.x*width} y={center.y*height} width={28} height={28} />}
     </g>}
-      {labelsOnly && quietLabels && !packed && kept && !drawTool && mode!=='camera' && <g className="plan-lock-toggle is-kept" transform={`translate(${center.x*width} ${center.y*height}) scale(${1/contentPixelScale})`} role={onStructureLockToggle?'button':undefined} tabIndex={onStructureLockToggle?0:undefined} aria-label={`${structure.name} 필수 보존 끄기`} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onStructureLockToggle?.(structure.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onStructureLockToggle?.(structure.id)}}}><title>{structure.name} · 위치 고정</title><rect x={-14} y={-14} width={28} height={28} rx={6} /><image href="/icons/nucleo/IconLockOutline18.svg" x={-7} y={-7} width={14} height={14} /></g>}
+      {labelsOnly && quietLabels && !packed && kept && !drawTool && !pointPlacementMode && mode!=='camera' && <g className="plan-lock-toggle is-kept" transform={`translate(${center.x*width} ${center.y*height}) scale(${1/contentPixelScale})`} role={onStructureLockToggle?'button':undefined} tabIndex={onStructureLockToggle?0:undefined} aria-label={`${structure.name} 필수 보존 끄기`} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onStructureLockToggle?.(structure.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onStructureLockToggle?.(structure.id)}}}><title>{structure.name} · 위치 고정</title><rect x={-14} y={-14} width={28} height={28} rx={6} /><image href="/icons/nucleo/IconLockOutline18.svg" x={-7} y={-7} width={14} height={14} /></g>}
       {labelsOnly && !drawHost && packed && <>
         <g className={movable ? 'plan-structure__move-label' : `plan-keep-label${kept ? ' is-kept' : ''}`} transform={`translate(${labelX} ${labelY}) scale(${1 / contentPixelScale})`}
           style={drawTool ? { pointerEvents: 'none' } : undefined} role={selectable ? 'button' : undefined} tabIndex={selectable ? 0 : undefined} aria-label={`${structure.name}${movable ? ' · 이동 가능' : ''}`}
@@ -811,9 +819,9 @@ export default function PlanCanvas({
     const selected = mode === 'place' && element.id === selectedElementId || mode === 'mapping' && mappingSelectedIds.includes(element.id);
     // Scope conditions are not separate physical objects: focus one instead of stacking every outline.
     if (['whole-space', 'named-area', 'ceiling-zone', 'floor-area'].includes(target.kind) && !isCountedLayoutItem(element) && !selected) return null;
-    const supportPicking = mode === 'place' && project.elements.find(item => item.id === selectedElementId)?.kind === 'display-product' && ['freestanding-fixture', 'furniture'].includes(element.kind);
-    const editable = mode === 'place' && target.kind === 'floor-point' && Boolean(onElementMove) && !supportPicking && !element.locked;
-    const classes = `plan-element${supportPicking ? ' plan-element--support-picking' : ''}${selected ? ' plan-element--selected' : ''}${editable ? ' plan-element--editable' : ''}${previewBlocked && preview?.id === element.id ? ' plan-preview-blocked' : ''}`;
+    const supportPicking = mode === 'place' && Boolean(onSupportSelect) && (supportPlacementMode || project.elements.find(item => item.id === selectedElementId)?.kind === 'display-product') && isDisplaySupport(element);
+    const editable = mode === 'place' && target.kind === 'floor-point' && Boolean(onElementMove) && !pointPlacementMode && !supportPicking && !element.locked;
+    const classes = `plan-element${pointPlacementMode ? ' plan-element--point-placement' : ''}${supportPicking ? ' plan-element--support-picking' : ''}${selected ? ' plan-element--selected' : ''}${editable ? ' plan-element--editable' : ''}${previewBlocked && preview?.id === element.id ? ' plan-preview-blocked' : ''}`;
     const number = index + 1;
     if (target.kind === 'floor-point') {
       const footprint = target.footprint ?? { width: 0.06, height: 0.06 };
@@ -830,9 +838,9 @@ export default function PlanCanvas({
       return <g className={classes} key={element.id} data-element-id={element.id} onMouseEnter={() => setHoveredId(element.id)} onMouseLeave={() => setHoveredId(undefined)} role={editable || supportPicking || mode==='place' ? 'button' : undefined} tabIndex={editable || supportPicking || mode==='place' ? 0 : undefined}
         aria-label={`${element.label}${supportPicking ? ', 이 진열대 위에 제품 연결' : ', 바닥 요소'}${editable ? ', 끌어서 이동, 방향키로 1% 이동' : ''}`}
         aria-pressed={editable ? selected : undefined}
-        onPointerDown={supportPicking ? event => event.stopPropagation() : editable ? (event) => startDrag(event, 'element-move', element.id, position) : undefined}
-        onKeyDown={mode==='place' && element.locked ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onElementSelect?.(element.id)}} : supportPicking ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSupportSelect?.(element.id); } } : editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
-        onClick={mode==='place' && element.locked ? event=>{event.stopPropagation();onElementSelect?.(element.id)} : supportPicking ? event => { event.stopPropagation(); onSupportSelect?.(element.id); } : editable ? (event) => event.stopPropagation() : undefined}>
+        onPointerDown={pointPlacementMode || supportPicking ? event => event.stopPropagation() : editable ? (event) => startDrag(event, 'element-move', element.id, position) : undefined}
+        onKeyDown={pointPlacementMode ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onPlacePoint?.(target.x,target.y)}} : supportPicking ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSupportSelect?.(element.id); } } : mode==='place' && element.locked ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onElementSelect?.(element.id)}} : editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
+        onClick={pointPlacementMode ? event=>{event.stopPropagation();placeAtPointer(event)} : supportPicking ? event => { event.stopPropagation(); onSupportSelect?.(element.id); } : mode==='place' && element.locked ? event=>{event.stopPropagation();onElementSelect?.(element.id)} : editable ? (event) => event.stopPropagation() : undefined}>
         <title>{element.label}</title>
         <rect className="plan-element__footprint" data-constraint-id={!preview ? element.id : undefined} x={x - footprint.width * width / 2} y={y - footprint.height * height / 2} width={footprint.width * width} height={footprint.height * height} rx={Math.min(14, footprint.height * height / 4)} transform={`rotate(${degrees} ${x} ${y})`} />
         <g transform={`rotate(${degrees} ${x} ${y})`} style={{ pointerEvents: 'none' }}><LayoutSymbol kind={layoutKindFor(element)} x={x} y={y} width={footprint.width * width} height={footprint.height * height} /></g>
@@ -850,7 +858,7 @@ export default function PlanCanvas({
     if(target.kind==='ceiling-zone' && isCountedLayoutItem(element)) {
       const zone=plan!.areas.find(area=>area.id===target.zoneId);if(!zone)return null;
       const x=(zone.bounds.x+zone.bounds.width*(target.offset?.x??.5))*width,y=(zone.bounds.y+zone.bounds.height*(target.offset?.y??.5))*height;
-      return <g className={classes} key={element.id} data-element-id={element.id} role={onElementSelect?'button':undefined} tabIndex={onElementSelect?0:undefined} aria-label={`${element.label}, 천장 요소`} onMouseEnter={()=>setHoveredId(element.id)} onMouseLeave={()=>setHoveredId(undefined)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onElementSelect?.(element.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onElementSelect?.(element.id)}}}><title>{element.label}</title><LayoutSymbol kind={layoutKindFor(element)} x={x} y={y} width={30/contentPixelScale} height={30/contentPixelScale} /></g>;
+      return <g className={classes} key={element.id} data-element-id={element.id} role={onElementSelect&&!supportPlacementMode?'button':undefined} tabIndex={onElementSelect&&!supportPlacementMode?0:undefined} style={{pointerEvents:supportPlacementMode?'none':undefined}} aria-label={`${element.label}, 천장 요소`} onMouseEnter={()=>setHoveredId(element.id)} onMouseLeave={()=>setHoveredId(undefined)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(pointPlacementMode)placeAtPointer(event);else onElementSelect?.(element.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(pointPlacementMode)onPlacePoint?.(x/width,y/height);else onElementSelect?.(element.id)}}}><title>{element.label}</title><LayoutSymbol kind={layoutKindFor(element)} x={x} y={y} width={30/contentPixelScale} height={30/contentPixelScale} /></g>;
     }
     if (target.kind === 'fixture-surface') {
       const host = project.elements.find(item => item.id === target.fixtureElementId);
@@ -860,7 +868,7 @@ export default function PlanCanvas({
       if (!point) return null;
       return <g key={element.id} data-element-id={element.id} className={`${classes} plan-element--product`} role={mode === 'place' ? 'button' : undefined} tabIndex={mode === 'place' ? 0 : undefined}
         aria-label={`${element.label}, ${host?.label ?? '진열대'} 위`} onPointerDown={event => event.stopPropagation()}
-        onClick={event => { event.stopPropagation(); onElementSelect?.(element.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onElementSelect?.(element.id); } }}>
+        onClick={event => { event.stopPropagation(); if (pointPlacementMode) placeAtPointer(event); else if (supportPlacementMode) onSupportSelect?.(target.fixtureElementId); else onElementSelect?.(element.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); if (pointPlacementMode) onPlacePoint?.(point.x, point.y); else if (supportPlacementMode) onSupportSelect?.(target.fixtureElementId); else onElementSelect?.(element.id); } }}>
         <title>{`${element.label} · 진열 상품 · ${host?.label} 위`}</title><g transform={`translate(${point.x * width} ${point.y * height}) scale(${1 / contentPixelScale})`}><rect x={-17} y={-17} width={34} height={34} rx={8} /><LayoutSymbol kind="product" width={24} height={24} />{selected && <text className="plan-product-label" x={0} y={-25} textAnchor="middle">진열 상품</text>}</g>
       </g>;
     }
@@ -903,7 +911,7 @@ export default function PlanCanvas({
     const visibleBounds = boundsList.filter((bounds) => bounds !== undefined);
     if (!visibleBounds.length) return null;
     const labelBounds = visibleBounds[0];
-    return <g className={`${classes} plan-element--area`} key={element.id} data-element-id={element.id} onMouseEnter={()=>setHoveredId(element.id)} onMouseLeave={()=>setHoveredId(undefined)} aria-label={`${element.label}, 영역 적용`}>
+    return <g className={`${classes} plan-element--area`} key={element.id} data-element-id={element.id} onMouseEnter={()=>setHoveredId(element.id)} onMouseLeave={()=>setHoveredId(undefined)} aria-label={`${element.label}, 영역 적용`} role={supportPicking?'button':undefined} tabIndex={supportPicking?0:undefined} onClick={supportPicking?event=>{event.stopPropagation();onSupportSelect?.(element.id)}:pointPlacementMode?event=>{event.stopPropagation();placeAtPointer(event)}:undefined} onKeyDown={supportPicking?event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onSupportSelect?.(element.id)}}:undefined}>
       <title>{element.label}</title>
       {visibleBounds.map((bounds, boundsIndex) => { const area = target.kind === 'whole-space' ? floorAreas[boundsIndex] : activePlan.areas.find(item => item.id === (target.kind === 'floor-area' || target.kind === 'named-area' ? target.areaId : target.zoneId)); return area?.outline ? <polygon key={boundsIndex} className="plan-element__area" points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect key={boundsIndex} className="plan-element__area" x={bounds.x * width + 9} y={bounds.y * height + 9} width={Math.max(0, bounds.width * width - 18)} height={Math.max(0, bounds.height * height - 18)} rx={8} />; })}
       <circle className="plan-element__number-bg" cx={labelBounds.x * width + 30} cy={labelBounds.y * height + 30} r={14} />

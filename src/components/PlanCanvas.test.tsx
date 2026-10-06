@@ -3,6 +3,29 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSampleProject } from '../data/sample';
 import PlanCanvas from './PlanCanvas';
+import { createLayoutItem } from '../domain/layoutMapping';
+
+describe('active placement tools', () => {
+  it('offers support picking for a new product even before any product is selected', () => {
+    const project = createSampleProject();
+    const support = createLayoutItem(project, 'support', 'display');
+    support.locked = true;
+    support.target = { kind: 'floor-point', x: .3, y: .3, footprint: { width: .1, height: .1 } };
+    project.elements = [support];
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', supportPlacementMode: true, onSupportSelect: () => {} }));
+    expect(html).toContain('plan-element--support-picking');
+    expect(html).toContain('이 진열대 위에 제품 연결');
+    // An absent callback must never expose a support-picking button that does nothing.
+    const unavailable = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', supportPlacementMode: true }));
+    expect(unavailable).not.toContain('plan-element--support-picking');
+  });
+  it('does not offer floor dragging while a point-placement tool is active', () => {
+    const project = createSampleProject();
+    const html = renderToStaticMarkup(createElement(PlanCanvas, { project, mode: 'place', pointPlacementMode: true, onElementMove: () => {} }));
+    expect(html).not.toContain('plan-element--editable');
+    expect(html).toContain('여기에 요소 배치');
+  });
+});
 
 describe('plan canvas floor layers', () => {
   it.each(['place', 'mapping', 'camera'] as const)('shows unselected legacy ceiling objects in %s while hiding the ceiling area hit target', mode => {

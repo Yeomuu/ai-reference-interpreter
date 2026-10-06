@@ -1,5 +1,9 @@
 # ReSpace implementation architecture
 
+## 설치 층과 편집 복귀 · 2026-10-06
+
+layoutDefaults.LIGHT_PLAN_FOOTPRINT는 스탠드 조명 기본 점유 크기와 위치가 있는 ceiling-light의 개략 점유 검사를 공유한다. ceilingBounds는 기존 offset을 읽으며 offset 없는 조명·크기가 미지정된 다른 천장 물체의 전체 영역 예약은 보존한다. 스키마 및 저장 데이터 migration은 변경하지 않는다. PlanCanvas의 pointPlacementMode/supportPlacementMode는 현재 도구의 클릭·키보드 동작만 구분하고 기존 placement/validation/commit/undo 경로로 전달한다. previousWorkflowStep(camera)는 review를 반환하며 review의 이전 단계는 references로 유지한다.
+
 ## 화면 정리 공통 구성 · 2026-10-01
 
 TimedNotice의 NOTICE_DURATION_MS=2000을 모든 transient feedback에서 공유한다. 표시 생명주기와 편집/삭제 history 생명주기를 분리한다. PlanLegend는 native details와 Escape/outside/close 처리를 사용한다. MappingWorkspace는 스크롤 목록과 적용 footer를 분리하고 native dialog로 9개 초과 기존 이미지 목록을 보여 준다.

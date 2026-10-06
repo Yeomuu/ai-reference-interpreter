@@ -1,5 +1,6 @@
 import { areaContainsPoint, areaContainsRect, areaContainsSegment, areaIntersectsRect, areaIntersectsSegment, areaIntersectsCircle, outlineBounds, validOutline } from './geometry.js';
 import { isDisplaySupport } from './display.js';
+import { LIGHT_PLAN_FOOTPRINT } from './layoutDefaults.js';
 import type {
   Area,
   DesignElement,
@@ -235,15 +236,24 @@ function geometryIntersectsRect(project: Project, geometry: Structure['geometry'
   return circleIntersectsRect(geometry, rect, project.floorPlan!.width, project.floorPlan!.height);
 }
 
-/** A zone is the ceiling fixture's reserved extent until an exact footprint is supported. */
-function ceilingBounds(project: Project, target: PlacementTarget | null): Rect | undefined {
-  return target?.kind === 'ceiling-zone' ? areaById(project, target.zoneId)?.bounds : undefined;
+/** Positioned lights occupy a schematic footprint; unpositioned legacy fixtures
+ * still reserve their zone because their location/extent is unknown. */
+function ceilingBounds(project: Project, element: DesignElement, target = element.target): Rect | undefined {
+  if (target?.kind !== 'ceiling-zone') return;
+  const area = areaById(project, target.zoneId);
+  if (!area) return;
+  if (element.kind !== 'ceiling-light' || !target.offset) return area.bounds;
+  return {
+    x: area.bounds.x + area.bounds.width * target.offset.x - LIGHT_PLAN_FOOTPRINT.width / 2,
+    y: area.bounds.y + area.bounds.height * target.offset.y - LIGHT_PLAN_FOOTPRINT.height / 2,
+    ...LIGHT_PLAN_FOOTPRINT,
+  };
 }
 
 function validateElementOccupancy(project: Project, element: DesignElement, target: PlacementTarget): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const floor = physicalFloorBounds(project, element, target);
-  const ceiling = ceilingBounds(project, target);
+  const ceiling = ceilingBounds(project, element, target);
   const wallPhysical = ['photozone', 'wall-graphic', 'wall-mounted-product', 'wall-light', 'other-wall'].includes(element.kind);
   for (const other of project.elements) {
     if (other.id === element.id || other.status !== 'apply' || !other.target) continue;
@@ -256,19 +266,19 @@ function validateElementOccupancy(project: Project, element: DesignElement, targ
       const differentFaces = wall?.role === 'partition' && target.face && other.target.face && target.face !== other.target.face;
       if (sameLayer && !differentFaces) overlap = spanOverlap(target, other.target);
     }
-    const otherCeiling = ceilingBounds(project, other.target);
+    const otherCeiling = ceilingBounds(project, other);
     if (ceiling && otherCeiling) overlap = intersects(ceiling, otherCeiling);
     if (element.kind === 'floor-material' && other.kind === 'floor-material' && target.kind === 'floor-area' && other.target.kind === 'floor-area') {
       const area = areaById(project, target.areaId), otherArea = areaById(project, other.target.areaId);
       if (area && otherArea) overlap = intersects(area.bounds, otherArea.bounds);
     }
     if (overlap) issues.push(error('element-overlap', ceiling
-      ? `${other.label}이(가) 이미 이 천장 영역을 사용합니다. 정확한 점유 크기가 없는 천장 요소는 영역 전체를 사용하므로, 비어 있는 더 작은 천장 영역을 그려 선택해 주세요.`
+      ? `${other.label}과 천장 위치가 겹칩니다. 다른 천장 위치를 선택해 주세요.${element.kind !== 'ceiling-light' || target.kind !== 'ceiling-zone' || !target.offset || other.kind !== 'ceiling-light' || other.target.kind !== 'ceiling-zone' || !other.target.offset ? ' 점유 크기가 없는 천장 요소는 연결한 영역 전체를 사용합니다.' : ''}`
       : `${other.label}이(가) 이미 이 위치를 사용하고 있습니다. 같은 바닥·벽 위치에 두 요소를 겹쳐 배치할 수 없습니다. 다른 위치나 더 작은 영역을 선택해 주세요.`, element.id));
   }
   if (ceiling) {
     for (const fixture of project.floorPlan!.structures.filter((item) => item.kind === 'existing-light')) {
-      if (geometryIntersectsRect(project, fixture.geometry, ceiling)) issues.push(error('element-overlap', `${fixture.name}이(가) 있는 천장 위치입니다. 기존 조명을 피한 천장 영역을 선택해 주세요.`, element.id, fixture.id));
+      if (geometryIntersectsRect(project, fixture.geometry, ceiling)) issues.push(error('element-overlap', `${fixture.name}이(가) 있는 천장 위치입니다. 기존 조명을 피해 배치해 주세요.`, element.id, fixture.id));
     }
   }
   return issues;
@@ -397,7 +407,7 @@ export function validateStructureDrawing(project: Project, candidate: Structure,
   if (candidate.kind === 'pillar' || candidate.kind === 'existing-light') {
     for (const element of project.elements) {
       if (element.status !== 'apply') continue;
-      const occupied = candidate.kind === 'pillar' ? physicalFloorBounds(project, element) : ceilingBounds(project, element.target);
+      const occupied = candidate.kind === 'pillar' ? physicalFloorBounds(project, element) : ceilingBounds(project, element);
       if (occupied && geometryIntersectsRect(project, geometry, occupied)) issues.push(error('element-overlap', `${element.label}이(가) 사용 중인 위치입니다. 요소를 먼저 옮기거나 다른 위치를 선택해 주세요.`, element.id));
     }
     if (candidate.kind === 'pillar') {
@@ -599,6 +609,10 @@ export function validatePlacement(project: Project, elementId: string, target: P
       if (area.kind !== 'ceiling') return result([error('invalid-area-kind', '천장 영역만 선택할 수 있습니다.', elementId)]);
       if (target.offset && (!isFraction(target.offset.x) || !isFraction(target.offset.y))) {
         return result([error('invalid-coordinate', '천장 영역 안의 위치를 지정해 주세요.', elementId)]);
+      }
+      const bounds = ceilingBounds(project, element, target);
+      if (element.kind === 'ceiling-light' && target.offset && bounds && !areaContainsRect(area, bounds)) {
+        return result([error('invalid-coordinate', '조명이 천장 범위 안에 들어오도록 가장자리에서 조금 안쪽에 놓아 주세요.', elementId)]);
       }
       return result(occupancy);
     }

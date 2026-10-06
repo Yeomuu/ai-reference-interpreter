@@ -10,3 +10,10 @@ export const WORKFLOW = [
 export function workflowIndex(step: Step) {
   return WORKFLOW.findIndex(group => (group.steps as readonly string[]).includes(step))
 }
+
+/** Camera editing is an optional task inside STEP 04. */
+export function previousWorkflowStep(step: Step): Step {
+  if (step === 'camera') return 'review'
+  const index = workflowIndex(step)
+  return index <= 0 ? 'projects' : WORKFLOW[index - 1].steps[0]
+}

@@ -667,7 +667,7 @@
 .plan-canvas__area polygon { fill: var(--surface-selected); fill-opacity: .2; stroke: var(--canvas-selection); stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
 .plan-outline-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-16); }
 
-.plan-element--product, .plan-element--support-picking { pointer-events: visiblePainted; }
+.plan-element--product, .plan-element--support-picking, .plan-element--point-placement { pointer-events: visiblePainted; }
 
 .plan-canvas__surface { position: relative; }
 .plan-canvas__validation { position: absolute; top: var(--space-12); left: var(--space-12); right: var(--space-12); z-index: var(--layer-notice); max-height: 40%; overflow-y: auto; margin: 0; box-shadow: var(--shadow-panel); }

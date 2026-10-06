@@ -1,5 +1,10 @@
 # Acceptance test matrix
 
+## 조명·상품·시점 편집 회귀 · 2026-10-06
+
+- 조명 기본 설치 안내, 위치가 있는 천장 조명의 층별 충돌, 도면/목록/키보드 상품 연결과 camera→review 복귀를 확인했다. 기존 위치 없는 천장 물체·저장 데이터는 보존한다.
+- 전체 자동 테스트 29개 파일/245개, ESLint, 앱/API TypeScript, production build 통과. 새 집중 브라우저 검사와 기존 workspace/prototype/visibility/Backspace/가벽·복구/가이드 회귀를 통과했다. 실제 모델 호출은 0회다. 상세 결과: `QA_LIGHT_PRODUCT_CAMERA_20261006.md`.
+
 ## 너비·진행 표시 및 전체 기능 회귀 · 2026-10-06
 
 - 원 24px/낮은 창 20px·아이콘 12px·단계명 줄 높이 16px로 진행 표시를 줄이고 48px 조작 영역을 유지했다. 7개 창 크기 × 4단계에서 현재 윤곽 위 최소 4px·단계명 아래 최소 8px 여백과 클릭·키보드·history/reload를 확인했다.
