@@ -1,7 +1,9 @@
 {
-  "capturedAt": "2026-10-06T01:17:49.570Z",
-  "appCommit": "7c5beb9",
-  "source": "https://ai-reference-interpreter.vercel.app",
+  "capturedAt": "2026-10-06T02:31:32.474Z",
+  "appCommit": "01c8f67",
+  "workingTreeChanges": "2026-10-06 브랜드·팔레트 변경",
+  "source": "http://127.0.0.1:5173",
+  "statusSource": "https://ai-reference-interpreter.vercel.app/api/status",
   "scenario": "한국공학대학교 프로젝트룸 졸업전시 기본 예시",
   "profile": "격리된 일회용 브라우저",
   "generationCalls": 0,
@@ -9,7 +11,7 @@
   "captures": [
     {
       "file": "01-space.png",
-      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/space",
+      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/space",
       "viewport": {
         "width": 1440,
         "height": 900
@@ -17,7 +19,7 @@
     },
     {
       "file": "02-layout.png",
-      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/placement",
+      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/placement",
       "viewport": {
         "width": 1440,
         "height": 900
@@ -25,7 +27,7 @@
     },
     {
       "file": "03-references.png",
-      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/references",
+      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/references",
       "viewport": {
         "width": 1440,
         "height": 900
@@ -33,7 +35,7 @@
     },
     {
       "file": "04-generate.png",
-      "page": "https://ai-reference-interpreter.vercel.app/projects/tuk-projectroom-exhibition/review",
+      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/review",
       "viewport": {
         "width": 1440,
         "height": 900

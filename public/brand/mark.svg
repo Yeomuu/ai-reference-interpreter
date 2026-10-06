@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
   <title>ReSpace · 전시·팝업 공간 디자인</title>
-  <rect x="2" y="2" width="44" height="44" rx="10" fill="#17191D"/>
-  <path d="M13 33V14h22v19M13 25h8" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="m28 22 6 6-6 6-6-6 6-6Z" fill="#C7BEE8"/>
+  <desc>빈 공간을 품은 R 프레임과 접힌 면. 라벤더와 세이지는 공간을 새롭게 구성하는 두 면을 나타냅니다.</desc>
+  <path fill="#20251F" fill-rule="evenodd" d="M6 4h23l13 13v15H27l15 12H28L16 32v12H6V4Zm10 10v8h16v-1l-7-7H16Z"/>
+  <path fill="#B6AAC2" d="m29 4 13 13H29V4Z"/>
+  <path fill="#A6B38E" d="M17 32h10l15 12H28L17 32Z"/>
 </svg>

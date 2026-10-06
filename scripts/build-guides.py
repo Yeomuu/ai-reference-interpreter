@@ -29,7 +29,12 @@ prototype_config = (ROOT / 'src/domain/prototypeConfig.ts').read_text(encoding='
 MAX_LAYOUT = int(re.search(r'MAX_LAYOUT_ITEMS = (\d+)', prototype_config).group(1))
 MAX_REFERENCES = int(re.search(r'MAX_REFERENCE_IMAGES = (\d+)', prototype_config).group(1))
 def token(name):
-    return re.search(r'--' + re.escape(name) + r'\s*:\s*(#[0-9a-fA-F]{6})', tokens).group(1)
+    value = re.search(r'--' + re.escape(name) + r'\s*:\s*([^;]+)', tokens).group(1).strip()
+    if value.startswith('var('):
+        return token(re.fullmatch(r'var\(--([\w-]+)\)', value).group(1))
+    if not re.fullmatch(r'#[0-9a-fA-F]{6}', value):
+        raise ValueError(f'Guide color {name} must resolve to a hex token')
+    return value
 INK, MUTED, LINE, ACCENT, TINT = [token(n) for n in ['neutral-900', 'neutral-600', 'neutral-200', 'violet-700', 'violet-50']]
 QUIET = token('neutral-50')
 

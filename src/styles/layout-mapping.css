@@ -156,6 +156,7 @@
 .page-workspace--space:has(>.space-direction) { overflow:hidden; }
 
 .layout-panel input[type=checkbox],.mapping-selection-bar input[type=checkbox] { accent-color:var(--action-selected); }
+.layout-panel .space-preservation input[type=checkbox] { accent-color:var(--state-keep-fg); }
 
 /* Existing tokens and icon assets, with shapes reserved for plan semantics. */
 .layout-panel .panel-heading:has(.tool-count) { flex-direction:column; align-items:flex-start; gap:var(--space-4); }

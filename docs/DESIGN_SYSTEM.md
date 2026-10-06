@@ -1,6 +1,12 @@
 # Design system — ReSpace / v1.2
 
-## 도구 타일·캔버스 비율 소폭 조정 · 2026-10-05 (최신 적용)
+## 라벤더·세이지와 ReSpace 심벌 · 2026-10-06 (색상 우선 적용)
+
+사용자가 제공한 Lavender + Sage 이미지의 #B6AAC2·#A6B38E를 브랜드 밝은 색으로 사용한다. 작은 글자·선택 테두리·포커스에는 대비를 확보한 lavender-700/500, 보존·완료에는 sage-700을 쓴다. 기본 화면은 흰 패널과 아주 옅은 중립 배경이며 주 행동은 짙은 중립색을 유지한다. 전체 화면·캔버스를 브랜드 색으로 채우거나 사진·생성 결과를 색보정하지 않는다. 선택한 crop 내부에도 틴트를 넣지 않고 윤곽과 바깥쪽 scrim으로 범위를 표시한다.
+
+기존 violet/green 이름은 새 lavender/sage 토큰의 별칭으로 유지한다. Nucleo 액션 아이콘과 건축·배치 기호는 그대로다. 새로운 R 프레임 심벌은 서비스의 신원에만 사용하며, 브랜드 자산의 고정 색은 tokens.css와 일치시킨다. 작은 크기에도 윤곽이 남도록 넓은 획과 투명 여백을 사용한다. 폰트·패널 크기·선 굵기·모서리·사용 흐름은 유지한다. 근거와 단색 자산: `BRAND_IDENTITY.md`.
+
+## 도구 타일·캔버스 비율 소폭 조정 · 2026-10-05
 
 사용자 요청에 따라 캔버스에 비해 양쪽 설정이 좁아 보이던 비율만 조정한다. 레이아웃 도구 폭은 layout-tools-width=248px, 1199px 이하에서는 layout-tools-compact-width=200px이다. 기존 2열 도구 타일은 너비 기준 약 1.15배, 세로 여백은 space-12로 확대하고 기호는 layout-tool-scale=1.15를 공유한다. 좁은 타일에서는 기호가 내부 너비를 넘지 않는다. 카메라 목록은 layout-list-width=clamp(232px,18vw,280px), 우측 속성은 layout-inspector-width=clamp(272px,23vw,336px)를 사용한다. 공간 자료/레퍼런스/결과 보조 패널은 376px, 생성 조건은 456px이다.
 
@@ -188,21 +194,30 @@ Project-owned values:
 ```css
 :root {
   --neutral-white:#FFFFFF;
-  --neutral-25:#FBFCFD;
-  --neutral-50:#F7F8FA;
-  --neutral-100:#F1F3F6;
-  --neutral-200:#E5E9ED;
+  --neutral-25:#FCFCFB;
+  --neutral-50:#F7F8F6;
+  --neutral-100:#F1F3EF;
+  --neutral-200:#E4E7E1;
   --neutral-400:#A3ABB5;
   --neutral-600:#56616F;
-  --neutral-900:#17191D;
+  --neutral-900:#20251F;
 
-  --violet-50:#F0EDF9;
-  --violet-200:#C7BEE8;
-  --violet-500:#7568B8;
-  --violet-700:#6253A8;
+  --lavender-50:#F5F2F7;
+  --lavender-200:#D6CCDF;
+  --lavender-300:#B6AAC2;
+  --lavender-500:#80698F;
+  --lavender-700:#63506F;
+  --sage-50:#F0F3EB;
+  --sage-200:#D4DDC8;
+  --sage-300:#A6B38E;
+  --sage-700:#526444;
+  --violet-50:var(--lavender-50);
+  --violet-200:var(--lavender-200);
+  --violet-500:var(--lavender-500);
+  --violet-700:var(--lavender-700);
 
-  --green-50:#E6F3EE;
-  --green-700:#35725D;
+  --green-50:var(--sage-50);
+  --green-700:var(--sage-700);
 
   --red-50:#FAEFF1;
   --red-700:#A4505D;
@@ -284,8 +299,8 @@ Project-owned values:
 ### 3.2 Semantic usage
 
 - **Near-black**: primary action, strongest text, camera body where appropriate.
-- **Violet**: selection, selected segment, selected outline, focus cue. Not decoration.
-- **Green**: Keep/preservation and success only.
+- **Lavender** (existing violet aliases): selection, selected segment, selected outline, focus cue. Pale identity colors are not small text.
+- **Sage** (existing green aliases): Keep/preservation and success. The brand mark may also use the pale identity swatch.
 - **Red**: destructive, invalid, incompatible, blocking error.
 - **Blue**: structural information such as existing window or neutral informational cue.
 - **Neutral**: default surfaces, borders, hierarchy, secondary actions.
@@ -408,6 +423,8 @@ Rules:
 ### 6.1 Brand mark
 
 `public/brand/mark.svg` is the product brand mark.
+
+2026-10-06 identity: an original R-shaped space frame with lavender/sage folded planes. The transparent mark replaces the previous dark tile. `mark-mono.svg` retains the same silhouette for monochrome use. The wordmark remains actual ReSpace text in the existing UI font with -.025em tracking; the Korean descriptor retains normal tracking. There is no new font or third-party logo asset. See `BRAND_IDENTITY.md` for geometry, colors and source boundaries.
 
 Use:
 - header identity
