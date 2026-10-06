@@ -14,6 +14,8 @@ export const MAX_REFERENCE_REGIONS_PER_IMAGE = 4;
 export const MAX_GENERATION_IMAGES = 5;
 export const MAX_GENERATION_IMAGE_BYTES = 550_000;
 export const MAX_GENERATION_BODY_BYTES = 4_000_000;
+export const MAX_GENERATION_PROMPT_LENGTH = 16_000;
+export class GenerationInputError extends Error {}
 
 export type GenerationImageRole = 'existing-space' | 'floor-plan' | 'inspiration' | 'product' | 'reference-sheet';
 export interface SheetSource { sourceId: string; referencePreparation?: ReferencePreparation }
@@ -147,7 +149,7 @@ function targetText(project: Project, target: PlacementTarget | null): string {
   }
 }
 
-function elementText(project: Project, element: DesignElement, images: GenerationImage[]): string {
+function elementText(project: Project, element: DesignElement, images: GenerationImage[], compact = false): string {
   const reference = project.references.find((item) => item.id === element.sourceReferenceId);
   const imageNumber = images.findIndex((image) => image.sourceId === reference?.imageId || image.sheet?.some(source => source.sourceId === reference?.imageId)) + 1;
   const sheet = images[imageNumber - 1]?.sheet;
@@ -155,42 +157,45 @@ function elementText(project: Project, element: DesignElement, images: Generatio
   const preparation = sheet && panel !== undefined ? sheet[panel]?.referencePreparation : images.find((image) => image.sourceId === reference?.imageId)?.referencePreparation;
   let sourceScope: string;
   if (element.sourceRegion && preparation?.mode === 'crop') {
-    sourceScope = 'The entire transmitted reference image is the user-selected crop for this element. ';
+    sourceScope = compact ? 'Use entire selected crop. ' : 'The entire transmitted reference image is the user-selected crop for this element. ';
   } else if (element.sourceRegion && preparation?.mode === 'grid') {
     const slot = preparation.regions.findIndex((region) => sameRegion(region, element.sourceRegion!));
     const positions = ['upper-left', 'upper-right', 'lower-left', 'lower-right'];
     if (slot < 0) throw new Error('선택한 이미지 영역과 생성 입력이 일치하지 않습니다.');
-    sourceScope = `Use only the ${positions[slot]} panel of this transmitted reference image for this element. `;
+    sourceScope = compact ? `Use only ${positions[slot]} crop panel. ` : `Use only the ${positions[slot]} panel of this transmitted reference image for this element. `;
   } else if (element.sourceRegion) {
     sourceScope = `Use only its normalized region x ${percent(element.sourceRegion.x)} to ${percent(element.sourceRegion.x + element.sourceRegion.width)}, y ${percent(element.sourceRegion.y)} to ${percent(element.sourceRegion.y + element.sourceRegion.height)} as the visual reference for this element. `;
   } else {
-    sourceScope = 'Use the whole reference image for this element. ';
+    sourceScope = compact ? 'Use whole reference. ' : 'Use the whole reference image for this element. ';
   }
-  if (sheet && panel !== undefined) sourceScope = `Use only numbered panel ${panel + 1} in this input image. This panel is the reference image described below, never the whole sheet. ` + sourceScope;
+  if (sheet && panel !== undefined) sourceScope = (compact ? `Numbered panel ${panel + 1} only. ` : `Use only numbered panel ${panel + 1} in this input image. This panel is the reference image described below, never the whole sheet. `) + sourceScope;
   return `${boundedText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` +
-    (element.origin === 'layout' && !element.sourceReferenceId ? 'This is a user-created layout item without an inspiration image. Preserve its saved geometry and use a neutral functional design; do not invent a source image. ' : element.origin === 'basic-support' ? 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
+    (element.origin === 'layout' && !element.sourceReferenceId ? compact ? 'User-created layout; no source image. ' : 'This is a user-created layout item without an inspiration image. Preserve its saved geometry and use a neutral functional design; do not invent a source image. ' : element.origin === 'basic-support' ? compact ? 'User-added basic display support. ' : 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
     `Appearance: ${boundedText(element.appearance ?? 'not specified')}. ` +
-    `Conditions: ${boundedText(element.conditions ?? 'none')}. ` + transferIntent(element) + relativeToCamera(project, element) + installationContext(project, element);
+    `Conditions: ${boundedText(element.conditions ?? 'none')}. ` + (compact ? '' : transferIntent(element)) + relativeToCamera(project, element) + installationContext(project, element, compact);
 }
 
-function installationContext(project: Project, element: DesignElement): string {
+function installationContext(project: Project, element: DesignElement, compact = false): string {
   const target = element.target, camera = project.cameras[0], plan = project.floorPlan;
   if (!target || !camera || !plan) return '';
   if (target.kind === 'floor-point') {
     const floor = plan.areas.find(area => area.kind === 'floor');
     if (!floor || !target.footprint) return '';
-    return `Its footprint occupies approximately ${percent(target.footprint.width / floor.bounds.width)} of the registered floor width and ${percent(target.footprint.height / floor.bounds.height)} of its depth, not a room-filling counter. Keep the surrounding aisle gaps shown in the plan. `;
+    return compact ? `Floor-relative footprint: ${percent(target.footprint.width / floor.bounds.width)} width, ${percent(target.footprint.height / floor.bounds.height)} depth. ` : `Its footprint occupies approximately ${percent(target.footprint.width / floor.bounds.width)} of the registered floor width and ${percent(target.footprint.height / floor.bounds.height)} of its depth, not a room-filling counter. Keep the surrounding aisle gaps shown in the plan. `;
   }
   if (target.kind !== 'wall-segment') return '';
   const wall = plan.structures.find(item => item.id === target.wallId);
   const faceContext = wall?.role === 'partition' && target.face ? (() => {
     const cameraFace = wallFaceOfPoint(project, wall, camera);
+    if (compact) return cameraFace === target.face ? 'Camera is on the decorated face; show only when in view. '
+      : cameraFace ? 'Camera is on the opposite face; hide this object, never duplicate or relocate it. '
+        : 'Camera is on the partition line; keep the saved face only. ';
     return cameraFace === target.face
       ? 'The selected camera is on the decorated face of this partition. Show the object only if this wall span is actually in view; never duplicate it on the opposite face. '
       : cameraFace ? 'The selected camera is on the OPPOSITE face of this partition. The mounted object must NOT be visible from this camera; do not copy or relocate it to the camera-facing side or another wall. '
         : 'The selected camera lies on the partition line; keep the object on its saved face and do not duplicate it. ';
   })() : '';
-  return faceContext + wallPlaneContext(project, target.wallId);
+  return faceContext + (compact ? '' : wallPlaneContext(project, target.wallId));
 }
 
 function wallPlaneContext(project: Project, wallId: string, openingId?: string): string {
@@ -234,7 +239,7 @@ function cameraRelation(project: Project, point: Point): string {
 }
 
 /** Translate saved 2D relationships into view-specific instructions, never inferred geometry. */
-function structureViewText(project: Project, structure: Structure): string {
+function structureViewText(project: Project, structure: Structure, compact = false): string {
   const geometry = structure.geometry;
   const point = geometry.kind === 'segment' ? { x: (geometry.start.x + geometry.end.x) / 2, y: (geometry.start.y + geometry.end.y) / 2 }
     : geometry.kind === 'circle' ? geometry.center
@@ -248,9 +253,9 @@ function structureViewText(project: Project, structure: Structure): string {
     const wall = project.floorPlan?.structures.find(item => item.id === structure.parentWallId);
     if (wall) {
       instruction = `Attached to the saved wall ${boundedText(wall.name)}${structure.wallSpan ? ` at wall span ${percent(structure.wallSpan.start)}–${percent(structure.wallSpan.end)}` : ''}. ` +
-        wallPlaneContext(project, wall.id, structure.id);
+        (compact ? '' : wallPlaneContext(project, wall.id, structure.id));
     }
-    instruction += 'Do not relocate this opening to another wall, enlarge it, cover it or replace it with a graphic.';
+    if (!compact) instruction += 'Do not relocate this opening to another wall, enlarge it, cover it or replace it with a graphic.';
   }
   return `- ${boundedText(structure.name)} [${structure.kind}]: ${cameraRelation(project, point)}. ${instruction}`;
 }
@@ -300,39 +305,56 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   const schoolSpace = /학교|교내|대학|프로젝트룸/.test(`${project.name} ${project.spaceType} ${project.concept}`);
   const preserveWhiteboard = schoolSpace && /화이트보드/.test(project.concept);
   const overview = camera.viewPreset === 'overview';
-  const prompt = [
+  const viewProject = { ...project, cameras: [camera] };
+  const contextualWallIds = [...new Set([
+    ...plan.structures.flatMap(item => ['window', 'door', 'entrance'].includes(item.kind) && item.parentWallId ? [item.parentWallId] : []),
+    ...applied.flatMap(element => element.target?.kind === 'wall-segment' ? [element.target.wallId] : []),
+  ])];
+  const renderPrompt = (compact: boolean) => [
     overview ? 'Create ONE photorealistic elevated oblique overview of the existing room with the proposed exhibition/retail installation. Show the overall real room layout and circulation from the saved higher camera position looking down. It is a spatial overview render, not a technical floor plan, diagram, collage, dollhouse cutaway or a copy of a reference room. Keep the saved straight walls, openings and existing architectural structure.' : exhibition
       ? `Create ONE photorealistic interior concept photograph of ${schoolSpace ? 'a graduation exhibition installed in the existing school room' : 'an exhibition installed in the existing space'} from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy. Preserve the recognizable existing architecture and show the selected exhibits on appropriate supports.`
       : 'Create ONE photorealistic interior concept photograph of an installed pop-up retail/VMD space from the selected camera, not a top-down plan, isometric dollhouse, diagram, collage or reference-room copy.',
     preserveWhiteboard ? 'The large existing wall-mounted whiteboard visible across the front wall in the existing-space photo is a preserved fixture, not a blank display wall. Keep its straight rectangular outline, visual scale and position visible and unobstructed. Do not replace or cover it with exhibition posters, projected graphics or display panels. Put removable wall graphics ONLY on their separately saved wall segment; if that segment lies behind the selected camera, leave the graphic out of frame instead of moving it onto the front wall.' : '',
-    'Color fidelity: match the existing-space photo paint and material colors. With warm indirect lighting, use balanced daylight/neutral general illumination and exposure; show warmth locally around light emitters and nearby bounce, while white walls and unlit surfaces remain neutral white. Do not give the entire room an amber, brown or sepia wash. An explicit saved palette/material element may change only its own target.',
+    compact ? 'Color fidelity: match existing photo paint/materials. Use neutral daylight/exposure with local warm light and bounce only; whites remain neutral, never a global amber/brown/sepia wash. Saved palette/material changes affect only their own targets.' : 'Color fidelity: match the existing-space photo paint and material colors. With warm indirect lighting, use balanced daylight/neutral general illumination and exposure; show warmth locally around light emitters and nearby bounce, while white walls and unlit surfaces remain neutral white. Do not give the entire room an amber, brown or sepia wash. An explicit saved palette/material element may change only its own target.',
     'Input image roles, in order:',
     ...imageLines,
-    'The existing-space photograph supplies the current room appearance and visible architectural character. The saved top-down plan guide supplies the authoritative 2D layout: room outline/aspect, wall openings, pillars, fixture footprints and selected camera arrow. Reconcile the photograph with those saved positions. Inspiration and product images supply ONLY the named design attributes and are NEVER spatial geometry. Follow the plan layout before styling; do not substitute any reference-room composition.',
-    'Use the FIRST existing-space photograph as the architectural base. Virtually clear only loose movable desks, chairs and clutter unless retained by saved preservation conditions or specified in the proposed layout. Install ONLY saved layout objects at their registered positions; never duplicate old furniture rows. Clearing NEVER removes fixed walls, windows, doors, pillars, ceiling, permanent fixtures or explicitly preserved objects, including a kept whiteboard. This is part of the single concept image, not a second image-generation call; the uploaded photograph stays unchanged.',
+    compact ? 'Existing photo = architectural appearance. Saved plan guide = authoritative 2D outline/aspect, openings, pillars, footprints and camera. Reconcile photo with saved positions. Inspiration/products = named attributes only, NEVER geometry or reference-room composition. Follow layout before styling.' : 'The existing-space photograph supplies the current room appearance and visible architectural character. The saved top-down plan guide supplies the authoritative 2D layout: room outline/aspect, wall openings, pillars, fixture footprints and selected camera arrow. Reconcile the photograph with those saved positions. Inspiration and product images supply ONLY the named design attributes and are NEVER spatial geometry. Follow the plan layout before styling; do not substitute any reference-room composition.',
+    compact ? 'FIRST existing photo is the architectural base. Virtually clear only loose desks/chairs/clutter unless kept or in saved layout. Add ONLY saved layout objects at saved positions; never duplicate old rows. Never remove fixed walls/windows/doors/pillars/ceiling/permanent fixtures or kept objects/whiteboard. One concept image; uploaded photo unchanged.' : 'Use the FIRST existing-space photograph as the architectural base. Virtually clear only loose movable desks, chairs and clutter unless retained by saved preservation conditions or specified in the proposed layout. Install ONLY saved layout objects at their registered positions; never duplicate old furniture rows. Clearing NEVER removes fixed walls, windows, doors, pillars, ceiling, permanent fixtures or explicitly preserved objects, including a kept whiteboard. This is part of the single concept image, not a second image-generation call; the uploaded photograph stays unchanged.',
     rectangularRoom ? 'The saved room footprint is a RECTANGLE: preserve four straight vertical wall planes, square room corners and straight floor/ceiling junctions. Do not bow or curve the room walls, round its corners, or turn the room into an oval. A curved display fixture is a separate object inside this rectangular room; its curvature must not deform the room shell.' : 'Preserve the actual registered room outline and its corners from the saved plan guide. Do not simplify a traced irregular/curved outline into a default rectangle or import a new outline from an inspiration image.',
-    'All saved straight structural wall segments must remain straight planar surfaces at their registered positions. Add curved architectural geometry only where the saved plan actually specifies it. Keep existing ceiling/wall/floor geometry; lighting and wall graphics do not create new bowed walls, niches, arches or sculpted architectural edges.',
+    compact ? 'Saved straight walls stay planar at saved positions; curves only where the plan specifies them. Preserve ceiling/wall/floor geometry. Lights/graphics never add bowed walls, niches, arches or sculpted edges.' : 'All saved straight structural wall segments must remain straight planar surfaces at their registered positions. Add curved architectural geometry only where the saved plan actually specifies it. Keep existing ceiling/wall/floor geometry; lighting and wall graphics do not create new bowed walls, niches, arches or sculpted architectural edges.',
     'Camera-space architecture before styling (positions and cross-sections come from the saved plan, not inspiration images):',
-    ...plan.structures.filter(item => ['window', 'door', 'entrance', 'pillar'].includes(item.kind)).map(item => structureViewText({ ...project, cameras: [camera] }, item)),
+    ...(compact ? [
+      'All saved openings: do not relocate to another wall, enlarge, cover or replace with a graphic. Wall-plane relationships below apply to every opening and mounted object on that named wall.',
+      ...contextualWallIds.map(wallId => `- Wall ${boundedText(plan.structures.find(wall => wall.id === wallId)?.name ?? wallId)}: ${wallPlaneContext(viewProject, wallId)}`),
+    ] : []),
+    ...plan.structures.filter(item => ['window', 'door', 'entrance', 'pillar'].includes(item.kind)).map(item => structureViewText(viewProject, item, compact)),
     `Project: ${boundedText(project.name)}. Space type: ${boundedText(project.spaceType)}. Intended concept: ${boundedText(project.concept, 500)}.`,
     `Plan source: ${plan.kind}. Geometry confidence: ${plan.geometryConfidence}. Plan coordinates are normalized: x increases to the right and y increases downward. Do not invent precise dimensions from a schematic plan or any photograph.`,
-    'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, occlude openings or replace protected geometry. Compatible removable decoration may be mounted on a kept wall without changing its geometry. Keep door circulation, windows and pillars clear. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
+    compact ? 'Keep/protected geometry: never demolish, move, replace or block openings. Compatible removable wall decoration is allowed. Keep circulation/windows/pillars clear. Released locks follow saved positions and do not prove construction feasibility.' : 'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, occlude openings or replace protected geometry. Compatible removable decoration may be mounted on a kept wall without changing its geometry. Keep door circulation, windows and pillars clear. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
     `Protected structures (${fixed.length}):`,
     ...fixed.map((item) => `- ${boundedText(item.name)} [${item.kind}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Existing light tone: ${boundedText(item.lightTone)}.` : ''}`),
     'Saved preservation conditions:',
-    ...project.keeps.map((keep) => `- ${boundedText(plan.structures.find((item) => item.id === keep.structureId)?.name ?? keep.structureId)}: ${boundedText(keep.description)}. Keep the underlying structure intact; compatible removable wall decoration is allowed. Never demolish or replace a preserved structure.`),
+    ...project.keeps.map((keep) => `- ${boundedText(plan.structures.find((item) => item.id === keep.structureId)?.name ?? keep.structureId)}: ${boundedText(keep.description)}.` + (compact ? '' : ' Keep the underlying structure intact; compatible removable wall decoration is allowed. Never demolish or replace a preserved structure.')),
     'User-editable plan structures (follow these saved positions; do not add an automatic preservation lock):',
     ...editable.map((item) => `- ${boundedText(item.name)} [${item.kind}, ${item.role ?? 'unspecified origin'}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Light tone: ${boundedText(item.lightTone)}.` : ''}`),
     'Registered plan areas and circulation:',
     ...plan.areas.map((area) => area.outline ? `- ${boundedText(area.name)} [${area.kind}] manually traced polygon: ${area.outline.map(p => `(${percent(p.x)}, ${percent(p.y)})`).join(' → ')}.` : `- ${boundedText(area.name)} [${area.kind}] rectangle (${percent(area.bounds.x)}, ${percent(area.bounds.y)}), width ${percent(area.bounds.width)}, height ${percent(area.bounds.height)}.`),
     'Applied design elements and their compatible targets:',
-    ...applied.map((element) => `- ${elementText({ ...project, cameras: [camera] }, element, images)}`),
+    ...(compact ? [
+      'Shared object rules: preserve every saved layout target and floor-relative size, aisle gaps and source crop. User-created layout items without a source image use a neutral functional design; basic display supports are user-added, not extracted from product photos.',
+      ...[...new Set(applied.map(element => element.kind))].map(kind => `- All [${kind}] elements: ${transferIntent(applied.find(element => element.kind === kind)!)}`),
+    ] : []),
+    ...applied.map((element) => `- ${elementText(viewProject, element, images, compact)}`),
     'Excluded design elements and appearance:',
     ...(excluded.length ? excluded.map((element) => `- Do not add ${boundedText(element.label)}. ${boundedText(element.conditions ?? '')}`) : ['- None specified.']),
     ...project.references.flatMap((reference) => reference.exclusions.map((excludedNote) => `- Do not add ${boundedText(excludedNote)} from reference ${boundedText(project.sourceImages.find((image) => image.id === reference.imageId)?.name ?? reference.imageId)}.`)),
-    `Viewpoint: camera at (${percent(camera.x)}, ${percent(camera.y)}), direction ${Math.round(camera.directionDegrees)} degrees, where 0 degrees points right, 90 down, 180 left and 270 up. Field of view: ${camera.fovPreset ?? 'standard'}. View preset: ${camera.viewPreset ?? 'custom'}. Intended rendering height: ${camera.heightMeters ?? CAMERA_PRESETS.custom.heightMeters} m; pitch: ${camera.pitchDegrees ?? 0} degrees (negative looks down). These are approximate visualization settings, not surveyed geometry or verified population eye-height statistics. Compose from this approximate viewpoint.`,
-    `Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible ${overview?'elevated oblique overview':'eye-level'} perspective, realistic ${exhibition ? 'graduation exhibition display' : 'commercial display'} scale, appropriate display supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.`,
+    `Viewpoint: camera at (${percent(camera.x)}, ${percent(camera.y)}), direction ${Math.round(camera.directionDegrees)} degrees, where 0 degrees points right, 90 down, 180 left and 270 up. Field of view: ${camera.fovPreset ?? 'standard'}. View preset: ${camera.viewPreset ?? 'custom'}. Intended rendering height: ${camera.heightMeters ?? CAMERA_PRESETS.custom.heightMeters} m; pitch: ${camera.pitchDegrees ?? 0} degrees (negative looks down). ` + (compact ? 'Approximate visualization only; not surveyed geometry or verified eye-height statistics.' : 'These are approximate visualization settings, not surveyed geometry or verified population eye-height statistics. Compose from this approximate viewpoint.'),
+    compact ? `Follow camera-relative depth/left/right. Natural ${overview?'elevated oblique overview':'eye-level'} interior photo; realistic ${exhibition?'graduation exhibition':'commercial display'} scale, supports, contact shadows, restrained bounce, neutral colors unless explicitly changed. Objects ONLY on saved floor/wall/ceiling/area targets. No labels, cameras, hatching, overlays or multiple panels. Concept visualization, not a verified drawing.` : `Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible ${overview?'elevated oblique overview':'eye-level'} perspective, realistic ${exhibition ? 'graduation exhibition display' : 'commercial display'} scale, appropriate display supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.`,
   ].join('\n');
-  if (prompt.length > 16_000) throw new Error('생성 조건이 너무 길어 요청할 수 없습니다. 구조와 조건을 정리해 주세요.');
+  let prompt = renderPrompt(false);
+  // Repeat shared style/installation guidance once when many objects are
+  // placed. Never truncate saved targets, individual conditions or sources.
+  if (prompt.length > MAX_GENERATION_PROMPT_LENGTH) prompt = renderPrompt(true);
+  if (prompt.length > MAX_GENERATION_PROMPT_LENGTH) throw new GenerationInputError('생성 조건이 너무 길어 요청할 수 없습니다. 구조와 조건을 정리해 주세요.');
   return prompt;
 }

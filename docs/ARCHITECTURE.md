@@ -1,5 +1,11 @@
 # ReSpace implementation architecture
 
+## 생성 입력 길이와 오류 구분 · 2026-10-06
+
+MAX_GENERATION_PROMPT_LENGTH는 기존 16,000자 상한을 공유한다. 긴 요청에서는 같은 물체 종류의 전이 지침과 같은 벽의 시점 설명을 한 번만 쓰며 각 물체의 출처/crop/target/appearance/conditions/카메라 관계/가벽 면은 보존한다. 잘라내거나 한도를 늘리지 않는다. 축약 후에도 초과하면 GenerationInputError로 클라이언트 POST 전에 중단하고 서버에서도 예약 전 HTTP 400으로 거절한다. 준비·quota·provider 단계의 예외를 구별하여 입력 오류에 저장소 오류 안내를 붙이지 않는다. 진단 로그에는 단계와 예외 클래스만 남기며 사진·조건·키·저장소 응답을 기록하지 않는다. 기존 quota 예약/보존/일일 한도/불확실 응답 계약은 유지한다.
+
+compact 경로는 모든 창/문/출입구의 parent wall과 개별 span을 유지하면서 벽별 방향·공유 개구부 설명을 벽 이름과 함께 한 번만 기록한다. 보존의 공통 불변 규칙은 공유 지침으로 모으고 개별 보존 설명은 모두 유지한다. 길이가 짧은 기존 요청의 지침은 그대로 사용한다.
+
 ## A/B 선택 상태 공유 · 2026-10-06
 
 WallTargetEditor와 PlanCanvas는 WallFaceSelection을 공유한다. wallFaceDraft는 프로젝트/요소/저장 target 또는 새 부착 draft의 편집 키에 묶인 임시 상태이며 URL 전환과 undo/redo에서 초기화한다. 입력 중인 부착 구간은 면 클릭 때문에 remount하지 않는다. PlanCanvas의 selectedWallFace/onWallFaceSelect가 attachmentWallId 또는 현재 mapping wall 선택에 대응하고, mappingFace는 기존 적용 경로를 사용한다. 중복 A/B 표시를 한 쌍으로 모았으며 저장 스키마·typed target·validation·generation 입력은 바꾸지 않는다.

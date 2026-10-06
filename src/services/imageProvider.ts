@@ -9,6 +9,7 @@ import {
   GENERATION_QUALITY, GENERATION_SIZE, MAX_GENERATION_BODY_BYTES,
   MAX_GENERATION_IMAGE_BYTES,
   referenceSheetGroups,
+  buildGenerationPrompt,
   type SheetSource,
   referencePreparationFor,
   type GenerationImage, type GenerationImageRole, type GenerationRequest,
@@ -233,6 +234,9 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
   images.splice(1, 0, { role: 'floor-plan', sourceId: 'floor-plan', planGuide: planGuideManifest(project, cameraId), dataUrl: await preparePlanGuideImage(project, cameraId) });
   for (let index = 0; index < sheets.length; index++) images.push({ role: 'reference-sheet', sourceId: `reference-sheet-${index}`, sheet: sheets[index], dataUrl: await compactReferenceSheet(project, sheets[index]) });
   const body: GenerationRequest = { project: { ...project, results: [] }, cameraId, images };
+  // Catch known input limits before sending a request; the server independently
+  // validates the same contract before reserving any paid quota.
+  buildGenerationPrompt(body.project, cameraId, images);
   const serialized = JSON.stringify(body);
   if (new TextEncoder().encode(serialized).length > MAX_GENERATION_BODY_BYTES) {
     throw new Error('입력 이미지가 너무 커서 보낼 수 없습니다. 더 작은 사진을 등록해 주세요.');

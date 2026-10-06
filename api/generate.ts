@@ -10,6 +10,7 @@ import {
   MAX_GENERATION_IMAGE_BYTES, referenceSheetGroups, matchesReferenceSheet,
   matchesReferencePreparation, referencePreparationFor,
   type GenerationImage, type GenerationRequest,
+  GenerationInputError,
 } from '../src/services/generationContract.js';
 
 /** Image edits can take longer than ordinary JSON functions. */
@@ -164,12 +165,15 @@ export default async function handler(request: BodyRequest, response: ServerResp
     send(response, 415, { error: 'JSON 형식의 요청만 받습니다.' }); return;
   }
   let reserved = false, providerAttempted = false;
+  let stage = 'input';
   const responseDeadline = Date.now() + maxDuration * 1000;
   let responseStatus = 200;
   let responseBody: object = {};
   try {
     const { body, decoded } = validateRequest(await readBody(request));
+    stage = 'prompt';
     const prompt = buildGenerationPrompt(body.project, body.cameraId, body.images);
+    stage = 'preparation';
     const form = new FormData();
     form.set('model', GENERATION_MODEL);
     form.set('prompt', prompt);
@@ -180,13 +184,16 @@ export default async function handler(request: BodyRequest, response: ServerResp
     form.set('output_format', 'jpeg');
     form.set('output_compression', '72');
     decoded.forEach((bytes, index) => form.append('image[]', new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }), `reference-${index + 1}.jpg`));
+    stage = 'identity';
     const userId = generationIdentity(request);
     if (!userId) throw new RequestError('브라우저의 익명 사용자 식별이 필요합니다. 생성 가능 여부를 다시 확인하고 쿠키를 허용해 주세요.', 403);
+    stage = 'quota';
     await generationQuota.reserve(requestId, userId);
     reserved = true;
     const providerBudget = Math.min(170_000, responseDeadline - Date.now() - 10_000);
     if (providerBudget <= 0) throw new RequestError('생성 준비 시간이 초과되었습니다. 잠시 후 생성 가능 여부를 확인해 주세요.', 503);
     providerAttempted = true;
+    stage = 'provider';
     const upstream = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -210,15 +217,21 @@ export default async function handler(request: BodyRequest, response: ServerResp
     responseBody = { imageDataUrl: `data:image/jpeg;base64,${base64}`, model: GENERATION_MODEL,
       quality: GENERATION_QUALITY, size: GENERATION_SIZE };
   } catch (error) {
-    if (error instanceof QuotaError || error instanceof RequestError) {
+    if (error instanceof GenerationInputError) {
+      responseStatus = 400;
+      responseBody = { error: error.message, outcomeUnknown: false };
+    } else if (error instanceof QuotaError || error instanceof RequestError) {
       responseStatus = error.status;
       responseBody = { error: error.message, outcomeUnknown: error instanceof RequestError && error.outcomeUnknown };
     } else if (error instanceof Error && error.name === 'TimeoutError') {
       responseStatus = 504;
-      responseBody = { error: '이미지 생성 시간이 초과되었습니다. 비용이 발생했을 수 있으니 결과와 사용량을 확인한 뒤 다시 시도해 주세요.', outcomeUnknown: providerAttempted };
+      responseBody = { error: providerAttempted ? '이미지 생성 시간이 초과되었습니다. 비용이 발생했을 수 있으니 결과와 사용량을 확인한 뒤 다시 시도해 주세요.' : '생성 준비 시간이 초과되었습니다. 잠시 후 생성 가능 여부를 다시 확인해 주세요.', outcomeUnknown: providerAttempted };
     } else {
       responseStatus = providerAttempted ? 502 : 503;
-      responseBody = { error: providerAttempted ? '생성 결과를 확인하지 못했습니다. 비용이 발생했을 수 있으니 사용량을 확인해 주세요.' : '전체 호출 상한 저장소를 확인하지 못해 생성을 중단했습니다. 무료 샘플은 계속 사용할 수 있습니다.', outcomeUnknown: providerAttempted };
+      // Stage and exception class contain no image, project, credential or
+      // storage response. Preparation errors must not be blamed on quota.
+      console.error('image generation failed', { stage, type: error instanceof Error ? error.constructor.name : 'unknown' });
+      responseBody = { error: providerAttempted ? '생성 결과를 확인하지 못했습니다. 비용이 발생했을 수 있으니 사용량을 확인해 주세요.' : stage === 'quota' ? '전체 호출 상한 저장소를 확인하지 못해 생성을 중단했습니다. 무료 샘플은 계속 사용할 수 있습니다.' : '생성 입력을 준비하지 못했습니다. 저장한 조건을 확인한 뒤 다시 시도해 주세요.', outcomeUnknown: providerAttempted };
     }
   } finally {
     // The next view starts when the client receives this response. Finish the
