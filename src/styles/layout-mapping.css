@@ -7,19 +7,19 @@
 .app-shell--project .page-intro { display:grid; grid-template-columns:minmax(180px,1fr) max-content; align-items:center; gap:var(--space-24); }
 .app-shell--project .step-nav { grid-column:2; grid-row:1; position:relative; top:auto; display:block; width:100%; height:auto; min-height:0; padding:0; border:0; background:transparent; backdrop-filter:none; overflow:visible; }
 .app-shell--project .step-nav-inner { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:100%; height:auto; gap:0; min-width:0; margin:0; }
-.app-shell--project .step-link { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; width:100%; height:auto; min-height:var(--control-height-48); gap:var(--space-4); padding:0; min-width:0; border:0; border-radius:var(--radius-8); background:transparent; font-size:var(--font-size-caption); line-height:var(--space-20); }
-.app-shell--project .step-link:not(:last-child)::after { content:''; position:absolute; top:var(--space-16); left:calc(50% + var(--space-24)); width:calc(100% - var(--space-48)); height:2px; background:var(--border-default); pointer-events:none; }
+.app-shell--project .step-link { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:auto; min-height:var(--control-height-48); gap:var(--space-4); padding:0; min-width:0; border:0; border-radius:var(--radius-8); background:transparent; font-size:var(--font-size-caption); line-height:var(--space-16); }
+.app-shell--project .step-link:not(:last-child)::after { content:''; position:absolute; top:calc((var(--control-height-48) - var(--space-4) - var(--space-16)) / 2); left:calc(50% + var(--space-24)); width:calc(100% - var(--space-48)); height:2px; background:var(--border-default); pointer-events:none; }
 .app-shell--project .step-link.is-before::after { background:var(--action-selected); }
 .app-shell--project .step-link.is-current { background:transparent; color:var(--action-selected); }
-.app-shell--project .step-marker { display:grid; place-items:center; flex:none; width:var(--space-32); height:var(--space-32); border:1px solid var(--border-strong); border-radius:50%; color:var(--text-secondary); background:var(--surface-base); transition:background-color var(--motion-fast),border-color var(--motion-fast),color var(--motion-fast); }
-.app-shell--project .step-marker .nucleo-icon { width:var(--space-16); height:var(--space-16); }
+.app-shell--project .step-marker { display:grid; place-items:center; flex:none; width:var(--layout-step-marker-size); height:var(--layout-step-marker-size); border:1px solid var(--border-strong); border-radius:50%; color:var(--text-secondary); background:var(--surface-base); transition:background-color var(--motion-fast),border-color var(--motion-fast),color var(--motion-fast); }
+.app-shell--project .step-marker .nucleo-icon { width:var(--layout-step-icon-size); height:var(--layout-step-icon-size); }
 .app-shell--project .step-link.is-before .step-marker { color:var(--action-selected); border-color:var(--border-selected); background:var(--surface-selected); }
 .app-shell--project .step-link.is-current .step-marker { background:var(--action-selected); border-color:var(--action-selected); color:var(--text-inverse); outline:2px solid var(--border-selected); outline-offset:2px; }
 .app-shell--project .step-link:hover .step-marker { border-color:var(--action-selected); }
 .app-shell--project .step-link:active .step-marker { background:var(--surface-selected); color:var(--action-selected); }
 .app-shell--project .step-label { white-space:nowrap; }
 .app-shell--project .main-content { grid-column:1; grid-row:2; padding:var(--space-16) 0; }
-.app-shell--project .content-wrap { width:calc(100% - var(--space-40)); max-width:none; gap:var(--space-12); }
+.app-shell--project .content-wrap { width:var(--layout-content-width); max-width:var(--layout-content-max-width); gap:var(--space-12); }
 .app-shell--project .page-intro h1 { font-size:var(--font-size-workspace-title); }
 .app-shell--project .page-intro .eyebrow { display:none; }
 .app-shell--project .page-intro .lede { margin:var(--space-4) 0 0; font-size:var(--font-size-compact); }
@@ -195,11 +195,10 @@
 
 /* Compact canvas chrome on the evaluation laptop viewport. All legend items remain horizontally reachable. */
 @media(max-height:750px) {
-  .app-shell--project { grid-template-rows:56px minmax(0,1fr); }
+  .app-shell--project { grid-template-rows:56px minmax(0,1fr); --layout-step-marker-size:var(--space-20); }
   .app-shell--project .app-header { height:56px; min-height:56px; }
   .app-shell--project .header-inner { height:56px; min-height:56px; }
-  .app-shell--project .step-marker { width:var(--space-24); height:var(--space-24); }
-  .app-shell--project .step-link:not(:last-child)::after { top:var(--space-12); left:calc(50% + var(--space-20)); width:calc(100% - var(--space-40)); }
+  .app-shell--project .step-link:not(:last-child)::after { left:calc(50% + var(--space-20)); width:calc(100% - var(--space-40)); }
   .app-shell--project .page-status { display:none; }
   .app-shell--project .page-intro { align-items:center; }
   .app-shell--project .experiment-panel>summary { min-height:32px; padding:var(--space-4) var(--space-16); }

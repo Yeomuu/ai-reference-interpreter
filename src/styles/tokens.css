@@ -41,6 +41,9 @@
   --motion-fast:150ms; --motion-base:200ms; --motion-slow:220ms;
   --ease-standard:cubic-bezier(.2, 0, 0, 1);
   --layout-header-height:64px; --layout-nav-width:176px;
+  --layout-content-max-width:1368px; --layout-page-gutter:36px;
+  --layout-content-width:min(var(--layout-content-max-width), calc(100% - var(--layout-page-gutter) * 2));
+  --layout-step-marker-size:var(--space-24); --layout-step-icon-size:var(--space-12);
   --layout-list-width:clamp(232px, 18vw, 280px);
   --layout-tools-width:248px; --layout-tools-compact-width:200px; --layout-tool-scale:1.15;
   --layout-inspector-width:clamp(272px, 23vw, 336px);
