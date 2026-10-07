@@ -1,5 +1,37 @@
 # Design system — ReSpace / v1.2
 
+### 사진 통합 윤곽 · 사용자 추가 설명 2026-10-07
+
+원본 180:549는 932×694 사진에서 좌상단 333×54 및 우하단 161×58 정보 영역을 제외한 단일 윤곽이다. 전체 외곽과 두 오목한 모서리에 radius-space-photo=14.4px를 적용한다. 사진 위에 각진 배경 박스를 얹지 않는다. 표시 크기·공간 이름·순서 영역이 변하면 ResizeObserver로 윤곽을 다시 계산하고 이미지 이동·키보드 조작은 유지한다. 이미지 자체는 원본대로 저장하고 화면에서만 crop한다. 이 반경은 사용자 지정 사진 형태에 한정한 예외이며 일반 패널/컨트롤 8/12px 규칙은 유지한다.
+
+
+## Figma 서비스 디자인 v1.4 · 2026-10-07 (아래 이전 시각 규칙보다 우선)
+
+최신 편집 영역은 파일 `J2ZHftzWmLR7OQhpyMFJQA`, 페이지 `80:2`, 섹션 `216:262`; 디자인 가이드 `219:1462`다. 원본 홈 `175:272`, 공간 사진 `173:118`, 도면 `182:882`를 보존한다. 홈·1단계는 해당 프레임의 이미지, 두 열 비율과 여백을 따르고 2~4단계는 같은 헤더·중립 패널 체계로 확장한다. 과거 v1.3은 자료로 남긴다.
+
+웹의 UI는 사용자 제공 Wanted Sans Variable, 브랜드는 제공 Adobe 키트 `lbi1pvp`의 `timeline-210`이다. 임시 fallback은 제공 MemomentKkukkukk, 이후 Noto Sans KR/system이다. Figma 편집 글꼴은 사용자가 승인한 Noto Sans KR(Regular/Medium/Bold)이고 로고 윤곽은 원본을 보존한다. 폰트 출처는 FONT_PROVENANCE 참조.
+
+| 토큰/규칙 | 값·적용 |
+|---|---|
+| 공통 본문·헤더 최대 폭 | 1440px, 같은 좌우 경계 |
+| 헤더 | 92px; 낮거나 좁은 창 76px |
+| 공간 방향 사이드바 | 416px; 좁은 창에서는 기존 반응형 축소 |
+| 패널·입력 / 주 행동 / 홈 흰 패널 반경 | 8 / 12 / 40px |
+| 패널 테두리·그림자 | 1px, 0 0 8px 중립 4% |
+| 홈 입력 / 시작 버튼 | 62 / 80px |
+| 버튼 조작 높이 | 일반 44px 이상, 진행 표시 48px 이상 |
+| 본문 / 설명 / 보조 | 16 / 14 / 12px |
+| 주 행동 | neutral-900; 라벤더는 선택·현재 단계에 제한 |
+| 출입 여유 / 통행 동선 | canvas-door-clearance(라벤더) / canvas-passage(파랑) |
+
+현재 단계는 아이콘·단계명·작은 라벤더 pill, 다른 단계는 중립 원 안 아이콘이다. 완료 여부를 검증하지 않은 단계에 체크를 붙이지 않는다. 도면·사진·결과는 중립 배경으로 유지한다. 일반 UI는 기존 무료 Nucleo, 가구는 LayoutSymbol, 건축은 PlanSymbol의 구분을 유지한다.
+
+홈 일러스트는 원본 독립 이미지에 6초 부유·작은 포인터 이동을 적용한다. 시작 시 흰 패널이 720ms 동안 확장한 뒤 이동하며 reduced-motion에서는 모두 생략한다. UI 색·반경·간격은 tokens.css에서 관리하고 respace.css가 최신 시각 레이어다. 기존 기능·URL·검증·이력은 그대로다.
+
+Figma의 기존 Progress, SourceTabs, ReferenceThumbnail 컴포넌트 ID는 유지한다. 새 Button/Input은 상태 variant 및 텍스트 property를 가진다. NucleoIcon, LayoutSymbol, PlanPreview, BrandMark/Wordmark는 재사용 가능한 네이티브 컴포넌트다. 색은 Primitive→Semantic 별칭, 간격/반경은 Dimension, 글꼴은 Typography 변수와 텍스트 스타일을 공유한다. 결과 예시 이미지는 실제 모델 실행 결과가 아님을 명시한다.
+
+Toss 공식 UX 및 컴포넌트 안내에서는 명확한 행동 문구·예측 가능한 상태·최소 인터럽트 원칙만 참고했다. 토스 자산·색·폰트·컴포넌트 구현은 가져오지 않았다. 근거: https://developers-apps-in-toss.toss.im/design/consumer-ux-guide , https://developers-apps-in-toss.toss.im/design/components .
+
 ## 가벽 A/B 조작 상태 · 2026-10-06
 
 A/B는 기존 도면의 면 표식이며 일반 UI 아이콘으로 대체하지 않는다. 편집 가능한 표식은 40px 투명 조작 영역을 갖고 확대에도 CSS 픽셀 크기를 유지한다. 기본/hover/pressed/선택/focus-visible은 기존 surface-hover/surface-pressed/action-selected/focus-ring 토큰을 사용한다. 선택은 aria-pressed, 조작은 button과 Enter/Space로 제공한다. 읽기 전용 도면에서는 조작 의미와 키보드 포커스를 제공하지 않는다. 새 색상·크기 토큰은 추가하지 않는다.

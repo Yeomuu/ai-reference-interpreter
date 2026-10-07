@@ -3,10 +3,11 @@ import { updateCommon } from './revisions';
 import { validateCamera, validatePlacement, validateStructureDrawing, validateStructureOperation } from './validation';
 
 export function isStructureLocked(project: Project, structure: Structure): boolean {
-  return !!structure.immutable || structure.protected || project.keeps.some((keep) => keep.structureId === structure.id);
+  return !!structure.preservationRequired || !!structure.immutable || structure.protected || project.keeps.some((keep) => keep.structureId === structure.id);
 }
 
 export function structureMovementReason(project: Project, structure: Structure): string | null {
+  if (structure.preservationRequired) return '제공된 공간의 기본 구조는 위치와 형태를 바꿀 수 없습니다. 벽면 장식 등 호환되는 연출은 적용할 수 있습니다.';
   if (isStructureLocked(project, structure)) return '위치 고정이 켜져 있습니다. 유지할 구조에서 끄면 도면 표시를 수정할 수 있습니다.';
   const lockedChild = project.floorPlan?.structures.find((child) => child.parentWallId === structure.id && isStructureLocked(project, child));
   return lockedChild ? `연결된 ${lockedChild.name}의 위치가 고정되어 있습니다. 함께 이동하려면 이 구조의 필수 보존도 꺼 주세요.` : null;

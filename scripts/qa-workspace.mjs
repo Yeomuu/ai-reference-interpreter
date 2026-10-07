@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.QA_BASE_URL || 'http://127.0.0.1:5173';
 const key = 'ai-reference-interpreter:projects:v1';
-const browser = await chromium.launch({ headless:true, ...(process.env.CHROME_PATH ? {executablePath:process.env.CHROME_PATH} : {}) });
+const browser = await chromium.launch({ headless:true, args:['--no-proxy-server'], ...(process.env.CHROME_PATH ? {executablePath:process.env.CHROME_PATH} : {}) });
 try {
   const page = await browser.newPage({viewport:{width:1575,height:884}});
   const errors = [], requests = [];
@@ -17,6 +17,7 @@ try {
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({imageDataUrl:'data:image/jpeg;base64,'+fs.readFileSync('public/sample/campus/projectroom-front.jpg').toString('base64')})});
   });
   await page.goto(base);
+  await page.getByRole('button',{name:'저장한 프로젝트·다른 공간',exact:true}).click();
   await page.getByRole('button',{name:'졸업전시 구상 시작',exact:true}).click();
   const id = new URL(page.url()).pathname.split('/')[2];
   const project = () => page.evaluate(({key,id})=>JSON.parse(localStorage.getItem(key)).projects.find(p=>p.id===id),{key,id});

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
 import './swipe-carousel.css'
+import NucleoIcon from './NucleoIcon'
 
 export interface CarouselItem {
   id: string
@@ -13,6 +14,7 @@ interface SwipeCarouselProps {
   variant: 'photo' | 'history' | 'gallery'
   activeId?: string
   onActiveIdChange?: (id: string) => void
+  compactControls?: boolean
 }
 
 interface PointerStart {
@@ -24,7 +26,7 @@ interface PointerStart {
 }
 
 /** A scrollable list whose selected item also has explicit button and keyboard navigation. */
-export default function SwipeCarousel({ label, items, variant, activeId, onActiveIdChange }: SwipeCarouselProps) {
+export default function SwipeCarousel({ label, items, variant, activeId, onActiveIdChange, compactControls = false }: SwipeCarouselProps) {
   const [localIndex, setLocalIndex] = useState(0)
   const [dragging, setDragging] = useState(false)
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -65,6 +67,31 @@ export default function SwipeCarousel({ label, items, variant, activeId, onActiv
   useEffect(() => () => {
     if (suppressTimerRef.current !== null) window.clearTimeout(suppressTimerRef.current)
   }, [])
+
+  useEffect(() => {
+    if (!compactControls || variant !== 'photo') return;
+    const viewport = viewportRef.current;
+    const controls = viewport?.parentElement?.querySelector<HTMLElement>('.swipe-carousel__controls');
+    if (!viewport || !controls) return;
+    const figures = [...viewport.querySelectorAll<HTMLElement>('figure')];
+    const update = () => figures.forEach(figure => {
+      const caption = figure.querySelector<HTMLElement>('figcaption');
+      if (!caption) return;
+      const w = figure.clientWidth, h = figure.clientHeight;
+      if (!w || !h) return;
+      const radius = parseFloat(getComputedStyle(figure).getPropertyValue('--radius-space-photo')) || 0;
+      const r = Math.min(radius, w / 12, h / 12);
+      const a = Math.min(caption.offsetWidth, w - 2 * r), c = Math.min(caption.offsetHeight, h / 3);
+      const bx = w - Math.min(controls.offsetWidth, w - 2 * r), by = h - Math.min(controls.offsetHeight, h / 3);
+      // One rounded silhouette, including the concave corners of both information cutouts.
+      const path = `M ${a + r} 0 H ${w - r} A ${r} ${r} 0 0 1 ${w} ${r} V ${by - r} A ${r} ${r} 0 0 1 ${w - r} ${by} H ${bx + r} A ${r} ${r} 0 0 0 ${bx} ${by + r} V ${h - r} A ${r} ${r} 0 0 1 ${bx - r} ${h} H ${r} A ${r} ${r} 0 0 1 0 ${h - r} V ${c + r} A ${r} ${r} 0 0 1 ${r} ${c} H ${a - r} A ${r} ${r} 0 0 0 ${a} ${c - r} V ${r} A ${r} ${r} 0 0 1 ${a + r} 0 Z`;
+      figure.style.setProperty('--space-photo-outline', `path('${path}')`);
+    });
+    update();
+    const observer = new ResizeObserver(update);
+    [viewport, controls, ...figures, ...figures.flatMap(figure => [...figure.querySelectorAll('figcaption')])].forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [compactControls, variant, items.length, index]);
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === 'mouse' && event.button !== 0) return
@@ -125,7 +152,7 @@ export default function SwipeCarousel({ label, items, variant, activeId, onActiv
     if (event.key === 'ArrowLeft') { event.preventDefault(); selectIndex(index - 1) }
   }
 
-  return <div className={`swipe-carousel swipe-carousel--${variant} ${items.length < 2 ? 'swipe-carousel--single' : ''}`} role="region" aria-roledescription="캐러셀" aria-label={label}>
+  return <div className={`swipe-carousel swipe-carousel--${variant} ${compactControls && variant === 'photo' ? 'swipe-carousel--notched' : ''} ${items.length < 2 ? 'swipe-carousel--single' : ''}`} role="region" aria-roledescription="캐러셀" aria-label={label}>
     <div
       ref={viewportRef}
       className={`swipe-carousel__viewport ${dragging ? 'is-dragging' : ''}`}
@@ -155,9 +182,9 @@ export default function SwipeCarousel({ label, items, variant, activeId, onActiv
       >{item.content}</div>)}
     </div>
     <div className="swipe-carousel__controls">
-      <button type="button" className="button button-secondary" onClick={() => selectIndex(index - 1)} disabled={index === 0} aria-label={`${label} 이전 항목`}>이전</button>
+      <button type="button" className="button button-secondary" onClick={() => selectIndex(index - 1)} disabled={index === 0} aria-label={`${label} 이전 항목`}>{compactControls ? <NucleoIcon name="previous" /> : '이전'}</button>
       <span className="swipe-carousel__count" aria-live="polite">{items.length ? index + 1 : 0} / {items.length}</span>
-      <button type="button" className="button button-secondary" onClick={() => selectIndex(index + 1)} disabled={index >= items.length - 1} aria-label={`${label} 다음 항목`}>다음</button>
+      <button type="button" className="button button-secondary" onClick={() => selectIndex(index + 1)} disabled={index >= items.length - 1} aria-label={`${label} 다음 항목`}>{compactControls ? <NucleoIcon name="next" /> : '다음'}</button>
     </div>
   </div>
 }

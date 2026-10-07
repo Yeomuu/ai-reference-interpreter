@@ -46,6 +46,7 @@ function isStructure(value: unknown): boolean {
         typeof geometry.radius === 'number' && Number.isFinite(geometry.radius) && geometry.radius > 0;
   return validGeometry &&
     (value.immutable === undefined || typeof value.immutable === 'boolean') &&
+    (value.preservationRequired === undefined || typeof value.preservationRequired === 'boolean') &&
     (value.role === undefined || value.role === 'base' || value.role === 'partition') &&
     (value.preservationSettings === undefined || (isRecord(value.preservationSettings) && typeof value.preservationSettings.description === 'string' &&
       (value.preservationSettings.allowedSurfaceTreatment === undefined || typeof value.preservationSettings.allowedSurfaceTreatment === 'boolean'))) &&
@@ -175,6 +176,7 @@ function isConditionsSnapshot(value: unknown): boolean {
   if (value.common === undefined) return true;
   const common = value.common;
   return isRecord(common) && typeof common.concept === 'string' &&
+    (common.designGoal === undefined || typeof common.designGoal === 'string') &&
     (common.floorPlan === null || isFloorPlan(common.floorPlan)) &&
     Array.isArray(common.keeps) && common.keeps.every(isKeep) &&
     Array.isArray(common.references) && common.references.every(isReference) &&
@@ -202,6 +204,7 @@ export function isProject(value: unknown): value is Project {
     typeof project.name === 'string' &&
     typeof project.spaceType === 'string' &&
     typeof project.concept === 'string' &&
+    (project.designGoal === undefined || typeof project.designGoal === 'string') &&
     Number.isInteger(project.commonRevision) &&
     (project.planAlignmentPending === undefined || typeof project.planAlignmentPending === 'boolean') &&
     (project.floorPlan === null || isFloorPlan(project.floorPlan)) &&

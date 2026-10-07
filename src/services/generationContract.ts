@@ -2,6 +2,7 @@ import type { DesignElement, PlacementTarget, Point, Project, Rect, Structure, S
 import { elementPlanPosition, type PlanGuideManifest } from './planGuide.js';
 import { wallFaceLabel, wallFaceOfPoint } from '../domain/wallFaces.js';
 import { CAMERA_PRESETS } from '../domain/prototypeConfig.js';
+import { STUDY_START } from '../domain/studyConfig.js';
 
 /** One low-quality draft, with no automatic variants or hidden model calls. */
 export const GENERATION_MODEL = 'gpt-image-1-mini' as const;
@@ -329,6 +330,7 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     ] : []),
     ...plan.structures.filter(item => ['window', 'door', 'entrance', 'pillar'].includes(item.kind)).map(item => structureViewText(viewProject, item, compact)),
     `Project: ${boundedText(project.name)}. Space type: ${boundedText(project.spaceType)}. Intended concept: ${boundedText(project.concept, 500)}.`,
+    ...(project.designGoal?.trim() ? [`User design goal (desired result, not existing geometry): ${boundedText(project.designGoal.trim(), STUDY_START.maxDesignGoalLength)}. Apply this direction within all saved preservation, placement and camera constraints.`] : []),
     `Plan source: ${plan.kind}. Geometry confidence: ${plan.geometryConfidence}. Plan coordinates are normalized: x increases to the right and y increases downward. Do not invent precise dimensions from a schematic plan or any photograph.`,
     compact ? 'Keep/protected geometry: never demolish, move, replace or block openings. Compatible removable wall decoration is allowed. Keep circulation/windows/pillars clear. Released locks follow saved positions and do not prove construction feasibility.' : 'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, occlude openings or replace protected geometry. Compatible removable decoration may be mounted on a kept wall without changing its geometry. Keep door circulation, windows and pillars clear. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
     `Protected structures (${fixed.length}):`,

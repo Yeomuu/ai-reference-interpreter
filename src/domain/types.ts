@@ -43,6 +43,8 @@ export interface Structure {
   role?: 'base' | 'partition';
   /** User-controlled preservation lock. Explicit false must survive reloads. */
   immutable?: boolean;
+  /** Fixed scenario baseline: preservation cannot be released. Missing on legacy projects. */
+  preservationRequired?: boolean;
   /** Remember the user's preservation conditions while its switch is off. */
   preservationSettings?: { description: string; allowedSurfaceTreatment?: boolean };
   /** Existing ceiling fixture light tone; its geometry is fixed while preserved. */
@@ -182,6 +184,7 @@ export interface ConditionsSnapshot {
   /** Full values preserve the original review state after later partial revisions. */
   common?: {
     concept: string;
+    designGoal?: string;
     floorPlan: FloorPlan | null;
     keeps: Keep[];
     references: Reference[];
@@ -210,6 +213,8 @@ export interface Project {
   name: string;
   spaceType: string;
   concept: string;
+  /** User-authored desired design, separate from existing-space facts. */
+  designGoal?: string;
   sourceImages: SourceImage[];
   floorPlan: FloorPlan | null;
   /** A replacement plan retains annotations but blocks preview until their alignment is checked. */

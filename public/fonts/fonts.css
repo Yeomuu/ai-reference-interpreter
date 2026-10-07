@@ -1,0 +1,10 @@
+/* User-provided WantedSans variable file; official OFL is included alongside it. */
+@font-face {
+  font-family: 'Wanted Sans Variable'; font-style: normal; font-weight: 400 1000;
+  font-display: swap; src: url('./wanted/WantedSansVariable.woff2') format('woff2');
+}
+/* User-provided temporary substitute when the requested web fonts fail. */
+@font-face {
+  font-family: 'MemomentKkukkukk'; font-style: normal; font-weight: 400;
+  font-display: swap; src: url('./memomentKkukkkuk.woff2') format('woff2');
+}

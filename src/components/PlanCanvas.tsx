@@ -1138,11 +1138,11 @@ export default function PlanCanvas({
       {showStructureLayer&&plan.structures.some(s=>s.kind==='wall'&&s.role!=='partition') && <span><i className="legend-wall" />기존 벽</span>}
       {(['window','door','entrance','pillar'] as const).filter(kind=>showStructureLayer&&plan.structures.some(s=>s.kind===kind)).map(kind=>{const actual=plan.structures.find(s=>s.kind===kind)!;return <span key={kind}><svg viewBox="0 0 70 55"><PlanSymbol width={70} height={55} structure={{...actual,geometry:kind==='pillar'?{kind:'rect',bounds:{x:.3,y:.2,width:.4,height:.5}}:{kind:'segment',start:{x:.2,y:.2},end:{x:.8,y:.2}}}} /></svg>{kind==='window'?'창':kind==='door'?actual.doorSwing?'여닫이문':'문 · 열림 방향 미지정':kind==='entrance'?'열린 출입구':'기둥'}</span>})}
       {[...new Set([...visibleElements.filter(isCountedLayoutItem).filter(e=>['floor-point','ceiling-zone','fixture-surface','wall-segment'].includes(e.target?.kind??'')).map(layoutKindFor),...(showStructureLayer&&plan.structures.some(s=>s.kind==='existing-light')?['light' as const]:[])])].map(kind=><span key={kind}><svg viewBox="-40 -28 80 56"><LayoutSymbol kind={kind} /></svg>{LAYOUT_LABELS[kind]}</span>)}
-      {plan.structures.some(s=>s.clearance) && <span><i className="legend-hatch" />빗금 · 비워 둘 출입 여유</span>}
+      {plan.structures.some(s=>s.clearance) && <span><i className="legend-hatch legend-hatch--clearance" />빗금 · 비워 둘 출입 여유</span>}
       {visibleAreas.some(a=>a.kind==='spatial') && <span><i className="legend-area" />점선 윤곽 · 분위기 영역</span>}
       {visibleAreas.some(a=>a.kind==='ceiling') && <span>천장 영역</span>}
       {selectedArea?.kind==='floor' && <span>사용 바닥</span>}
-      {plan.areas.some(a=>a.kind==='passage') && <span><i className="legend-hatch" />빗금 · 비워 둘 통행 동선{mode==='camera'?' (시점 배치 가능)':''}</span>}
+      {plan.areas.some(a=>a.kind==='passage') && <span><i className="legend-hatch legend-hatch--passage" />빗금 · 비워 둘 통행 동선{mode==='camera'?' (시점 배치 가능)':''}</span>}
       {mode==='mapping' && <span>보라 윤곽 · 연결·선택</span>}
       {showStructureLayer&&plan.structures.some(s=>keptIds.has(s.id))&&<span><img src="/icons/nucleo/IconLockOutline18.svg" width="14" height="14" alt="" />위치 고정 구조</span>}
       {showStructureLayer&&plan.structures.some(structure => structure.role === 'partition') && <span><i className="plan-canvas__legend-partition" aria-hidden="true" />점선 · 추가 가벽</span>}

@@ -1,10 +1,11 @@
 :root {
-  --neutral-white:#FFFFFF; --neutral-25:#FCFCFB; --neutral-50:#F7F8F6;
-  --neutral-100:#F1F3EF; --neutral-200:#E4E7E1; --neutral-400:#A3ABB5;
-  --neutral-600:#56616F; --neutral-900:#20251F;
+  --neutral-white:#FFFFFF; --neutral-25:#FBFCFD; --neutral-50:#F7F8FA;
+  --neutral-100:#F3F4F4; --neutral-200:#E5E9ED; --neutral-400:#A3ABB5;
+  --neutral-600:#56616F; --neutral-900:#1C1F21;
+  --neutral-500:#87919C;
   /* User-supplied Lavender + Sage. Pale swatches are identity colors, not text. */
   --lavender-50:#F5F2F7; --lavender-200:#D6CCDF; --lavender-300:#B6AAC2;
-  --lavender-500:#80698F; --lavender-700:#63506F;
+  --lavender-500:#8C6FCC; --lavender-700:#63506F;
   --sage-50:#F0F3EB; --sage-200:#D4DDC8; --sage-300:#A6B38E; --sage-700:#526444;
   /* Preserve existing component token names without duplicating color values. */
   --violet-50:var(--lavender-50); --violet-200:var(--lavender-200);
@@ -18,7 +19,7 @@
   --surface-glass:rgb(255 255 255 / 94%); --surface-glass-fallback:var(--neutral-white);
   --text-primary:var(--neutral-900); --text-secondary:var(--neutral-600);
   --text-inverse:var(--neutral-white); --text-tertiary:var(--neutral-400); --border-default:var(--neutral-200);
-  --border-control:#87919C;
+  --border-control:var(--neutral-500);
   --border-strong:var(--neutral-400); --border-selected:var(--violet-200);
   --action-primary:var(--neutral-900); --action-primary-text:var(--neutral-white);
   --action-selected:var(--violet-700);
@@ -27,6 +28,7 @@
   --state-info-bg:var(--blue-50); --state-info-fg:var(--blue-700);
   --canvas-structure:var(--neutral-600); --canvas-selection:var(--violet-500);
   --canvas-wall:var(--neutral-900);
+  --canvas-door-clearance:var(--lavender-700); --canvas-passage:var(--blue-700);
   --image-crop-scrim:color-mix(in srgb,var(--neutral-900) 28%,transparent);
   --focus-ring:var(--violet-500);
   --action-primary-hover:color-mix(in srgb, var(--action-primary), var(--neutral-white) 12%);
@@ -34,14 +36,18 @@
   --space-4:4px; --space-8:8px; --space-12:12px; --space-16:16px;
   --space-20:20px; --space-24:24px; --space-32:32px; --space-40:40px; --space-48:48px;
   --radius-4:4px; --radius-8:8px; --radius-12:12px; --radius-16:16px;
+  --radius-landing:40px;
+  --radius-space-photo:14.4px;
+  --space-photo-label-width:333px; --space-photo-label-height:54px;
+  --space-photo-controls-width:161px; --space-photo-controls-height:58px;
   --shadow-float:0 12px 32px rgb(23 25 29 / 8%);
-  --shadow-panel:0 2px 12px rgb(23 25 29 / 4%);
+  --shadow-panel:0 0 8px rgb(28 31 33 / 4%);
   --shadow-footer:0 -2px 12px rgb(23 25 29 / 4%);
   --glass-blur:blur(10px);
   --motion-fast:150ms; --motion-base:200ms; --motion-slow:220ms;
   --ease-standard:cubic-bezier(.2, 0, 0, 1);
-  --layout-header-height:64px; --layout-nav-width:176px;
-  --layout-content-max-width:1368px; --layout-page-gutter:36px;
+  --layout-header-height:92px; --layout-nav-width:176px;
+  --layout-content-max-width:1440px; --layout-page-gutter:36px;
   --layout-content-width:min(var(--layout-content-max-width), calc(100% - var(--layout-page-gutter) * 2));
   --layout-step-marker-size:var(--space-24); --layout-step-icon-size:var(--space-12);
   --layout-list-width:clamp(232px, 18vw, 280px);
@@ -53,8 +59,16 @@
   --layout-popover-width:720px; --layout-drawing-tools-width:240px;
   --layer-notice:50; --layer-popover:40;
   --control-height-32:32px; --control-height-40:40px; --control-height-44:44px; --control-height-48:48px;
-  --font-ui:Paperlogy,"Noto Sans KR",system-ui,sans-serif;
+  --font-temporary:"MemomentKkukkukk";
+  --font-ui:"Wanted Sans Variable",var(--font-temporary),"Noto Sans KR",system-ui,sans-serif;
+  --font-brand:"timeline-210",var(--font-temporary),"Wanted Sans Variable",sans-serif;
   --font-size-workspace-title:24px;
   --font-size-panel:18px; --font-size-body:16px;
   --font-size-compact:14px; --font-size-caption:12px;
+  --landing-dark-ratio:48%; --landing-form-width:600px;
+  --landing-input-height:62px; --landing-button-height:80px;
+  --landing-form-inset:25px; --landing-art-offset:282px;
+  --space-direction-inset-top:80px; --space-direction-inset-bottom:64px;
+  --motion-entry:720ms; --motion-float:6s;
+  --layout-space-direction-width:416px; --space-direction-width:var(--layout-space-direction-width);
 }

@@ -1,5 +1,16 @@
 # ReSpace implementation architecture
 
+## 디자인 v1.4 구현 · 2026-10-07
+
+- studyConfig.ts: 새 시작 기본값, 참가자 형식, 기본 구조 5개 ID, 분위기 4장/목표 1000자 한도. generationContract는 가벼운 config만 참조한다.
+- studyStart.ts: createStudyProject → 기존 createCampusProject/migrateLayout 재사용, 새 참가자 프로젝트에만 preservationRequired=true. 기존 creator와 마이그레이션은 재잠금하지 않는다.
+- WelcomeScreen: prepare 성공 뒤 흰 패널 전환·부유/parallax, 라이브러리 dialog. App은 프로젝트 저장·ExperimentRecorder 시작과 경로 전환을 분리한다.
+- SpaceDirection: 사진/도면 + 분위기/기본 구조/목표. generic 공간에는 기존 업로드·윤곽 도구를 보존한다.
+- Project.designGoal, Structure.preservationRequired, ConditionsSnapshot.common.designGoal은 optional이다. 기존 schemaVersion/저장 키를 유지하고 persistence에서 존재하는 새 필드만 검사한다. 공통 revision·undo snapshot·실험 최종 조건·생성 prompt에 goal을 포함한다.
+- respace.css는 마지막 import인 최신 표현 레이어; 값은 tokens.css. 사용자가 제공한 브랜드/이미지/font 파일은 public의 자체 origin에서 제공하고 Adobe 브랜드 글꼴은 제공 공식 embed를 사용한다.
+
+네 단계 경로와 camera/review/results 호환 경로, quota durable storage/replay, crop contact sheet, 이미지 복구 및 export 계약은 변경하지 않는다.
+
 ## 생성 입력 길이와 오류 구분 · 2026-10-06
 
 MAX_GENERATION_PROMPT_LENGTH는 기존 16,000자 상한을 공유한다. 긴 요청에서는 같은 물체 종류의 전이 지침과 같은 벽의 시점 설명을 한 번만 쓰며 각 물체의 출처/crop/target/appearance/conditions/카메라 관계/가벽 면은 보존한다. 잘라내거나 한도를 늘리지 않는다. 축약 후에도 초과하면 GenerationInputError로 클라이언트 POST 전에 중단하고 서버에서도 예약 전 HTTP 400으로 거절한다. 준비·quota·provider 단계의 예외를 구별하여 입력 오류에 저장소 오류 안내를 붙이지 않는다. 진단 로그에는 단계와 예외 클래스만 남기며 사진·조건·키·저장소 응답을 기록하지 않는다. 기존 quota 예약/보존/일일 한도/불확실 응답 계약은 유지한다.

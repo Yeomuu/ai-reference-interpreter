@@ -34,7 +34,7 @@ export function markCommonChange(project: Project): Project {
 }
 
 export type CommonPatch = Partial<Pick<Project,
-  'name' | 'spaceType' | 'concept' | 'sourceImages' | 'floorPlan' | 'planAlignmentPending' | 'keeps' | 'references' | 'elements' | 'referenceBindings' | 'cameraRecommendationVersion'
+  'name' | 'spaceType' | 'concept' | 'designGoal' | 'sourceImages' | 'floorPlan' | 'planAlignmentPending' | 'keeps' | 'references' | 'elements' | 'referenceBindings' | 'cameraRecommendationVersion'
 >>;
 
 export function updateCommon(project: Project, patch: CommonPatch): Project {
@@ -61,14 +61,14 @@ export function updatePhotoAnchor(project: Project, structureId: string, photoAn
 }
 
 export function setKeeps(project: Project, keeps: Keep[]): Project {
-  const mandatory = project.keeps.filter((keep) => project.floorPlan?.structures.some((structure) => structure.id === keep.structureId && structure.immutable));
+  const mandatory = project.keeps.filter((keep) => project.floorPlan?.structures.some((structure) => structure.id === keep.structureId && (structure.immutable || structure.preservationRequired)));
   const normalizedKeeps = [...keeps, ...mandatory.filter((entry) => !keeps.some((keep) => keep.structureId === entry.structureId))];
   const protectedIds = new Set(normalizedKeeps.map((keep) => keep.structureId));
   const floorPlan = project.floorPlan ? {
     ...project.floorPlan,
     structures: project.floorPlan.structures.map((structure) => ({
       ...structure,
-      protected: !!structure.immutable || protectedIds.has(structure.id),
+      protected: !!structure.immutable || !!structure.preservationRequired || protectedIds.has(structure.id),
     })),
   } : null;
   return updateCommon(project, { keeps: normalizedKeeps, floorPlan });
@@ -101,7 +101,7 @@ export function upsertKeep(project: Project, keep: Keep): Project {
 
 export function removeKeep(project: Project, keepId: string): Project {
   const keep = project.keeps.find((entry) => entry.id === keepId);
-  if (keep && project.floorPlan?.structures.some((structure) => structure.id === keep.structureId && structure.immutable)) return project;
+  if (keep && project.floorPlan?.structures.some((structure) => structure.id === keep.structureId && (structure.immutable || structure.preservationRequired))) return project;
   return setKeeps(project, project.keeps.filter((keep) => keep.id !== keepId));
 }
 
@@ -109,6 +109,7 @@ export function removeKeep(project: Project, keepId: string): Project {
 export function setStructurePreservation(project: Project, structureId: string, enabled: boolean): Project {
   const structure = project.floorPlan?.structures.find((item) => item.id === structureId);
   if (!structure || !project.floorPlan) return project;
+  if (structure.preservationRequired && !enabled) return project;
   const existing = project.keeps.find((keep) => keep.structureId === structureId);
   const settings = existing ? { description: existing.description, allowedSurfaceTreatment: existing.allowedSurfaceTreatment } : structure.preservationSettings;
   const keeps = enabled ? existing ? project.keeps : [...project.keeps, {
@@ -241,6 +242,7 @@ export function createConditionsSnapshot(project: Project, cameraId: string, exi
     camera: { id: camera.id, name: camera.name, x: camera.x, y: camera.y, directionDegrees: camera.directionDegrees, fovPreset: camera.fovPreset ?? 'standard', viewPreset:camera.viewPreset, heightMeters:camera.heightMeters, eyeHeightPreset:camera.eyeHeightPreset, pitchDegrees:camera.pitchDegrees },
     common: structuredClone({
       concept: project.concept,
+      ...(project.designGoal !== undefined ? { designGoal: project.designGoal } : {}),
       floorPlan: project.floorPlan,
       keeps: project.keeps,
       references: project.references,

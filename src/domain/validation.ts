@@ -172,7 +172,7 @@ function structureById(project: Project, structureId: string): Structure | undef
 }
 
 function isPreserved(project: Project, structure: Structure): boolean {
-  return !!structure.immutable || structure.protected || project.keeps.some((keep) => keep.structureId === structure.id);
+  return !!structure.preservationRequired || !!structure.immutable || structure.protected || project.keeps.some((keep) => keep.structureId === structure.id);
 }
 
 export function physicalFloorBounds(project: Project, element: DesignElement, target = element.target): Rect | undefined {
@@ -648,6 +648,9 @@ export function validateStructureOperation(
   if (!structure) return result([error('missing-structure', '도면에서 구조물을 찾을 수 없습니다.', undefined, structureId)]);
   if (operation === 'light-tone') return result(structure.kind === 'existing-light' ? [] : [error('keep-conflict', '기존 천장 조명에만 색감을 적용할 수 있습니다.', undefined, structureId)]);
   if (operation === 'surface-treatment' && structure.kind === 'wall') return result([]);
+  if (structure.preservationRequired) {
+    return result([error('keep-conflict', `${structure.name}은 필수 기본 구조여서 위치·형태를 변경하거나 삭제할 수 없습니다. 호환되는 벽면 장식·조명은 적용할 수 있습니다.`, undefined, structureId)]);
+  }
   if (structure.immutable) {
     return result([error('keep-conflict', `${structure.name}의 위치 고정이 켜져 있습니다. 유지할 구조에서 끈 뒤 수정해 주세요.`, undefined, structureId)]);
   }

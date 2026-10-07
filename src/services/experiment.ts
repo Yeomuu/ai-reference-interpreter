@@ -39,7 +39,7 @@ export function assessmentOutput(project: Project) {
   return {
     workflow_version: project.layoutVersion === 2 ? 'layout-first-v2' : 'reference-first-v1',
     reference_bindings: project.referenceBindings ?? [],
-    schema_version: 1, common_revision: project.commonRevision, concept: project.concept,
+    schema_version: 1, common_revision: project.commonRevision, concept: project.concept, design_goal: project.designGoal ?? '',
     floor_plan: plan ? { kind: plan.kind, width: plan.width, height: plan.height, units: plan.units, geometryConfidence: plan.geometryConfidence,
       structures: plan.structures, areas: plan.areas } : null,
     preservation: project.keeps, references: project.references,
@@ -234,7 +234,7 @@ export class ExperimentRecorder {
       if (old && old.approved !== result.approved) this.record('result_approve', 'result', result.id, { approved: result.approved, origin: result.origin })
     }
     if (before.commonRevision !== after.commonRevision) this.record('configuration_commit', 'project', after.id, { common_revision: after.commonRevision,
-      changed_fields: ['floorPlan', 'keeps', 'references', 'elements', 'concept', 'sourceImages'].filter((field) => !same(before[field as keyof Project], after[field as keyof Project])).join(',') })
+      changed_fields: ['floorPlan', 'keeps', 'references', 'elements', 'concept', 'designGoal', 'sourceImages'].filter((field) => !same(before[field as keyof Project], after[field as keyof Project])).join(',') })
   }
   complete(project: Project) {
     if (!this.active || this.active.project_id !== project.id) throw new Error('기록을 시작한 프로젝트에서 종료해 주세요.')
