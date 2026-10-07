@@ -1677,7 +1677,7 @@ export default function App() {
   }
 
   const stepIndex = step === 'projects' ? -1 : STEPS.indexOf(step)
-  return <div className={`app-shell ${step === 'projects' ? 'app-shell--projects app-shell--welcome' : `app-shell--project app-shell--${step}`}`}><header className="app-header"><div className="header-inner"><button className="brand" onClick={() => go('projects')} aria-label="프로젝트 목록으로 이동"><img className="brand-mark" src="/brand/figma-mark.svg" alt="" aria-hidden="true" width="30" height="30" /><span><img className="brand-wordmark" src="/brand/figma-wordmark.svg" alt="ReSpace" /><small>전시·팝업 공간 디자인</small></span></button>
+  return <div className={`app-shell ${step === 'projects' ? 'app-shell--projects app-shell--welcome' : `app-shell--project app-shell--${step}`}`}><header className="app-header"><div className="header-inner"><button className="brand" onClick={() => go('projects')} aria-label="프로젝트 목록으로 이동"><img className="brand-mark" src={step === 'projects' ? '/brand/figma-mark-dark.svg' : '/brand/figma-mark.svg'} alt="" aria-hidden="true" width="30" height="30" /><span><img className="brand-wordmark" src={step === 'projects' ? '/brand/figma-wordmark-dark.svg' : '/brand/figma-wordmark.svg'} alt="ReSpace" /><small>전시·팝업 공간 디자인</small></span></button>
       {step !== 'projects' &&
         <nav ref={stepNavRef} className="step-nav" aria-label="작업 단계">
           <div className="step-nav-inner">{WORKFLOW.map((group, index) => <button

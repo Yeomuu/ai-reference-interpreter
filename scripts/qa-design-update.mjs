@@ -17,6 +17,18 @@ try {
   const imageDataUrl = 'data:image/jpeg;base64,' + (await readFile('public/sample/campus/projectroom-front.jpg')).toString('base64');
   await page.route('**/api/generate', route => { requests.push(route.request().postDataJSON()); return route.fulfill({ json: { imageDataUrl } }); });
   const shot = async name => { await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: `${out}/${name}.png` }); };
+  async function checkPanelSurfaces() {
+    const panels = await page.locator('.layout-panel, .layout-canvas-panel, .space-direction-panel, .workspace-main, .workspace-side, .review-main, .review-side, .result-main, .result-inspector').evaluateAll(nodes => nodes.filter(n => n.getClientRects().length && !n.classList.contains('space-evidence')).map(n => {
+      const s = getComputedStyle(n);
+      return { name: n.className, radius: s.borderRadius, border: s.borderTopWidth, shadow: s.boxShadow };
+    }));
+    assert(panels.length > 0);
+    for (const panel of panels) {
+      assert.equal(panel.radius, '8px', panel.name);
+      assert.equal(panel.border, '0px', panel.name);
+      assert(panel.shadow.includes('0px 0px 8px'), panel.name);
+    }
+  }
   async function exportPlan(name) {
     // Only the saved 2D diagram is exported, never a flattened UI screen.
     const svg = await page.locator('.plan-canvas__svg').first().evaluate(node => {
@@ -28,13 +40,27 @@ try {
     await writeFile(`${out}/${name}.svg`, svg);
   }
   await page.goto(base); await shot('home');
+  assert.equal(await page.locator('.welcome').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(28, 31, 33)');
+  assert.equal(await page.locator('.main-content').evaluate(e => getComputedStyle(e).backgroundColor), 'rgba(0, 0, 0, 0)');
+  assert.equal(await page.locator('.welcome-panel__surface').evaluate(e => getComputedStyle(e).borderRadius), '40px 0px 0px 40px');
+  assert.equal(await page.locator('.brand-wordmark').getAttribute('src'), '/brand/figma-wordmark-dark.svg');
+  assert.equal(await page.locator('.brand-wordmark').evaluate(e => getComputedStyle(e).filter), 'none');
+  assert.equal(await page.locator('.welcome-art__image').getAttribute('src'), '/brand/home-exhibition-concept.png');
+  await page.waitForFunction(() => document.querySelector('.welcome-art__image')?.naturalWidth > 0);
   const start = page.getByRole('button', { name: '프로젝트 시작하기', exact: true });
   assert(await start.isDisabled());
   assert.equal(await page.getByRole('textbox', { name: '프로젝트명', exact: true }).inputValue(), '한국공학대학교 프로젝트룸 · 졸업전시');
   assert.equal(await page.getByRole('textbox', { name: '공간 유형', exact: true }).inputValue(), '졸업전시 공간');
   await page.mouse.move(700, 400);
   assert.notEqual(await page.locator('.welcome-art__parallax').evaluate(e => e.style.getPropertyValue('--pointer-x')), '0');
+  const movement = await page.locator('.welcome-art__parallax').evaluate(e => {
+    const s = getComputedStyle(e), matrix = new DOMMatrixReadOnly(s.transform);
+    return { x: matrix.m41, y: matrix.m42, maxX: s.getPropertyValue('--landing-parallax-x'), maxY: s.getPropertyValue('--landing-parallax-y') };
+  });
+  assert(Math.abs(movement.x) <= 2 && Math.abs(movement.y) <= 1.5);
+  assert.equal(movement.maxX.trim(), '2px'); assert.equal(movement.maxY.trim(), '1.5px');
   assert.equal(await page.locator('.welcome-art__image').evaluate(e => getComputedStyle(e).animationName), 'welcome-float');
+  assert.equal(await page.locator('.welcome-art__image').evaluate(e => getComputedStyle(e).animationDuration), '10s');
   const participant = page.getByRole('textbox', { name: '참가자 번호', exact: true });
   await participant.fill('wrong'); assert(await start.isDisabled());
   await participant.fill('p01'); assert.equal(await participant.inputValue(), 'P01'); assert(await start.isEnabled()); await shot('home-ready');
@@ -47,6 +73,7 @@ try {
   assert.equal(sessions.length, 1); assert.equal(sessions[0].participant_id, 'P01');
   assert.equal((await project()).floorPlan.structures.filter(s => s.preservationRequired).length, 7);
   assert.equal(await page.locator('.space-required').count(), 5); assert.equal(await page.locator('.space-baseline-list input[type=checkbox]').count(), 0);
+  await checkPanelSurfaces();
   assert.equal(await page.locator('.plan-camera').count(), 0);
   const photoOutline = await page.locator('.swipe-carousel--notched .is-active .space-photo').evaluate(node => getComputedStyle(node).clipPath);
   assert(photoOutline.startsWith('path(')); assert(photoOutline.includes('A 14.4 14.4'));
@@ -65,6 +92,7 @@ try {
   assert(hatches.some(a => hatches.some(b => a.color !== b.color)));
   await page.reload(); assert.equal(await page.getByRole('textbox', { name: '디자인 목표', exact: true }).inputValue(), goal);
   await page.getByRole('button', { name: '다음으로', exact: true }).click(); await page.waitForURL('**/placement');
+  await checkPanelSurfaces();
   const stage = name => page.locator('.step-nav').getByRole('button', { name, exact: true }).click();
   async function point(x, y) { return page.locator('.plan-canvas__svg').first().evaluate((svg, { x, y }) => { const p = svg.createSVGPoint(); p.x = x * svg.viewBox.baseVal.width; p.y = y * svg.viewBox.baseVal.height; const q = p.matrixTransform(svg.querySelector(':scope > g').getScreenCTM()); return { x: q.x, y: q.y }; }, { x, y }); }
   async function click(x, y) { const p = await point(x, y); await page.mouse.click(p.x, p.y); }
@@ -74,11 +102,13 @@ try {
   await page.keyboard.press('Control+Shift+z'); assert.equal((await project()).elements.length, 4);
   await shot('placement'); await exportPlan('placement-plan');
   await stage('03 레퍼런스 적용');
+  await checkPanelSurfaces();
   const target = itemId => page.locator(`[data-mapping-target="${itemId}"]`);
   await target(items[0].id).click(); await target(items[1].id).click({ modifiers: ['Shift'] }); await target(items[3].id).click({ modifiers: ['Shift'] });
   await page.getByRole('button', { name: '선택한 3개에 적용', exact: true }).click();
   assert.equal((await project()).referenceBindings[0].layoutItemIds.length, 3); assert.equal((await project()).references.length, 3); await shot('references');
   await stage('04 시안 생성'); assert.equal((await project()).cameras.length, 3);
+  await checkPanelSurfaces();
   assert(await page.getByRole('button', { name: '결과 확인·수정', exact: true }).isDisabled()); await shot('review'); await exportPlan('review-plan');
   await page.getByRole('button', { name: '시점 수정', exact: true }).click(); await page.waitForURL('**/camera');
   await page.getByRole('button', { name: '이전 단계', exact: true }).click(); await page.waitForURL('**/review');
@@ -87,6 +117,7 @@ try {
   assert.equal(requests.length, 1); assert.equal(requests[0].project.designGoal, goal);
   assert.equal((await project()).results[0].conditionsSnapshot.common.designGoal, goal);
   await page.waitForFunction(() => document.querySelector('img.result-image')?.naturalWidth > 0); await shot('result-mocked');
+  await checkPanelSurfaces();
   await page.locator('.result-inspector').getByRole('button', { name: '레이아웃 수정', exact: true }).click(); await page.waitForURL('**/placement');
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1101, height: 884 }, { width: 900, height: 700 }, { width: 614, height: 672 }]) {
     await page.setViewportSize(viewport); await shot(`placement-${viewport.width}`);
@@ -101,6 +132,15 @@ try {
   const reduced = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const reducedPage = await reduced.newPage(); await reducedPage.goto(base);
   assert.equal(await reducedPage.locator('.welcome-art__image').evaluate(e => getComputedStyle(e).animationName), 'none');
+  assert.equal(await reducedPage.locator('.welcome-art__parallax').evaluate(e => getComputedStyle(e).transform), 'none');
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 900, height: 700 }, { width: 614, height: 672 }, { width: 390, height: 844 }]) {
+    await reducedPage.setViewportSize(viewport);
+    await reducedPage.screenshot({ path: `${out}/home-${viewport.width}.png` });
+    assert.equal(await reducedPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    assert.equal(await reducedPage.locator('.welcome').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(28, 31, 33)');
+    if (viewport.width < 768) assert.equal(await reducedPage.locator('.help-link').evaluate(e => getComputedStyle(e).color), 'rgb(255, 255, 255)', 'mobile help must remain readable on the dark backdrop');
+  }
+  await reducedPage.setViewportSize({ width: 1440, height: 900 });
   await reducedPage.getByRole('textbox', { name: '참가자 번호', exact: true }).fill('P02'); await reducedPage.getByRole('button', { name: '프로젝트 시작하기', exact: true }).click(); await reducedPage.waitForURL('**/space');
   assert.deepEqual(errors, []);
   await writeFile(`${out}/summary.json`, JSON.stringify({ passed: true, errors, fonts, mockRequests: requests.length, paidCalls: 0, scenarios: ['prefilled inputs', 'participant validation', 'floating/parallax', 'entry transition', 'automatic local logging', 'fixed baseline', 'goal persistence/generation/stale result', 'hatch distinction', 'placement undo/redo', 'multi mapping', 'camera recommendation/return', 'result shortcuts', 'responsive layout', 'reduced motion'] }, null, 2));

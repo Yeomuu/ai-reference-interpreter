@@ -15,7 +15,7 @@
 .app-shell--project .step-link .step-marker { width: 36px; height: 36px; border: 1px solid var(--border-control); border-radius: 50%; background: var(--surface-base); box-shadow: none; margin: 0; }
 .app-shell--project .step-marker .nucleo-icon { width: var(--space-24); height: var(--space-24); }
 .app-shell--project .step-link .step-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.app-shell--project .step-link.is-current { background: var(--lavender-300); border-radius: var(--radius-landing); padding: var(--space-8) var(--space-20); color: var(--text-primary); }
+.app-shell--project .step-link.is-current { background: var(--lavender-300); border-radius: var(--radius-progress); padding: var(--space-8) var(--space-20); color: var(--text-primary); }
 .app-shell--project .step-link.is-current .step-marker { width: var(--space-24); height: var(--space-24); border: 0; background: transparent; outline: none; box-shadow: none; color: var(--text-primary); }
 .app-shell--project .step-link.is-current .step-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip-path: none; font-size: var(--font-size-panel); font-weight: 600; line-height: 24px; }
 .app-shell--project .step-link:not(:last-child)::after { content: ''; position: absolute; width: var(--space-12); height: 1px; top: 50%; left: auto; right: calc(-1 * var(--space-20)); background: var(--border-strong); }
@@ -29,14 +29,20 @@
 .app-shell--project .page-workspace { padding: 0; }
 .app-shell--project .experiment-panel { border: 0; border-radius: 0; margin: 0; background: var(--surface-base); min-height: 44px; }
 .app-shell--project .experiment-panel > summary { min-height: 44px; display: flex; align-items: center; padding: 0 var(--space-12); }
-.app-shell--project .layout-panel, .app-shell--project .layout-canvas-panel, .app-shell--project .review-main > section, .app-shell--project .review-inspector, .app-shell--project .result-inspector { border-color: var(--border-default); border-radius: var(--radius-8); box-shadow: none; }
+.app-shell--project :is(.layout-panel, .layout-canvas-panel, .surface-panel, .side-panel, .library-panel, .reference-preview, .element-panel, .workspace-main, .workspace-side, .review-main, .review-side, .review-inspector, .result-main, .result-inspector) { border: 0; border-radius: var(--radius-panel); box-shadow: var(--shadow-panel); }
+.app-shell--project .review-main > section { border-radius: 0; box-shadow: none; }
+.app-shell--project .plan-canvas__surface { border: 0; border-radius: var(--radius-panel); }
+.app-shell--project :is(.panel-heading, .layout-panel-heading, .space-direction-section, .review-section) { border-color: var(--border-subtle); }
+.app-shell--project .layout-tool-grid > button { border-color: transparent; background: var(--surface-subtle); }
+.app-shell--project .layout-tool-grid > button:hover { background: var(--surface-hover); }
+.app-shell--project .layout-tool-grid > button[aria-pressed='true'] { border-color: var(--border-selected); background: var(--surface-selected); }
 .app-shell--project .panel-heading, .app-shell--project .layout-panel-heading { padding: var(--space-16); background: var(--surface-base); }
 .app-shell--project .panel-heading h2, .app-shell--project .layout-panel-heading h2 { font-size: var(--font-size-panel); }
-.app-shell--project .button-primary { border-radius: var(--radius-12); }
-.app-shell--project input:not([type='checkbox']):not([type='radio']):not([type='range']), .app-shell--project textarea, .app-shell--project select { background: var(--neutral-100); border-color: transparent; border-radius: var(--radius-8); }
+.app-shell--project .button { border-radius: var(--radius-button); }
+.app-shell--project input:not([type='checkbox']):not([type='radio']):not([type='range']), .app-shell--project textarea, .app-shell--project select { background: var(--neutral-100); border-color: transparent; border-radius: var(--radius-input); }
 .app-shell--project input:focus-visible, .app-shell--project textarea:focus-visible, .app-shell--project select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .space-direction--figma { display: grid; grid-template-columns: minmax(0, 1fr) var(--space-direction-width); height: 100%; gap: 0; min-height: 0; }
-.space-direction--figma .space-evidence { border: 0; border-right: 1px solid var(--border-default); border-radius: 0; padding: 0 var(--space-40); display: flex; flex-direction: column; gap: 0; background: transparent; }
+.space-direction--figma .space-evidence { border: 0; border-right: 1px solid var(--border-subtle); border-radius: 0; box-shadow: none; padding: 0 var(--space-40); display: flex; flex-direction: column; gap: 0; background: transparent; }
 .space-evidence__toolbar { position: relative; min-height: 112px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .space-source-tabs { border: 0; background: none; gap: var(--space-32); }
 .space-source-tabs button { position: relative; border: 0; border-radius: 0; background: none; padding: var(--space-12) 0; min-height: var(--control-height-48); font-size: var(--font-size-panel); color: var(--text-secondary); }
@@ -68,8 +74,8 @@
 .space-concept-image { width: 80px; height: 76px; border-radius: var(--radius-8); overflow: hidden; position: relative; }
 .space-concept-image img { width: 100%; height: 100%; object-fit: cover; }
 .space-concept-image > button { position: absolute; right: 0; top: 0; width: var(--control-height-32); height: var(--control-height-32); display: grid; place-items: center; background: var(--surface-base); color: var(--text-secondary); border: 0; border-radius: 0 0 0 var(--radius-8); }
-.space-concept-images .file-pick { flex: 1; min-width: 140px; height: 76px; border: 1px dashed var(--border-control); border-radius: var(--radius-8); display: flex; justify-content: center; align-items: center; background: none; font-size: var(--font-size-caption); color: var(--text-secondary); }
-.space-baseline-list { border: 1px solid var(--border-default); border-radius: var(--radius-8); overflow: hidden; }
+.space-concept-images .file-pick { flex: 1; min-width: 140px; height: 76px; border: 1px dashed var(--border-control); border-radius: var(--radius-inset); display: flex; justify-content: center; align-items: center; background: none; font-size: var(--font-size-caption); color: var(--text-secondary); }
+.space-baseline-list { border: .5px solid var(--border-default); border-radius: var(--radius-inset); overflow: hidden; }
 .space-baseline-row { display: flex; align-items: center; justify-content: space-between; min-height: 36px; border-bottom: 1px solid var(--border-default); padding: 0 var(--space-12); gap: var(--space-8); }
 .space-baseline-row:last-child { border-bottom: 0; }
 .space-baseline-select { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) 0; background: transparent; border: 0; text-align: left; font-size: var(--font-size-body); font-weight: 600; min-width: 0; }
@@ -87,18 +93,17 @@
 .legend-hatch--clearance { color: var(--canvas-door-clearance); background: repeating-linear-gradient(135deg, transparent, transparent 3px, var(--canvas-door-clearance) 3px, var(--canvas-door-clearance) 4px); }
 .legend-hatch--passage { color: var(--canvas-passage); }
 
-/* The welcome artwork is the original discrete Figma asset, not a flattened screen. */
+/* The dark backdrop fills the viewport underneath the rounded white frame. */
 .app-shell--welcome { background: var(--neutral-900); }
-.app-shell--welcome .welcome-art { background-color: var(--neutral-900); }
+.app-shell--welcome .main-content { background: transparent; }
 .app-shell--welcome .app-header { position: absolute; inset: 0 0 auto; z-index: 3; height: 92px; min-height: 92px; border: 0; background: transparent; backdrop-filter: none; }
 .app-shell--welcome .brand { color: var(--text-inverse); }
-.app-shell--welcome .brand-wordmark { filter: brightness(0) invert(1); width: 128px; }
-.app-shell--welcome .brand-mark { filter: brightness(0) invert(1); }
+.app-shell--welcome .brand-wordmark { width: 128px; }
 .app-shell--welcome .brand small { display: none; }
 .app-shell--welcome .main-content, .app-shell--welcome .content-wrap, .app-shell--welcome .page-workspace { width: 100%; max-width: none; height: 100%; margin: 0; padding: 0; overflow: visible; }
-.welcome { width: 100%; height: 100dvh; position: relative; display: grid; grid-template-columns: var(--landing-dark-ratio) minmax(0, 1fr); }
-.welcome-art { position: relative; overflow: hidden; color: var(--text-inverse); display: flex; flex-direction: column; justify-content: center; padding: 92px var(--space-40) var(--space-40) max(var(--space-40), calc((100vw - var(--layout-content-max-width)) / 2)); background-image: url('/brand/home-grid.svg'); }
-.welcome-art__parallax { --pointer-x: 0; --pointer-y: 0; position: absolute; top: calc(50% - var(--landing-art-offset)); width: min(calc(100% - var(--space-48)), 630px); aspect-ratio: 630 / 473; transform: translate(calc(var(--pointer-x) * 10px), calc(var(--pointer-y) * 8px)) rotate(calc(var(--pointer-x) * .6deg)); transition: transform var(--motion-slow) ease-out; }
+.welcome { width: 100%; height: 100dvh; position: relative; display: grid; grid-template-columns: var(--landing-dark-ratio) minmax(0, 1fr); background: var(--neutral-900) url('/brand/home-grid.svg'); }
+.welcome-art { position: relative; overflow: hidden; color: var(--text-inverse); display: flex; flex-direction: column; justify-content: center; padding: 92px var(--space-40) var(--space-40) max(var(--space-40), calc((100vw - var(--layout-content-max-width)) / 2)); }
+.welcome-art__parallax { --pointer-x: 0; --pointer-y: 0; position: absolute; top: calc(50% - var(--landing-art-offset)); width: min(calc(100% - var(--space-48)), 630px); aspect-ratio: 630 / 473; transform: translate(calc(var(--pointer-x) * var(--landing-parallax-x)), calc(var(--pointer-y) * var(--landing-parallax-y))) rotate(calc(var(--pointer-x) * var(--landing-parallax-rotation))); transition: transform var(--motion-parallax) ease-out; }
 .welcome-art__image { width: 100%; height: 100%; object-fit: contain; animation: welcome-float var(--motion-float) ease-in-out infinite; }
 .welcome-art h1 { position: absolute; bottom: 80px; left: max(var(--space-40), calc((100vw - var(--layout-content-max-width)) / 2)); font-size: clamp(28px, 2.5vw, 48px); font-weight: 500; line-height: 1.4; margin: 0; letter-spacing: -.03em; }
 .welcome-art h1 strong { font-weight: 700; }
@@ -108,8 +113,6 @@
 .welcome-title { margin-bottom: var(--space-12); }
 .welcome-title img { width: 170px; height: auto; display: block; }
 .welcome-wordmark { font-family: var(--font-brand); font-size: 34px; line-height: 1.3; font-weight: 700; }
-.welcome-wordmark > span:first-child { color: var(--lavender-300); }
-.welcome-wordmark > span:last-child { color: var(--sage-300); }
 .welcome-title p { font-size: 24px; margin: var(--space-8) 0 0; color: var(--text-primary); }
 .welcome-field { display: flex; flex-direction: column; gap: var(--space-16); }
 .welcome-field > span { font-size: clamp(18px, 1.25vw, 24px); font-weight: 500; line-height: 1.4; }
@@ -119,7 +122,7 @@
 .welcome-guidance { display: flex; gap: var(--space-12); color: var(--text-secondary); font-size: var(--font-size-compact); line-height: 24px; }
 .welcome-guidance .nucleo-icon { flex: 0 0 var(--space-20); margin-top: 2px; }
 .welcome-guidance p { margin: 0; }
-.welcome-form .welcome-start { height: var(--landing-button-height); min-height: var(--landing-button-height); width: 100%; border-radius: var(--radius-12); font-size: clamp(20px, 1.45vw, 28px); }
+.welcome-form .welcome-start { height: var(--landing-button-height); min-height: var(--landing-button-height); width: 100%; border-radius: var(--radius-button); font-size: clamp(20px, 1.45vw, 28px); font-weight: 400; }
 .welcome-start:disabled { background: var(--neutral-900); color: var(--text-inverse); opacity: .45; }
 .welcome-study-notice { font-size: var(--font-size-caption); line-height: 20px; margin: calc(-1 * var(--space-12)) 0 0; color: var(--text-secondary); }
 .welcome-form__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); font-size: var(--font-size-caption); color: var(--text-secondary); margin-top: calc(-1 * var(--space-12)); }
@@ -127,7 +130,8 @@
 .welcome.is-entering .welcome-panel__surface { left: 0; border-radius: 0; z-index: 20; }
 .welcome.is-entering .welcome-form { opacity: 0; transition: opacity var(--motion-base); }
 .welcome.is-entering .welcome-art { opacity: 0; transition: opacity var(--motion-base); }
-.project-library { width: min(1000px, calc(100vw - var(--space-48))); max-height: calc(100dvh - var(--space-48)); padding: 0; border: 1px solid var(--border-default); border-radius: var(--radius-16); box-shadow: var(--shadow-float); background: var(--surface-base); }
+.project-library { width: min(1000px, calc(100vw - var(--space-48))); max-height: calc(100dvh - var(--space-48)); padding: 0; border: 0; border-radius: var(--radius-panel); box-shadow: var(--shadow-float); background: var(--surface-base); }
+.app-shell--project :is(.reference-library, .plan-legend-popover) { border: 0; border-radius: var(--radius-panel); box-shadow: var(--shadow-float); }
 .project-library::backdrop { background: var(--image-crop-scrim); }
 .project-library__header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-16) var(--space-24); border-bottom: 1px solid var(--border-default); }
 .project-library__header h2 { margin: 0; font-size: var(--font-size-panel); }
@@ -135,7 +139,7 @@
 .project-library__content .project-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--space-24); }
 .project-library__content .intro-row { display: none; }
 .project-library__content .project-card { height: auto; }
-@keyframes welcome-float { 0%, 100% { transform: translateY(0) rotate(-.5deg); } 50% { transform: translateY(-14px) rotate(.5deg); } }
+@keyframes welcome-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-1 * var(--landing-float-distance))); } }
 @media (max-width: 1439px) {
   .header-inner { gap: var(--space-24); }
   .app-shell--project .step-nav-inner { gap: var(--space-24); }
@@ -179,6 +183,7 @@
   .welcome-art { padding-left: var(--space-24); padding-right: var(--space-24); }
 }
 @media (max-width: 767px) {
+  .app-shell--welcome .help-link { color: var(--text-inverse); }
   .app-shell--project { grid-template-rows: 76px minmax(0, 1fr); }
   .app-shell--project .app-header { height: 76px; min-height: 76px; }
   .app-shell--project .brand-wordmark, .app-shell--project .help-link { display: none; }

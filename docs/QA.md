@@ -1,5 +1,9 @@
 # Acceptance test matrix
 
+## 원본 반경·패널 표현·홈·로고 복원 · v1.4.1 · 2026-10-07
+
+전체 30개 파일/259개 자동 테스트, ESLint, 앱·API TypeScript와 production build 통과. 격리 Chrome에서 홈→4단계/반응형/reduced-motion 및 기존 workspace 회귀를 실행했다. 외곽 패널 R8·스트로크 없음·8px 그림자, 검은 전체 배경/흰 R40 프레임, 작은 포인터 이동, 원본 로고 색과 새 홈 독립 이미지를 확인했다. 사용자 시안 생성은 모의 응답으로 검증해 유료 서비스 호출 0회다. 홈 자산은 실제 built-in imagegen 1회로 제작했다. Figma 최신 섹션과 가이드를 v1.4.1로 맞추고 원본을 보존했다. 상세: QA_SURFACE_20261007.md.
+
 ## 디자인 v1.4·새 시작·사진 통합 윤곽 · 2026-10-07
 
 최신 전체 테스트 30개 파일/259개, lint, 앱·API TypeScript, production build 통과. 새 흐름·사진 5창 크기·공개 가이드와 기존 브라우저 회귀를 실제 실행해 확인했고 유료 호출은 0회다. Figma 7개 화면/가이드와 원본 보존, 9페이지 가이드 PDF를 확인했다. 자세한 실행 범위·한계: QA_DESIGN_20261007.md. 디자인·컴포넌트 위치: FIGMA_HANDOFF_20261007.md.

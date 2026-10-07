@@ -35,13 +35,17 @@
   --action-primary-pressed:color-mix(in srgb, var(--action-primary), black 20%);
   --space-4:4px; --space-8:8px; --space-12:12px; --space-16:16px;
   --space-20:20px; --space-24:24px; --space-32:32px; --space-40:40px; --space-48:48px;
-  --radius-4:4px; --radius-8:8px; --radius-12:12px; --radius-16:16px;
+  --radius-4:4px; --radius-6:6px; --radius-8:8px; --radius-12:12px; --radius-16:16px;
+  --radius-panel:var(--radius-8); --radius-input:var(--radius-8);
+  --radius-button:var(--radius-12); --radius-inset:var(--radius-6);
+  --radius-progress:18px;
   --radius-landing:40px;
   --radius-space-photo:14.4px;
   --space-photo-label-width:333px; --space-photo-label-height:54px;
   --space-photo-controls-width:161px; --space-photo-controls-height:58px;
   --shadow-float:0 12px 32px rgb(23 25 29 / 8%);
-  --shadow-panel:0 0 8px rgb(28 31 33 / 4%);
+  --shadow-panel:0 0 8px rgb(23 25 29 / 4%);
+  --border-subtle:var(--neutral-100);
   --shadow-footer:0 -2px 12px rgb(23 25 29 / 4%);
   --glass-blur:blur(10px);
   --motion-fast:150ms; --motion-base:200ms; --motion-slow:220ms;
@@ -69,6 +73,8 @@
   --landing-input-height:62px; --landing-button-height:80px;
   --landing-form-inset:25px; --landing-art-offset:282px;
   --space-direction-inset-top:80px; --space-direction-inset-bottom:64px;
-  --motion-entry:720ms; --motion-float:6s;
+  --motion-entry:720ms; --motion-float:10s; --motion-parallax:800ms;
+  --landing-parallax-x:2px; --landing-parallax-y:1.5px;
+  --landing-parallax-rotation:.08deg; --landing-float-distance:2px;
   --layout-space-direction-width:416px; --space-direction-width:var(--layout-space-direction-width);
 }

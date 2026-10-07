@@ -32,13 +32,13 @@ export default function WelcomeScreen({ onPrepare, onEnter, library }: {
       illustration.current.style.setProperty('--pointer-x', `${(event.clientX - bounds.left) / bounds.width * 2 - 1}`);
       illustration.current.style.setProperty('--pointer-y', `${(event.clientY - bounds.top) / bounds.height * 2 - 1}`);
     }} onPointerLeave={() => { illustration.current?.style.setProperty('--pointer-x', '0'); illustration.current?.style.setProperty('--pointer-y', '0'); }}>
-      <div className="welcome-art__parallax" ref={illustration}><img className="welcome-art__image" src="/brand/home-spatial-collage.png" alt="실제 공간 사진, 평면도와 레퍼런스가 새로운 공간 구상으로 연결되는 모습" /></div>
+      <div className="welcome-art__parallax" ref={illustration}><img className="welcome-art__image" src="/brand/home-exhibition-concept.png" alt="공간 사진·평면도·전시 구상을 표현한 일러스트" /></div>
       <h1 id="welcome-heading">공간의 <strong>가능성을</strong><br />새롭게 <strong>그려보세요.</strong></h1>
     </section>
     <section className="welcome-panel" aria-label="프로젝트 시작">
       <div className="welcome-panel__surface" aria-hidden="true" />
       <form className="welcome-form" onSubmit={start}>
-        <div className="welcome-title"><span className="welcome-wordmark" aria-label="ReSpace"><span>R</span>e<span>S</span>pace</span><p>From Reference to Space</p></div>
+        <div className="welcome-title"><span className="welcome-wordmark">ReSpace</span><p>From Reference to Space</p></div>
         <label className="welcome-field"><span>프로젝트명</span><input name="projectName" value={STUDY_START.projectName} readOnly required /></label>
         <label className="welcome-field"><span>공간 유형</span><input name="spaceType" value={STUDY_START.spaceType} readOnly required /></label>
         <label className="welcome-field"><span>참가자 번호</span><input name="participant" placeholder="예: P01" value={participant} onChange={event => setParticipant(event.target.value.toUpperCase())} pattern="P[0-9]{2,4}" maxLength={5} autoComplete="off" spellCheck={false} required disabled={entering} aria-describedby="participant-help study-start-notice" /></label>
