@@ -99,12 +99,18 @@ try {
   const multiFit = await page.locator('.space-direction-scroll').evaluate(e => ({ scroll: e.scrollHeight, height: e.clientHeight, goal: e.querySelector('textarea').getBoundingClientRect().height }));
   assert(multiFit.scroll <= multiFit.height + 1 && multiFit.goal >= 44, `four concepts overflow ${JSON.stringify(multiFit)}`);
   await page.locator('.space-concept-image').last().hover();
+  const thumbnailFit = await page.locator('.space-concept-image').last().evaluate(node => {
+    const b = node.getBoundingClientRect(), image = node.querySelector('img').getBoundingClientRect();
+    return { width: b.width, height: b.height, ratio: b.width / b.height, imageGap: image.top - b.top };
+  });
+  assert(Math.abs(thumbnailFit.ratio - 93 / 79) < .01);
+  assert.equal(thumbnailFit.imageGap, 3);
   await page.screenshot({ path: `${out}/space-four-concepts-hover.png` });
   await page.locator('.space-concept-image > button').last().click();
   await page.waitForFunction(() => document.querySelectorAll('.space-concept-image').length === 3);
   await page.getByRole('button', { name: '삭제 되돌리기', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('.space-concept-image').length === 4);
-  actual.fourConceptImages = { fit: multiFit, deletionUndo: true };
+  actual.fourConceptImages = { fit: multiFit, thumbnailFit, deletionUndo: true };
   await page.setViewportSize({ width: 1920, height: 1080 });
   const clip = await page.locator('.swipe-carousel--notched .is-active .space-photo').evaluate(e => getComputedStyle(e).clipPath);
   assert(clip.includes('A 14.4 14.4'));

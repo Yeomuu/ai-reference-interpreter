@@ -76,8 +76,8 @@
 .space-direction-section h2 > span { font-size: var(--font-size-compact); font-weight: 400; }
 .space-section-help { margin: var(--space-8) 0; font-size: var(--font-size-caption); line-height: 20px; color: var(--text-secondary); }
 .space-concept-images { display: flex; gap: var(--space-8); flex-wrap: wrap; margin-top: var(--space-12); }
-.space-concept-image { width: 93px; height: 79px; flex: 0 1 93px; min-width: 0; position: relative; }
-.space-concept-image > img { position: absolute; left: 0; top: 3px; width: calc(100% - 2px); height: 76px; object-fit: cover; mask: url('/figma/source/thumbnail-default-mask.svg') 0 0 / 100% 100% no-repeat; }
+.space-concept-image { width: 93px; aspect-ratio: 93 / 79; flex: 0 1 93px; min-width: 0; position: relative; }
+.space-concept-image > img { position: absolute; left: 0; top: 3px; width: calc(100% - 2px); height: calc(100% - 3px); object-fit: cover; mask: url('/figma/source/thumbnail-default-mask.svg') 0 0 / 100% 100% no-repeat; }
 .space-concept-image > button { position: absolute; right: 0; top: 0; width: var(--control-height-32); height: var(--control-height-32); display: grid; align-items: start; justify-items: end; padding: 0; background: transparent; border: 0; border-radius: var(--radius-inset); opacity: 0; pointer-events: none; }
 .space-concept-image:hover > button, .space-concept-image:focus-within > button { opacity: 1; pointer-events: auto; }
 .space-concept-image:hover > img, .space-concept-image:focus-within > img { mask-image: url('/figma/source/thumbnail-hover-mask.svg'); }

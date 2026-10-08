@@ -7,7 +7,7 @@
 - source SVG: public/figma/source/. 원본 노드만 exportAsync(SVG_STRING)으로 내보낸다. 주변 프레임·회색 export 배경은 포함하지 않는다. 경로·색·stroke·intrinsic 크기를 바꾸지 않는다. 노드/해시 대응은 FIGMA_SOURCE_ASSETS_20261008.json.
 - 기본 구조 5개는 원본의 방향별 SVG를 사용한다. 일반 프로젝트와 실제 도면 geometry는 기존 PlanSymbol, 배치 요소는 LayoutSymbol, 다른 일반 UI 액션은 기존 NucleoIcon을 유지한다.
 - 원본 Corner Marker 4개 / Center Marker 2개는 STEP 01 작업 영역 경계에 놓고 입력을 가로채지 않는다. 줄인 반응형 화면에서는 경계에 따라 위치만 변하며 모바일에서는 숨긴다.
-- 분위기 썸네일 기본/호버의 Boolean 윤곽은 원본 R6 SVG 마스크로 분리한다. 삭제는 기본에 숨기고 hover/focus-within에서 원본 15px trash를 표시한다. 키보드 focus-visible과 삭제 복구는 유지한다.
+- 분위기 썸네일 기본/호버의 Boolean 윤곽은 원본 R6 SVG 마스크로 분리한다. 슬롯이 줄어들 때도 원본 93:79 비율을 유지하여 mask가 가운데 letterbox되지 않게 한다. 삭제는 기본에 숨기고 hover/focus-within에서 원본 15px trash를 표시한다. 키보드 focus-visible과 삭제 복구는 유지한다.
 - STEP 01 탭·섹션 제목 20px, 구조 행 16px, 목표 입력 14px, 원본 분위기 설명 10px, 필수/카운터 12px, Next 20px. 임의로 font size를 축소하지 않는다. 사진 캡션은 20/24px·400. 원본 탭의 active는 기존 lavender-500, inactive는 확인한 #C4CBCF(전용 source alias); 필수는 기존 sage-300. 홈 패턴 opacity .6도 원본 fill 값이다. 새 브랜드 컬러가 아니다.
 - STEP 01 학교 시나리오 패널은 내부 scrollbar 없이 제목·업로드·구조·목표·Next를 함께 표시한다. 목표는 남은 높이를 채우고 max-height=188px. 800px 이하 높이에서는 간격만 줄여 입력란과 Next를 유지한다. 모바일과 구조가 임의로 많은 일반 프로젝트는 기존 작업 영역 스크롤을 사용한다.
 - 원본 사진/도면 탭 SVG·업로드 SVG·헤더 진행/도움말 SVG·홈 안내/패턴/광원·실험 기록 SVG를 재사용한다. 홈/STEP 01 원본에 없는 provenance 문구와 상시 추가 안내는 표시하지 않는다. 사진이 도면을 자동 생성하지 않는 사실·기록 안내는 사용 가이드/접근 가능한 설명에서 확인할 수 있다.
