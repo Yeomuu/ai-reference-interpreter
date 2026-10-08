@@ -74,6 +74,10 @@ Vercel MCP는 이 scope의 목록 권한 오류를 반환했으므로 동일 팀
 
 운영 추가 검사에서 1254×884·1920×1080·390×844의 6상태, 총18개 캡처와 가로 overflow0·JS0·생성POST0을 확인했다. 이후 명시적 Paperlogy load 단계는 NetworkError로 실패했고, 실제 운영 WOFF5개와 TTF의 HTTP404를 확인했다(Wanted/OFL/fonts.css는200). 기존 local production preview의 폰트 성공과 운영 성공을 구분한다. `.vercelignore`의 source Paperlogy 제외를 루트에 한정하고 public/fonts를 명시적 포함으로 수정했다. build/typecheck는 재통과했으며 수정 배포 후 HTTP·해시·glyph 재검증을 진행한다. 현재까지 검토한20분/해당배포 error-level runtime log 검색은0개이며 실패한 HTTP502 요청이 없었다는 뜻은 아니다.
 
+**폰트 수정 후 운영 재검증 완료:** 커밋69eb4b10b3281b59d6f543d77889c754076ccdb4, 배포dpl_5xMbZFNpeMrN1x9G6bjEGstwKJye는 production/READY다. WOFF5개와 TTF5개 모두 운영 HTTP200·원본 manifest SHA-256 일치를 확인했다. Edge에서 Paperlogy400/500/600/700/800 모두 loaded이며 진행 글자는 CDP 실제 glyph 조회의 Paperlogy5Medium/custom=true/12glyphs다. 수정 후 위18개 화면을 다시 캡처했고 overflow0·JS0·생성POST0으로 통과했다. 초기 QA helper는 `custom`으로 저장한 속성을 `isCustomFont`로 검사하여 assertion이 실패했으며, helper를 수정 후 전체 검사 통과를 확인했다. 이 helper 오류와 최초 운영404를 폰트 검증 통과로 보고하지 않는다. 최종 이미지: live-production/deployed-1254-review.png, deployed-390-placement.png 등을 직접 확인했다.
+
+키 동기화 승인과 Figma Education 한도 해제가 남아 있다. 실제 생성 이미지가 아직 없어 노이즈·건축 보존·레퍼런스/좌표 반영 품질은 미검증이다. 실제 기기 Safari/Android·스크린 리더 인증·장기간 runtime 감시는 수행하지 않았다. GitHub에 올린 기록에는 키·QA브라우저 인증 상태·원본 참가자 자료를 포함하지 않는다.
+
 ## 변경 파일 범위
 
 App.tsx 및 SpaceDirection/LayoutWorkspace/MappingWorkspace/PlanCanvas/PlanMovementOverlay/CameraSummary/NucleoIcon/AssetImage, 신규 WorkspaceRegistration/ResultPlanComparison, respace.css/tokens.css, vite.config.ts, fonts.css·5 WOFF·sync-paperlogy-fonts.py, generationContract/imageProvider/planGuide/api generate, API/planGuide tests와4 browser QA scripts. AGENTS·DESIGN_SYSTEM·FONT_PROVENANCE·ICON_MANIFEST·ARCHITECTURE·INTERACTIONS·API_INTEGRATION·CURRENT_LOGIC·UX_SPEC_CHANGELOG·README와 새 QA/모델 기록을 함께 갱신한다. 사용자 원본 WantedSans/·memomentKkukkkuk.otf·DESIGN.md·Paperlogy 원본은 변경하거나 새로 커밋하지 않는다.

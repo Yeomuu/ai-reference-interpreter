@@ -97,6 +97,6 @@
     "code": "verified",
     "figma": "partial: Education MCP limit, pending icon coordinates saved",
     "generation": "local free model metadata HTTP200; production POST1 returned502(auth/permission); image0; quota59/19; remote env sync pending approval",
-    "qa": "31 files /272 tests; browser scripts passed"
+    "qa": "31 files /272 tests; local browser scripts passed; production 18 captures/overflow0/JS0; WOFF+TTF 10 hashes match; actual Paperlogy glyph verified"
   }
 }

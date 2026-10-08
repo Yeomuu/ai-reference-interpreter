@@ -6,6 +6,8 @@
 
 5개 WOFF 합계 3,115,092bytes, 원본 TTF 합계 6,546,240bytes로 전송 자산 크기가 52.4% 줄었다. 브라우저 CDP의 실제 glyph-font 조회로 개발·로컬 production preview에서 Paperlogy Medium/Regular 및 Wanted Sans 사용을 확인했다. 최초 Vercel main 운영 배포에는 Paperlogy 파일 HTTP404가 있어 `.vercelignore`를 루트 source 폴더만 제외하고 public/fonts를 포함하도록 수정했다. 운영 파일 HTTP·해시·glyph 재검증 결과는 최신 QA 기록에 별도 표시한다. 변환·해시·테이블 대조 근거는 FONT_WEB_ASSETS_20261008.json과 최신 UI QA 기록이다. 아래 ‘변환하지 않는다’는 이전 기록이며 현재는 원본 파일을 보존한 컨테이너 변환만 허용한다.
 
+수정 커밋69eb4b1의 Vercel production/READY 배포에서 WOFF5개·TTF5개 모두HTTP200/SHA동일, 실제 Edge의 Paperlogy400~800loaded 및 진행 Paperlogy5Medium의custom glyph 사용을 재검증했다. 따라서 현재 공개 서비스에서 Paperlogy 제공이 확인되었다. 제공 원본·OFL·사용자 Wanted/브랜드 공급 방식은 그대로 보존했다.
+
 ## 동일한 개발·production 폰트 · 2026-10-08 (최신 사용자 지시)
 
 사용자가 폰트 파일 배포 금지를 철회했다. 제공 Paperlogy 400/500/600/700/800을 public/fonts/paperlogy/로 원본 그대로 복사한다. scripts/sync-paperlogy-fonts.py는 기존 검증 SHA-256과 5개 파일을 모두 대조한 뒤 복사하며 변환·부분 추출·윤곽 변경·다운로드를 하지 않는다. 5개 총 6,546,240bytes이며 public/fonts/Paperlogy-OFL.txt 고지도 빌드에 포함된다. 경로·해시·크기: FONT_ASSETS_20261008.json. 원본 Paperlogy/는 보존한다.
