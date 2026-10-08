@@ -69,6 +69,17 @@ describe('saved plan guide and scoped visual transfer', () => {
     expect(prompt).toContain('whiteboard visible across the front wall');
     expect(prompt).toContain('leave the graphic out of frame');
   });
+  it('limits lighting references and object counts without forbidding saved wall graphics', () => {
+    const project = createSampleProject();
+    const prompt = buildGenerationPrompt(project, 'camera-entrance', []);
+    expect(prompt).toContain('do not copy unrelated furniture, wall posters, artwork, signage, display contents');
+    expect(prompt).toContain('ONLY for explicitly applied wall-graphic or wall-mounted-product elements');
+    expect(prompt).toContain('Retain ceiling projectors, HVAC, mounted speakers, radiators');
+    expect(prompt).toContain('not the number of objects pictured in a reference');
+    expect(prompt).toContain('represents ONE installation inside its saved footprint');
+    expect(prompt).toContain('E03');
+    expect(prompt).toContain('Transfer this graphic as a removable print/lettering');
+  });
   it('describes a graduation exhibition as a school-room exhibition, not a retail pop-up', () => {
     const project = createSampleProject();
     project.spaceType = '졸업전시';

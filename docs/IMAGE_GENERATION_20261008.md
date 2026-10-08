@@ -54,6 +54,12 @@
 - main 운영 배포 후 별도 Edge QA 프로필에서 실제 생성 POST를 **1회** 실행했다. 기존 공간 사진 444,411bytes·도면 46,244bytes·조명 참고 311,209bytes·전시대 참고 184,500bytes를 전송했으며, 운영 서버는 6.5초 후 HTTP502와 OpenAI 인증/권한(상위 401/403) 범주의 오류를 반환했다. 응답이 상위 401과403을 구분하지 않으므로 원인을 invalid key 또는 모델 권한으로 단정하지 않는다. 서비스 공유 한도는 60→59, 해당 QA 브라우저는20→19로 기록됐고 busy는 해제됐다. 실패 요청의 기록은 초기화하지 않았고 자동 재호출하지 않았다. OpenAI 과금 여부·모델 이미지 품질은 확인하지 않았다.
 - 무료 로컬 인증 진단은 이미지 없이 edits를 요청해 HTTP400/missing_required_parameter(image)였다. 실제 생성 0회이며 이 응답만으로 완전한 이미지 모델 접근 권한을 인증하지 않는다. Vercel CLI의 값이 없는 metadata에서 OPENAI_API_KEY(production/preview)의 마지막 수정이 9월임을 확인했다. 새 로컬 키의 원격 동기화·재배포에 대한 사용자 승인을 요청했다. 키 값은 출력·커밋하지 않았다.
 
-현재 운영 배포는 main/69eb4b1, production/READY이며 공개 /api/status의 모델은 gpt-image-2/high다. 원격 키 동기화 승인이 오기 전에는 그 secret을 수정하거나 추가 생성 요청을 보내지 않는다. 실제 이미지가 아직 없어 노이즈·기하/레퍼런스 보존은 미검증이며 프롬프트 개선을 품질 보장으로 보고하지 않는다.
+## 키 동기화 후 실제 생성 재검증
+
+사용자가 원격 키 동기화·재배포를 승인했다. 제공 로컬 키를 값 출력 없이 Vercel의 기존 sensitive OPENAI_API_KEY(production/preview)에 반영했고 환경 metadata의 수정시각을 확인했다. main/3a70d34의 production 재배포dpl_5GYKiBpcRG6gb6XABevx1jXrTcyB가 READY인 뒤, 별도 QA 프로필에서 실제 요청1회가 **HTTP200, gpt-image-2/high/1536x1024 JPEG, 154,205bytes, 86.6초**로 성공했다. AI origin·조건 스냅샷·미승인/현재 조건 상태로 브라우저 저장됐고 새로고침 후 표시1개·JS오류0을 확인했다. 서비스 한도59→58, 새 QA 익명 브라우저20→19, busy해제다. 기존 원장·실패 기록은 삭제/리셋하지 않았다. 이전 실패와 합쳐 운영 POST2회/실제 이미지1장이며 OpenAI 청구액은 조회하지 않았다.
+
+공간 사진·조명/전시대 참고·실제 결과를 직접 비교했다. 중앙의 아이보리 전시대 형태, 주요 창·화이트보드·출입문은 알아볼 수 있고 뚜렷한 block/ringing은 보이지 않았으나, 조명 참고의 벽 게시물이 추가되고 하나의 배치가 세 개 plinth 형태로 해석되는 차이가 남았다. 천장 고정 장비도 전체 일치를 확인할 수 없었다. 이 관찰을 근거로 조명 참고의 posters/art/signage/display contents 이전을 금지하고, 새 벽 콘텐츠는 저장된 wall-graphic/wall-mounted-product 대상에만 허용했다. 한 freestanding fixture/furniture E키는 한 footprint 안의 설치1개이며 명시한 세트만 composite를 허용한다. 원래 사진에서 보이는 projector/HVAC/speakers/radiator/whiteboard/light를 개략도에 개별 annotation이 없어도 고정 설비로 유지하도록 강화했다. 호환되는 저장 벽 그래픽은 계속 허용한다.
+
+큰 프로젝트는 동일한 규칙을 짧은 공통 문장으로 제공한다. 초기 규칙 추가로 13개 혼합 요소의 16,000자 검사가 실패하여 공유 설명만 압축했으며 개별 조건·위치·면·crop·보존 설명·출처를 자르지 않는다. 13개 혼합/20개 전시 테스트와 새 속성 경계 검사, 전체31파일273검사/lint/typecheck/build가 다시 통과했다. 첫 성공1장만으로 전 시점의 공간 일치나 무노이즈를 보장하지 않는다. 강화 프롬프트의 운영 이미지 재검증 결과는 다음 기록에 추가한다.
 
 구현: `src/services/generationContract.ts`, `planGuide.ts`, `imageProvider.ts`, `api/generate.ts`. 재현: `scripts/qa-generation-inputs.mjs`, `tests/generationApi.test.ts`, `tests/planGuide.test.ts`.

@@ -48,7 +48,7 @@ Paperlogy의 무손실 WOFF 추가로 5개 파일 합계 전송 크기 6,546,240
 
 ## Phase 4 — 실행한 검증
 
-- lint / typecheck / build 통과. 전체 Vitest 31파일 272검사 통과. 일부 저장소 오류 stderr는 의도한 fail-closed mock 케이스다.
+- lint / typecheck / build 통과. 최신 속성 경계 보정 후 전체 Vitest 31파일 **273검사** 통과(기존272+추가1). 일부 저장소 오류 stderr는 의도한 fail-closed mock 케이스다.
 - qa-typography-navigation: 개발/production, 1920×1080·1220×672·390×844·320×720의 48개 캡처. 실제 Paperlogy/Wanted glyph-font, 5개 TTF 해시/HTTP/dist 동일성, 최소12px, 가로 overflow 없음, 패널 내부 버튼·키보드·history/reload 확인.
 - qa-current-logic: 빈 도면 이동, fresh/retain 교체·ratio·alignment gate·undo/reload, 고정 벽 장식·조명 허용/출입구 거절, reference 파생값 정리·persistent undo, 시점 hide/복원, 3-view batch busy·2번째 실패 시3번째 중단·첫 결과 유지·불확실 재호출 보호·stale snapshot. 최종 모델 변경 후에도 다시 통과. mock POST2, paid0, JS0.
 - qa-lighting-products: 바닥/천장 충돌, 천장-가구 겹침 허용, duplicate/undo/reload, 상품-support 및 잠긴 host의 키보드 위치, 미배치 support 거절·고정천장충돌·시점이력. paid0, JS0.
@@ -76,7 +76,9 @@ Vercel MCP는 이 scope의 목록 권한 오류를 반환했으므로 동일 팀
 
 **폰트 수정 후 운영 재검증 완료:** 커밋69eb4b10b3281b59d6f543d77889c754076ccdb4, 배포dpl_5xMbZFNpeMrN1x9G6bjEGstwKJye는 production/READY다. WOFF5개와 TTF5개 모두 운영 HTTP200·원본 manifest SHA-256 일치를 확인했다. Edge에서 Paperlogy400/500/600/700/800 모두 loaded이며 진행 글자는 CDP 실제 glyph 조회의 Paperlogy5Medium/custom=true/12glyphs다. 수정 후 위18개 화면을 다시 캡처했고 overflow0·JS0·생성POST0으로 통과했다. 초기 QA helper는 `custom`으로 저장한 속성을 `isCustomFont`로 검사하여 assertion이 실패했으며, helper를 수정 후 전체 검사 통과를 확인했다. 이 helper 오류와 최초 운영404를 폰트 검증 통과로 보고하지 않는다. 최종 이미지: live-production/deployed-1254-review.png, deployed-390-placement.png 등을 직접 확인했다.
 
-키 동기화 승인과 Figma Education 한도 해제가 남아 있다. 실제 생성 이미지가 아직 없어 노이즈·건축 보존·레퍼런스/좌표 반영 품질은 미검증이다. 실제 기기 Safari/Android·스크린 리더 인증·장기간 runtime 감시는 수행하지 않았다. GitHub에 올린 기록에는 키·QA브라우저 인증 상태·원본 참가자 자료를 포함하지 않는다.
+**키 승인 후 실제 생성 성공:** Production/Preview의 sensitive 키를 사용자 승인으로 동기화하고 main/3a70d34를 재배포했다. 실제1장 HTTP200(86.6초), AI origin/스냅샷/IndexedDB 저장/reload표시/JS0, 한도59→58·QA브라우저20→19·busy해제를 확인했다. 실물 사진·참고·AI결과를 직접 비교해 주요 창/화이트보드/문과 전시대 형태를 확인했지만 조명 참고의 벽 게시물과 전시대 개수가 따라온 차이가 발견됐다. 이 때문에 프롬프트에 속성·물체 개수·고정 설비 경계를 추가했고 큰 입력은 공유 설명만 압축했다. 전체273검사/lint/typecheck/build가 재통과했다. 최종entry433.31KB/vendor221.28KB이다. 강화 규칙의 운영 재검증을 진행한다. 세부 IMAGE_GENERATION_20261008.md.
+
+Figma Education 한도 해제가 남아 있다. 실제 기기 Safari/Android·스크린 리더 인증·장기간 runtime 감시는 수행하지 않았다. GitHub에 올린 기록에는 키·QA브라우저 인증 상태·원본 참가자 자료를 포함하지 않는다. 임시 QA 스크립트는 gitignore의 qa-screens/에 있어 ESLint에서도 제외하고 배포/공유하지 않는다; 추적 scripts/의 QA는 계속 lint 대상이다.
 
 ## 변경 파일 범위
 
