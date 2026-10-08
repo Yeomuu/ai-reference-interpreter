@@ -64,7 +64,9 @@ Paperlogy Regular/Medium/SemiBold/Bold/ExtraBold는 Figma에서 확인해 적용
 
 **아직 완료되지 않은 항목:** 마지막 아이콘 정렬 보정 호출에서 Figma가 “Education plan MCP tool call limit” 오류를 반환했다. 따라서 최종 섹션의 일부 구조 행/탭/시점 카드 등 아이콘이 자동 배치 가운데에 남아 문구와 겹치는 차이가 있으며, 정확한 source 좌표는 FIGMA_PENDING_ALIGNMENT_20261008.json에 남겼다. 이후 전체 프레임 재캡처·픽셀 정합성 확인도 못 했다. 웹 코드 아이콘 중심은 검증했으나 Figma 동기화는 픽셀 단위 완료로 보고하지 않는다. 도구 한도 해제 이후 이 좌표 보정과 재캡처가 남는다.
 
-무료 모델 메타데이터 조회에서 로컬 서버용 키의 HTTP401/invalid_api_key를 확인했다. 유효한 서버 키가 필요하며 만료/폐기 원인 또는 Vercel 키 상태를 단정하지 않는다. 실제 GPT Image 2 유료 요청, production 환경 키 만료·모델 접근·결제·생성 이미지 품질·새 커밋의 Vercel 배포 완료는 확인하지 않았다. 원격 작업 branch push는 production 배포 성공을 뜻하지 않는다.
+최초 무료 모델 메타데이터 조회는 로컬 키의 HTTP401/invalid_api_key였다. 사용자가 서버 키 갱신을 완료한 뒤 재조회하여 **HTTP200, model id=gpt-image-2**를 확인했다. 두 조회 모두 이미지 생성 호출 0회다. 실제 유료 편집 권한·결제·이미지 품질 또는 Vercel 서버 키가 검증되었다고 해석하지 않는다.
+
+코드 커밋 `62350400b64d66c80e049719db4f05583310707b`는 원격 작업 브랜치에 올라갔고 GitHub의 해당 커밋 Vercel 상태가 success임을 확인했다. 당시 production의 /api/status는 여전히 gpt-image-1-mini/low이므로 작업 브랜치 배포를 운영 반영으로 보고하지 않는다. main 반영은 자동 승인 검토가 공유·배포 영향에 대한 별도 승인 부족을 이유로 거절했으나, 이후 사용자가 **main 반영과 자동 배포를 명시적으로 승인**했다. 승인 후 main 반영·운영 검증을 이어간다.
 
 ## 변경 파일 범위
 

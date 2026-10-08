@@ -50,7 +50,7 @@
 - 13개 혼합 요소·다수 Keep와 20개 전시 요소에서도 source/crop/가벽 면/개별 조건이 16,000자 제한 안에서 유지된다. 초과 입력을 잘라서 보내지 않는다.
 - 좌표·E 번호·벽 endpoint·천장 offset의 단위 검사를 추가했다. 전체 31파일 272검사 통과.
 - 실제 Edge 입력 준비: 공간 1600×1200/444,411bytes, crop 1600×1200/365,203bytes, 2-crop grid 1600×800/233,595bytes, 모음 1536²/159,301bytes. 모음 JPEG encoding은 **1회**, JS 오류 0, 모델 POST 0. 가이드 캡처를 직접 확인했다. 파일: `qa-screens/ui-polish-20261008/generation-inputs/`.
-- 기존 로컬 서버용 키로 무료 GET /v1/models/gpt-image-2만 조회했으며 HTTP401/invalid_api_key를 확인했다. 키·오류 원문은 출력하지 않았다. 키 만료인지 폐기인지 원인은 단정하지 않는다. 유효한 로컬 키가 필요하며 Vercel 키도 같다고 단정하지 않는다. 사용자에게 서버 env 직접 갱신을 요청했고 키 생성·교체를 대신하지 않았다.
+- 최초 로컬 서버 키의 무료 GET /v1/models/gpt-image-2 조회는 HTTP401/invalid_api_key였다. 사용자가 서버 키 갱신 완료를 알린 뒤 동일한 무료 조회를 다시 실행했고 **HTTP200, model id=gpt-image-2**를 확인했다. 키·오류 원문은 출력하지 않았고 키 생성·교체를 대신하지 않았다. 이 성공은 로컬 키의 인증·모델 메타데이터 접근 확인이며 Vercel 키, 유료 이미지 편집 권한·결제·생성 품질을 검증한 것은 아니다. 두 조회 모두 이미지 생성 호출 0회다.
 - 새 모델의 실제 유료 생성은 수행하지 않았다. 유효한 계정 모델 접근·결제·high 지연 시간·실제 이미지 노이즈/기하 일치는 아직 확인하지 못했다. status 연결 성공이나 mock 이미지 수신을 실제 모델 품질 통과로 보고하지 않는다.
 
 구현: `src/services/generationContract.ts`, `planGuide.ts`, `imageProvider.ts`, `api/generate.ts`. 재현: `scripts/qa-generation-inputs.mjs`, `tests/generationApi.test.ts`, `tests/planGuide.test.ts`.

@@ -96,7 +96,7 @@
   "delivery": {
     "code": "verified",
     "figma": "partial: Education MCP limit, pending icon coordinates saved",
-    "generation": "mocked/local preparation, no new paid model call",
+    "generation": "mocked/local preparation; user updated key; free model metadata retry HTTP 200; no new paid model call",
     "qa": "31 files /272 tests; browser scripts passed"
   }
 }
