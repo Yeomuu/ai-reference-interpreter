@@ -68,3 +68,21 @@
 | IconMinusOutline18.js → IconMinusOutline18.svg | NucleoIcon.minus | 연결 해제 |
 
 그 외 기존 image/images/file/layers/camera/edit/add/trash/lock/check/info/warning/refresh/previous/next를 제목·업로드·도구·요약·생성·수정에 확대한다. 전시대/가구/전구는 LayoutSymbol, 벽/문/창/기둥 도구는 PlanSymbol의 실제 기하 표현이며 UI 아이콘으로 대체하지 않는다. 정확한 Save/Undo/Redo/Crop용 자산은 현재 확보 목록에 없어 저장/실행 취소/다시 실행은 텍스트를 유지하고 영역 선택에는 편집 의미의 edit를 텍스트와 함께 사용한다.
+
+## 사용자 지정 Figma 원본 자산 · 2026-10-08
+
+사용자가 SVG 그대로 재사용하도록 명시한 원본 디자인 자산이다. 새 UI 아이콘 라이브러리나 새 Nucleo 팩을 추가한 것이 아니다. 기존 일반 액션 NucleoIcon의 라이선스/명세와 실제 도면 LayoutSymbol/PlanSymbol은 유지한다. 전체 28개 파일의 원본 노드·intrinsic 크기·SHA256은 [FIGMA_SOURCE_ASSETS_20261008.json](FIGMA_SOURCE_ASSETS_20261008.json) 참조.
+
+| 원본 노드 | 로컬 파일 / 의미 | 적용 |
+|---|---|---|
+| 188:1176 / 1190 / 1203 / 1216 / 1242 | structure-front/back/window/entrance-wall/entrance.svg | STEP 01 기본 구조 목록, 도면 geometry 자체는 아님 |
+| 188:1117 | image-upload.svg | 원본 분위기 upload |
+| 181:575 / 605 / 595 / 610 | tab-photo/photo-inactive/plan/plan-active.svg | 사진·평면도 전환 |
+| 175:505 / 512 / 525 / 530 | corner-left/right, center-top/bottom.svg | 원본 작업 경계 marker |
+| 182:1065 / 1059 / 1069 | thumbnail-delete.svg, thumbnail-default/hover-mask.svg | 원본 썸네일 상태·삭제 |
+| 213:346 / 350 / 355 / 361 | step-file/layers/images/image.svg | 헤더 네 단계 |
+| 173:201 / 175:276 / 443 | guide-info/home-info/experiment-record.svg | 원본 도움말·홈 안내·기록 |
+| 181:557 / 554 | photo-previous/next.svg | 원본 사진 순서 |
+| 175:232 / 242:1383 | home-grid/glow.svg | 원본 홈 배경 |
+
+원본 노드만 투명 SVG로 내보냈다. 썸네일 마스크에만 흰 fill을 사용하며 원본 Boolean 곡률/geometry는 유지한다. 원본 프레임은 수정하지 않았으며 SVG를 다시 그리거나 경로/색을 치환하지 않았다.

@@ -10,7 +10,7 @@ const base=process.env.QA_BASE_URL || 'http://127.0.0.1:5173';
  const browser=await chromium.launch({...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{}),headless:true,args:['--no-proxy-server']});
  const page=await browser.newPage({viewport:{width:1440,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/status',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({available:false,reason:'격리 QA'})}));
- await page.goto(base);await page.getByRole('button',{name:'저장한 프로젝트·다른 공간',exact:true}).click();await page.getByRole('button',{name:'졸업전시 구상 시작',exact:true}).click();
+ await page.goto(base);await page.getByRole('button',{name:'프로젝트 목록으로 이동',exact:true}).click();await page.getByRole('button',{name:'졸업전시 구상 시작',exact:true}).click();
  let id=new URL(page.url()).pathname.split('/')[2];
  const project=()=>page.evaluate(({key,id})=>JSON.parse(localStorage.getItem(key)).projects.find(p=>p.id===id),{key,id});
  const initial=await project();

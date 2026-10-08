@@ -182,9 +182,9 @@ export default function SwipeCarousel({ label, items, variant, activeId, onActiv
       >{item.content}</div>)}
     </div>
     <div className="swipe-carousel__controls">
-      <button type="button" className="button button-secondary" onClick={() => selectIndex(index - 1)} disabled={index === 0} aria-label={`${label} 이전 항목`}>{compactControls ? <NucleoIcon name="previous" /> : '이전'}</button>
+      <button type="button" className="button button-secondary" onClick={() => selectIndex(index - 1)} disabled={index === 0} aria-label={`${label} 이전 항목`}>{compactControls && variant === 'photo' ? <img src="/figma/source/photo-previous.svg" alt="" aria-hidden="true" /> : compactControls ? <NucleoIcon name="previous" /> : '이전'}</button>
       <span className="swipe-carousel__count" aria-live="polite">{items.length ? index + 1 : 0} / {items.length}</span>
-      <button type="button" className="button button-secondary" onClick={() => selectIndex(index + 1)} disabled={index >= items.length - 1} aria-label={`${label} 다음 항목`}>{compactControls ? <NucleoIcon name="next" /> : '다음'}</button>
+      <button type="button" className="button button-secondary" onClick={() => selectIndex(index + 1)} disabled={index >= items.length - 1} aria-label={`${label} 다음 항목`}>{compactControls && variant === 'photo' ? <img src="/figma/source/photo-next.svg" alt="" aria-hidden="true" /> : compactControls ? <NucleoIcon name="next" /> : '다음'}</button>
     </div>
   </div>
 }

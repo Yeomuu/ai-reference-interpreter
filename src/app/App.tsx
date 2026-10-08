@@ -252,10 +252,10 @@ function WallTargetEditor({ project, walls, target, selection, onSelectionChange
     <Button type="submit" disabled={!wallId || Boolean(partition && !face)}>벽 구간 적용</Button>
   </form>
 }
-function FilePick({ label, onFile, accept = 'image/png,image/jpeg,image/webp', tone = 'secondary', disabled = false, icon = 'image' }: {
-  label: string, onFile: (file: File) => void, accept?: string, tone?: 'primary' | 'secondary', disabled?: boolean, icon?: NucleoIconName,
+function FilePick({ label, onFile, accept = 'image/png,image/jpeg,image/webp', tone = 'secondary', disabled = false, icon = 'image', sourceIcon }: {
+  label: string, onFile: (file: File) => void, accept?: string, tone?: 'primary' | 'secondary', disabled?: boolean, icon?: NucleoIconName, sourceIcon?: ReactNode,
 }) {
-  return <label className={`button button-${tone} file-pick`} aria-disabled={disabled}><NucleoIcon name={icon} /><span>{label}</span><input type="file" disabled={disabled} accept={accept} onChange={(event) => {
+  return <label className={`button button-${tone} file-pick`} aria-disabled={disabled} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (!disabled && file) onFile(file); }}>{sourceIcon ?? <NucleoIcon name={icon} />}<span>{label}</span><input type="file" disabled={disabled} accept={accept} onChange={(event) => {
     const file = event.target.files?.[0]
     if (file) onFile(file)
     event.target.value = ''
@@ -348,6 +348,7 @@ export default function App() {
   const [undoAction, setUndoAction] = useState<{ projectId: string, revision: number, patch: CommonPatch, label: string, referenceId?: string, structureId?: string } | null>(null)
   const [placementSelection, setPlacementSelection] = useState<'element' | 'structure'>('element')
   const pageTitleRef = useRef<HTMLHeadingElement>(null)
+  const projectLibraryDialog = useRef<HTMLDialogElement>(null)
   const stepNavRef = useRef<HTMLElement>(null)
   const referenceDeleteConfirmRef = useRef<HTMLElement>(null)
   const generationInFlightRef = useRef(false)
@@ -1675,8 +1676,7 @@ export default function App() {
       photos={existing.length ? <SwipeCarousel label="실제 공간 사진" variant="photo" compactControls items={existing.map(image => ({ id: image.id, content: <figure><AssetImage uri={image.uri} alt={image.name} className="space-photo" /><figcaption>{image.name}</figcaption></figure> }))} /> : <Empty>꾸밀 실제 공간의 사진을 추가하세요.</Empty>}
       plan={project.floorPlan ? <PlanCanvas key={`${project.id}-${spaceOutlineEditing}`} quietLabels project={project} mode="keep" onUndo={() => restoreEdit('undo')} onRedo={() => restoreEdit('redo')} canUndo={!!editHistoryRef.current.get(project.id)?.past.length} canRedo={!!editHistoryRef.current.get(project.id)?.future.length} drawTool={spaceOutlineEditing ? 'polygon' : undefined} onDrawPolygon={points => saveSpaceOutline(outlineBounds(points), points)} validationMessage={planEditError} onValidationDismiss={() => setPlanEditError('')} selectedStructureId={selectedStructureId} onStructureSelect={setSelectedStructureId} onStructureLockToggle={id => { const item = project.floorPlan?.structures.find(item => item.id === id); if (item) toggleKeep(item); }} /> : <div className="empty-state"><p>도면을 업로드하거나 실측하지 않은 개략 도면으로 시작하세요.</p>{(['landscape', 'portrait', 'outline'] as const).map(shape => <Button key={shape} onClick={() => commit(updateCommon(project, { floorPlan: newPlan('schematic', undefined, shape) }))}>{shape === 'landscape' ? '가로 개략도' : shape === 'portrait' ? '세로 개략도' : '빈 도면에서 직접 그리기'}</Button>)}</div>}
       sourceActions={fixedScenario ? null : spaceSourceTab === 'photo' ? <FilePick label="사진 추가" disabled={busy} onFile={file => uploadImage(file, 'existing-space')} /> : <FilePick icon="file" label="도면 업로드" disabled={busy} onFile={uploadPlan} />}
-      sourceNote={<>{project.id.startsWith(CAMPUS_PREFIX) ? <><a href={CAMPUS_SOURCE} target="_blank" rel="noopener noreferrer">한국공학대학교 공식 사진</a> · 실측하지 않은 개략 도면입니다.</> : '사진은 기존 공간의 참고 자료이며 배치는 평면도를 기준으로 합니다.'} 사진에서 도면을 자동 생성하지 않습니다.</>}
-      conceptUpload={<FilePick label="분위기 이미지 추가" disabled={busy || countReferenceImages(project) >= MAX_REFERENCE_IMAGES || conceptCount >= STUDY_START.maxConceptImages} onFile={uploadConcept} />}
+      conceptUpload={<FilePick label="클릭 또는 파일 드래그하여 이미지 추가" sourceIcon={<img src="/figma/source/image-upload.svg" alt="" aria-hidden="true" />} disabled={busy || countReferenceImages(project) >= MAX_REFERENCE_IMAGES || conceptCount >= STUDY_START.maxConceptImages} onFile={uploadConcept} />}
       onDeleteConcept={id => commitDeletion(removeReference(project, id), '방향 이미지를 삭제', { referenceId: id })}
       onToggleKeep={toggleKeep} onSelectStructure={setSelectedStructureId}
       onGoal={designGoal => commit(updateCommon(project, { designGoal }))} onNext={() => go('placement')}
@@ -1685,7 +1685,7 @@ export default function App() {
   }
 
   const stepIndex = step === 'projects' ? -1 : STEPS.indexOf(step)
-  return <div className={`app-shell ${step === 'projects' ? 'app-shell--projects app-shell--welcome' : `app-shell--project app-shell--${step}`}`}><header className="app-header"><div className="header-inner"><button className="brand" onClick={() => go('projects')} aria-label="프로젝트 목록으로 이동"><img className="brand-mark" src={step === 'projects' ? '/brand/figma-mark-dark.svg' : '/brand/figma-mark.svg'} alt="" aria-hidden="true" width="30" height="30" /><span><img className="brand-wordmark" src={step === 'projects' ? '/brand/figma-wordmark-dark.svg' : '/brand/figma-wordmark.svg'} alt="ReSpace" /><small>전시·팝업 공간 디자인</small></span></button>
+  return <div className={`app-shell ${step === 'projects' ? 'app-shell--projects app-shell--welcome' : `app-shell--project app-shell--${step}`}`}><header className="app-header"><div className="header-inner"><button className="brand" onClick={() => { if (step === 'projects') projectLibraryDialog.current?.showModal(); else go('projects'); }} aria-label="프로젝트 목록으로 이동"><img className="brand-mark" src={step === 'projects' ? '/brand/figma-mark-dark.svg' : '/brand/figma-mark.svg'} alt="" aria-hidden="true" width="30" height="30" /><span><img className="brand-wordmark" src={step === 'projects' ? '/brand/figma-wordmark-dark.svg' : '/brand/figma-wordmark.svg'} alt="ReSpace" /><small>전시·팝업 공간 디자인</small></span></button>
       {step !== 'projects' &&
         <nav ref={stepNavRef} className="step-nav" aria-label="작업 단계">
           <div className="step-nav-inner">{WORKFLOW.map((group, index) => <button
@@ -1697,11 +1697,11 @@ export default function App() {
             aria-current={workflowIndex(step) === index ? 'step' : undefined}
             onClick={() => go(group.steps[0])}
           >
-            <span className="step-marker"><NucleoIcon name={group.icon} /></span>
-            <span className="step-label">{String(index + 1).padStart(2, '0')} {group.label}</span>
+            <span className="step-marker"><img src={`/figma/source/step-${['file', 'layers', 'images', 'image'][index]}.svg`} alt="" aria-hidden="true" /></span>
+            <span className="step-label">{String(index + 1).padStart(2, '0')}. {group.label}</span>
           </button>)}</div>
         </nav>}
-      <div className="header-right">{saveFailed && <span className={`save-status ${saveFailed ? 'save-status--error' : ''}`} role="status"><NucleoIcon name={saveFailed ? 'warning' : 'check'} />{saveFailed ? '저장 확인 필요' : '이 브라우저에 자동 저장'}</span>}<a className="button button-quiet help-link" href="/guide/index.html" target="_blank" rel="noopener noreferrer" aria-label="사용 가이드 (새 탭)"><NucleoIcon name="info" />사용 가이드</a></div></div></header>
+      <div className="header-right">{saveFailed && <span className={`save-status ${saveFailed ? 'save-status--error' : ''}`} role="status"><NucleoIcon name={saveFailed ? 'warning' : 'check'} />{saveFailed ? '저장 확인 필요' : '이 브라우저에 자동 저장'}</span>}<a className="button button-quiet help-link" href="/guide/index.html" target="_blank" rel="noopener noreferrer" aria-label="사용 가이드 (새 탭)"><img src="/figma/source/guide-info.svg" alt="" aria-hidden="true" />사용 가이드</a></div></div></header>
     <main className={`main-content ${step === 'projects' ? 'project-main' : ''}`}><div className="notification-stack" aria-label="작업 알림">      {error && <TimedNotice lifetimeKey={error} className="alert alert-error" role="alert" closeLabel="오류 닫기" onDismiss={()=>setError('')}><NucleoIcon name="warning" /><strong>확인 필요</strong><span>{error}</span></TimedNotice>}{notice && <TimedNotice lifetimeKey={noticeSerial} className="alert alert-info" closeLabel="알림 닫기" onDismiss={()=>setNotice('')}><NucleoIcon name="info" /><span>{notice}</span></TimedNotice>}
       {undoAction && undoAction.projectId === project.id && <TimedNotice lifetimeKey={undoAction.revision} className="undo-banner" closeLabel="되돌리기 안내 닫기"><span>{undoAction.label}했습니다. 실행 취소로 복구할 수 있습니다.</span><Button onClick={undoDeletion}>삭제 되돌리기</Button></TimedNotice>}
 </div><div className="content-wrap">{step !== 'projects' && <div className="page-intro">
@@ -1709,7 +1709,7 @@ export default function App() {
         {step !== 'space' && <div className="page-intro-right"><div className="page-actions" aria-label="단계 이동"><Button tone="quiet" icon="previous" onClick={()=>go(previousWorkflowStep(step))}>이전 단계</Button>{stepIndex>=0 && workflowIndex(step)<3 && <Button tone="primary" icon="next" iconAfter onClick={()=>go(WORKFLOW[workflowIndex(step)+1].steps[0])}>{project.layoutVersion===2?WORKFLOW[workflowIndex(step)+1].label:NEXT_ACTIONS[step]}</Button>}</div></div>}
       </div>}
       {workflowIndex(step)===3 && <div className="generation-stage-tabs" aria-label="시안 생성 작업">{(['review','results'] as const).map(item=><button key={item} disabled={item==='results'&&!project.results.length} title={item==='results'&&!project.results.length?'시안을 만들면 결과를 확인할 수 있습니다.':undefined} aria-current={step===item?'page':undefined} onClick={()=>go(item)}><NucleoIcon name={item==='review'?'check':'images'} />{item==='review'?'생성 전 확인':'결과 확인·수정'}</button>)}</div>}
-      <div className={`page-workspace page-workspace--${step}`} role="region" aria-label={`${STEP_LABELS[step]} 작업 영역`} onKeyDown={step === 'placement' ? deleteLayoutSelection : undefined}>{step === 'projects' && <WelcomeScreen onPrepare={prepareStudy} onEnter={() => { if (preparedStudyRef.current) open(preparedStudyRef.current); }} library={renderProjects()} />}{step === 'space' && (project.layoutVersion===2?renderSpaceSetup():renderSpace())}{step === 'keep' && renderKeep()}{step === 'references' && (project.layoutVersion===2?renderMapping():renderReferences())}{step === 'placement' && (project.layoutVersion===2?renderLayout():renderPlacement())}{step === 'camera' && renderCamera()}{step === 'review' && renderReview()}{step === 'results' && renderResults()}</div>
+      <div className={`page-workspace page-workspace--${step}`} role="region" aria-label={`${STEP_LABELS[step]} 작업 영역`} onKeyDown={step === 'placement' ? deleteLayoutSelection : undefined}>{step === 'projects' && <WelcomeScreen onPrepare={prepareStudy} onEnter={() => { if (preparedStudyRef.current) open(preparedStudyRef.current); }} library={renderProjects()} libraryDialog={projectLibraryDialog} />}{step === 'space' && (project.layoutVersion===2?renderSpaceSetup():renderSpace())}{step === 'keep' && renderKeep()}{step === 'references' && (project.layoutVersion===2?renderMapping():renderReferences())}{step === 'placement' && (project.layoutVersion===2?renderLayout():renderPlacement())}{step === 'camera' && renderCamera()}{step === 'review' && renderReview()}{step === 'results' && renderResults()}</div>
       {step !== 'projects' && <ExperimentPanel recorder={experiment} project={project} step={step} />}
     </div></main>
 

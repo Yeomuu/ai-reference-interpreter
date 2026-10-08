@@ -1,0 +1,264 @@
+{
+  "fileKey": "J2ZHftzWmLR7OQhpyMFJQA",
+  "sourceFrames": [
+    "175:272",
+    "173:118"
+  ],
+  "assets": [
+    {
+      "path": "public/figma/source/center-bottom.svg",
+      "sourceNodeId": "175:530",
+      "width": "30",
+      "height": "5",
+      "viewBox": "0 0 30 5",
+      "sha256": "d4c4df7dd3d910868e19cece8d53d3a7df4f6227797dc6e7e32f554ce593f1c6",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/center-top.svg",
+      "sourceNodeId": "175:525",
+      "width": "30",
+      "height": "5",
+      "viewBox": "0 0 30 5",
+      "sha256": "90ca04cdb080107964967d1f91140ec674757743c6fa8cda0809ec7bc9fc075e",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/corner-left.svg",
+      "sourceNodeId": "175:505",
+      "width": "18",
+      "height": "18",
+      "viewBox": "0 0 18 18",
+      "sha256": "dbc990846fc85c707e3d82f5abef77fee0965cd37d41564741e6d6d7090ea2ed",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/corner-right.svg",
+      "sourceNodeId": "175:512",
+      "width": "18",
+      "height": "18",
+      "viewBox": "0 0 18 18",
+      "sha256": "ded4d85a5fc1608f422b234b7dbb1b16193df7f5177fdbc814e7b8e84d3305de",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/experiment-record.svg",
+      "sourceNodeId": "175:443",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "1900ab938efb5bba18840126981eeb0c3990a71dec788fb8cb2106056de72635",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/guide-info.svg",
+      "sourceNodeId": "173:201",
+      "width": "24",
+      "height": "24",
+      "viewBox": "0 0 24 24",
+      "sha256": "2f5b825e69f3d332d2ac32e75ae227f75ee6b1c5227c1a50730b70496cb511cc",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/home-glow.svg",
+      "sourceNodeId": "242:1383",
+      "width": "582",
+      "height": "512",
+      "viewBox": "0 0 582 512",
+      "sha256": "54ce1a1fd7005ec7a20b1a74ae927f17f09aa4145e219db04c38644c7a4846a0",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/home-grid.svg",
+      "sourceNodeId": "175:232",
+      "width": "48",
+      "height": "48",
+      "viewBox": "0 0 48 48",
+      "sha256": "ea73dfd7a1201c2cb0f1bad1cbba7c09b0cdf4d3e9d7e067f51d772ecdbab836",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/home-info.svg",
+      "sourceNodeId": "175:276",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "912ded1c790f22b82a79c233f3b26fae10dce41a1155d7d12cf5bd21e0499351",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/image-upload.svg",
+      "sourceNodeId": "188:1117",
+      "width": "23",
+      "height": "25",
+      "viewBox": "0 0 23 25",
+      "sha256": "ece24f3a5e32ecd3aad78eee4209be4f77df967ac3d78d2f8ebc33dd97bb38a4",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/photo-next.svg",
+      "sourceNodeId": "181:554",
+      "width": "18",
+      "height": "18",
+      "viewBox": "0 0 18 18",
+      "sha256": "2181d06ad4cf7ca61ea785ea538af47de83812c78389cc887d280604139ff714",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/photo-previous.svg",
+      "sourceNodeId": "181:557",
+      "width": "18",
+      "height": "18",
+      "viewBox": "0 0 18 18",
+      "sha256": "48a8a6e8328e1e49ea4e04062216956a1ef362894037fb5f56b44882e3cbabbb",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/step-file.svg",
+      "sourceNodeId": "213:346",
+      "width": "24",
+      "height": "24",
+      "viewBox": "0 0 24 24",
+      "sha256": "e92e77b964890dddef20542a9f98e7b1aad793f1e0a07d43d34054072a74d673",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/step-image.svg",
+      "sourceNodeId": "213:361",
+      "width": "24",
+      "height": "24",
+      "viewBox": "0 0 24 24",
+      "sha256": "91c323368f9ac88506ccb1c692a6bad60517140868c5f0535140d0805d19cff7",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/step-images.svg",
+      "sourceNodeId": "213:355",
+      "width": "24",
+      "height": "24",
+      "viewBox": "0 0 24 24",
+      "sha256": "ce826331d68bdcf0ee4e29a8451ac9e09419851da0a8a2c70c1becfdf5b2b273",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/step-layers.svg",
+      "sourceNodeId": "213:350",
+      "width": "24",
+      "height": "24",
+      "viewBox": "0 0 24 24",
+      "sha256": "6cd87a90352fa509e946f74ff3a5fc368145cf8a112e849dc38fd12f42145449",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/structure-back.svg",
+      "sourceNodeId": "188:1190",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "8cef3dd8d7275eba2f73a5ab31a1419898c3e5cf19ce51bc439bbb5d9f53d5b4",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/structure-entrance-wall.svg",
+      "sourceNodeId": "188:1216",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "b8c5c91d1b1f17aca210e8f1df1a5c00c1af69f2b015113ecf329b3431617078",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/structure-entrance.svg",
+      "sourceNodeId": "188:1242",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "e12ffd57970e99546856f4d56940510afe18ef18bb87f0d4a6ebbe1328fc9aa7",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/structure-front.svg",
+      "sourceNodeId": "188:1176",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "ce209b30a9714d8005061808d4f3404aa3973658749f732cc8c283f18d205e5f",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/structure-window.svg",
+      "sourceNodeId": "188:1203",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "27cfc90043fe1fe2580f1975054f005caff76cd3ea30384558a22c3b2cd05cd9",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/tab-photo-inactive.svg",
+      "sourceNodeId": "181:605",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "e338c2612f37fca5646b1afbf808f21ac0fb10462ba8cc46e0e7733942f6105e",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/tab-photo.svg",
+      "sourceNodeId": "181:575",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "dd4965a655e865887d4077a1d8dc0329d7925ef022500f2c1ab745988fa94116",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/tab-plan-active.svg",
+      "sourceNodeId": "181:610",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "8ed994828afa8cd97a23eccac09bf3fdfc467a3691bf104cfa44afb25cc566f3",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/tab-plan.svg",
+      "sourceNodeId": "181:595",
+      "width": "20",
+      "height": "20",
+      "viewBox": "0 0 20 20",
+      "sha256": "6db95b4e8fee497e10685f5779a184b15871023a5b0c2ea47960ba6214389036",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/thumbnail-default-mask.svg",
+      "sourceNodeId": "182:1059",
+      "width": "91",
+      "height": "76",
+      "viewBox": "0 0 91 76",
+      "sha256": "f938dda1f6e1177f253cd819788e5a20e0080838f792dd68f05d4f6c9fab313a",
+      "operation": "native clone export with white mask fill; original boolean geometry unchanged; temporary clone removed"
+    },
+    {
+      "path": "public/figma/source/thumbnail-delete.svg",
+      "sourceNodeId": "182:1065",
+      "width": "15",
+      "height": "15",
+      "viewBox": "0 0 15 15",
+      "sha256": "1cf6f2e7c9075c6213a08cb5d38ac8ebcdd1ed8896aa7542585eb13ba1debb40",
+      "operation": "node.exportAsync(SVG_STRING); node-only transparent export; original paths/colors unchanged"
+    },
+    {
+      "path": "public/figma/source/thumbnail-hover-mask.svg",
+      "sourceNodeId": "182:1069",
+      "width": "91",
+      "height": "76",
+      "viewBox": "0 0 91 76",
+      "sha256": "a83bfff4acb0397533c9c69ab6c7783ab85a387a603dd963ab7afaec6d4c1064",
+      "operation": "native clone export with white mask fill; original boolean geometry unchanged; temporary clone removed"
+    }
+  ],
+  "originalsModified": false,
+  "originalFramesModified": false,
+  "exportScope": "Exact node, no surrounding frame/background. Root SVG sizes retained."
+}

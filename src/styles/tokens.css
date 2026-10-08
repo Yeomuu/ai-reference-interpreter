@@ -76,6 +76,14 @@
   --space-direction-inset-top:79px; --space-direction-inset-bottom:67px;
   --space-direction-inset-inline:10px; --space-photo-canvas-inset:46px;
   --space-photo-offset-top:126px;
+  --space-type-heading:20px; --space-line-heading:24px;
+  --space-tab-active:var(--lavender-500); --space-tab-inactive:#C4CBCF;
+  --landing-grid-opacity:.6;
+  --space-type-label:16px; --space-line-label:24px;
+  --space-type-goal:14px; --space-type-help:10px; --space-line-help:12px;
+  --space-tabs-height:46px; --space-goal-max-height:188px;
+  --space-registration-corner-offset:-2.5px;
+  --space-registration-center-offset:-2.5px;
   --landing-header-height:76px; --landing-label-gap:12px;
   --landing-input-surface:rgb(243 244 244 / 60%);
   --motion-entry:720ms; --motion-float:6s; --motion-parallax:800ms;

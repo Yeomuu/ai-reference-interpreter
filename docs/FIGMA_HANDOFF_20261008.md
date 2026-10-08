@@ -1,4 +1,17 @@
-# ReSpace 원본 기준 정정 · v1.4.2 · 2026-10-08
+# ReSpace 원본 기준 정정 · v1.4.3 · 2026-10-08
+
+## 이번 사용자 지적 정정 · 최신
+
+이 문서 아래의 v1.4.2 R0 패널 기록은 이전 구현의 기록이며 최신 지시에 맞지 않아 폐기했다. 최신 섹션 216:262와 가이드 219:1462를 v1.4.3으로 갱신했다. 원본 홈 175:272 / STEP 01 173:118 / 도면 182:882 및 원본 hover 컴포넌트는 수정하지 않았다.
+
+- STEP 01 사본 216:315 / 216:457: 방향별 구조 SVG, 원본 업로드 SVG와 문구, 설명, 필수 색, 목표 14/17px, 사진 캡션 20/24px Regular, 사진/도면 탭 y108, provenance 숨김, 6개 원본 Marker clone 복원. 기본 썸네일은 원본 컴포넌트 182:1062의 instance로 교체하여 ON_HOVER→182:1064 전환을 재사용했다.
+- Home 216:263: 원본 안내 아이콘·문구/강조, 원본 광원 242:1383 clone, 추가된 상시 안내 숨김. 원본 일러스트·R40·R8/R12·부유/미세 포인터는 유지.
+- STEP 02 패널 219:546 / 219:645 / 219:751: R8, border0, 원본 shadow. x240/248px, x500/832px, x1344/336px; 12px 간격의 3열 유지. STEP 03 219:861 / 219:896: x240/376px, x628/1052px, R8/12px 간격.
+- STEP 04 패널 219:1066 / 219:1206 / 219:1315 / 219:1333도 동일한 R8/원본 shadow. Dimension의 radius/8 변수로 9개 패널 반경을 연결했다.
+- SVG import는 주변 배경 없는 node.exportAsync(SVG_STRING)로 교체했다. 생성된 SVG 경로를 수동 수정하지 않았다. source hover instance는 270:1383 / 270:1592다. 최신 STEP 01 사본 안의 ‘Corner Marker’/‘Center Marker’ 이름으로 경계 clone을 확인할 수 있다. 세부 source→파일/hash는 FIGMA_SOURCE_ASSETS_20261008.json.
+- 디자인 가이드에서 이전 새 모델 일러스트/연속 R0 표현을 제거하고 원본 이미지·hover/keyboard·SVG·pin·goal fill/max188·전 단계 R8 기준을 기록했다.
+
+웹과 Noto fallback Figma의 글자 폭 차이는 유지된다. 아래 기록은 v1.4.2의 당시 상태이며 최신 근거는 QA_SOURCE_COMPONENTS_20261008.md다.
 
 [최신 섹션](https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA?node-id=216-262) / [가이드](https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA?node-id=219-1462). 페이지 80:2.
 

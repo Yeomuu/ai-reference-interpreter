@@ -1,8 +1,8 @@
 {
   "date": "2026-10-08",
   "baseUrl": "http://127.0.0.1:5174",
-  "baseCommit": "ce681e1",
-  "source": "Local working changes, source restoration v1.4.2; isolated Chrome profile; real browser UI and plan. Status is mocked only in flow captures; no actual generation result pictured, no paid call.",
+  "baseCommit": "ced86af",
+  "source": "Working correction v1.4.3; isolated Chrome profile; native transparent SVG, hover component and R8 panels. API status/mock generation only in QA; no model result pictured, no paid call.",
   "screenshots": [
     {
       "file": "00-home.png",
@@ -11,7 +11,7 @@
         1920,
         1080
       ],
-      "sha256": "9334b966defc902dcf70964c076eeaed2e74aec79c160a0ce84985d2c999a8be"
+      "sha256": "ec6af3d9cd9c02af1a55f7fb7a550906298ade41cd14aaa5b709ba545bf47aad"
     },
     {
       "file": "01-space.png",
@@ -20,7 +20,7 @@
         1920,
         1080
       ],
-      "sha256": "8f9fc4adeca09e1c6d0eb5df5f0c7db8f501aa2ba2c02119d555ee2e08e53d70"
+      "sha256": "4ef11518480b037eb4f1647a23282c3966c219085882d73b24fc33e1e55e716c"
     },
     {
       "file": "02-layout.png",
@@ -29,7 +29,7 @@
         1920,
         1080
       ],
-      "sha256": "fce8c785912097b637ccd95b5b951ef9bebfa69eeac0b8e17651c0cc104aad6f"
+      "sha256": "eeaeb2762015cf47d76a5ec898cdf5bcd65557494b0d8865b15199b962071302"
     },
     {
       "file": "03-references.png",
@@ -38,7 +38,7 @@
         1920,
         1080
       ],
-      "sha256": "8899883382ac747bcf5730db3c4da97573525315ab0794e0984270dea116060d"
+      "sha256": "bf295fe849f58a63aef05cb9d7ad1bde028ebf596ca5a3482e66ccb59feed428"
     },
     {
       "file": "04-generate.png",
@@ -47,7 +47,7 @@
         1920,
         1080
       ],
-      "sha256": "2cf862fda400435c6523699fff5195afafdb79977b0640ff44c6e87469250503"
+      "sha256": "0330f573e39b479d86c8baf8e5a67b31084f446e4173653542a8631a686483c8"
     }
   ]
 }

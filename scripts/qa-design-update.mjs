@@ -18,16 +18,15 @@ try {
   await page.route('**/api/generate', route => { requests.push(route.request().postDataJSON()); return route.fulfill({ json: { imageDataUrl } }); });
   const shot = async name => { await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: `${out}/${name}.png` }); };
   async function checkPanelSurfaces() {
-    const continuousEditor = await page.locator('.layout-editor, .mapping-editor').count() > 0;
     const panels = await page.locator('.layout-panel, .layout-canvas-panel, .space-direction-panel, .workspace-main, .workspace-side, .review-main, .review-side, .result-main, .result-inspector').evaluateAll(nodes => nodes.filter(n => n.getClientRects().length && !n.classList.contains('space-evidence')).map(n => {
       const s = getComputedStyle(n);
       return { name: n.className, radius: s.borderRadius, border: s.borderTopWidth, shadow: s.boxShadow };
     }));
     assert(panels.length > 0);
     for (const panel of panels) {
-      assert.equal(panel.radius, continuousEditor ? '0px' : '8px', panel.name);
+      assert.equal(panel.radius, '8px', panel.name);
       assert.equal(panel.border, '0px', panel.name);
-      assert(continuousEditor ? panel.shadow === 'none' : panel.shadow.includes('0px 0px 8px'), panel.name);
+      assert(panel.shadow.includes('0px 0px 8px'), panel.name);
     }
   }
   async function exportPlan(name) {

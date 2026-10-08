@@ -50,6 +50,62 @@ try {
   await box('.space-baseline-list', { y: 409, h: 161, r: '6px' });
   await box('.space-goal textarea', { y: 644, w: 370, h: 188, r: '8px', background: 'rgba(243, 244, 244, 0.6)' });
   await box('.space-direction-footer .button', { y: 901, w: 162, h: 44, r: '12px' });
+  const type = await page.locator('.space-source-tabs button, .space-direction-section h2, .space-baseline-select, .space-goal textarea, .space-direction-footer .button').evaluateAll(nodes => nodes.map(n => ({ name: n.className, text: n.textContent, size: getComputedStyle(n).fontSize, line: getComputedStyle(n).lineHeight })));
+  for (const text of type) assert.equal(text.size, text.name === 'space-baseline-select' ? '16px' : text.name === '' && !text.text ? '14px' : '20px', JSON.stringify(text));
+  assert.equal(await page.locator('.source-provenance').count(), 0);
+  assert.equal(await page.locator('.workspace-pin').count(), 6);
+  assert.deepEqual(await page.locator('.space-baseline-select > img').evaluateAll(nodes => nodes.map(n => n.getAttribute('src'))), ['structure-front', 'structure-back', 'structure-window', 'structure-entrance-wall', 'structure-entrance'].map(n => `/figma/source/${n}.svg`));
+  const sizes = [];
+  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1864, height: 932 }, { width: 1313, height: 932 }, { width: 1220, height: 672 }]) {
+    await page.setViewportSize(viewport); await page.evaluate(() => document.fonts.ready);
+    const fit = await page.locator('.space-direction-panel').evaluate(e => {
+      const box = e.getBoundingClientRect(), scroll = e.querySelector('.space-direction-scroll');
+      const goal = e.querySelector('textarea').getBoundingClientRect(), next = e.querySelector('.space-direction-footer button').getBoundingClientRect();
+      const controls = [...e.querySelectorAll('button, textarea, .file-pick, h2')].filter(n => n.getClientRects().length && !n.closest('.sr-only')).map(n => { const r = n.getBoundingClientRect(); return { text: n.textContent, top: r.top, bottom: r.bottom }; });
+      return { scrollHeight: scroll.scrollHeight, clientHeight: scroll.clientHeight, goalHeight: goal.height, panelTop: box.top, panelBottom: box.bottom, nextTop: next.top, nextBottom: next.bottom, controls, pageWidth: document.documentElement.scrollWidth };
+    });
+    assert(fit.scrollHeight <= fit.clientHeight + 1, `sidebar overflow ${JSON.stringify({ viewport, fit })}`);
+    assert(fit.goalHeight >= 44 && fit.goalHeight <= 188, `goal fill ${JSON.stringify({ viewport, fit })}`);
+    assert(fit.controls.every(c => c.top >= fit.panelTop && c.bottom <= fit.panelBottom), `clipped content ${JSON.stringify({ viewport, fit })}`);
+    assert(fit.pageWidth <= viewport.width);
+    const deleteButton = page.locator('.space-concept-image > button').first();
+    await page.mouse.move(0, 0); await page.locator('.space-source-tabs button').first().focus();
+    assert.equal(await deleteButton.evaluate(e => getComputedStyle(e).opacity), '0');
+    await page.locator('.space-concept-image').first().hover();
+    assert.equal(await deleteButton.evaluate(e => getComputedStyle(e).opacity), '1');
+    await page.mouse.move(0, 0); await deleteButton.focus();
+    assert.equal(await deleteButton.evaluate(e => getComputedStyle(e).opacity), '1');
+    await page.locator('.space-source-tabs button').first().focus();
+    await page.screenshot({ path: `${out}/space-${viewport.width}x${viewport.height}.png` });
+    sizes.push({ viewport, fit });
+  }
+  actual.responsiveFit = sizes; actual.typography = type;
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const dropConcept = () => page.locator('.space-concept-images .file-pick').evaluate(async node => {
+    const blob = await (await fetch('/sample/campus/projectroom-front.jpg')).blob();
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([blob], '분위기 드롭.jpg', { type: 'image/jpeg' }));
+    node.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+  });
+  for (let count = 2; count <= 4; count++) {
+    if (count === 2) await dropConcept();
+    else await page.locator('.space-concept-images input[type=file]').setInputFiles('public/sample/campus/projectroom-front.jpg');
+    await page.waitForFunction(n => document.querySelectorAll('.space-concept-image').length === n, count);
+  }
+  assert(await page.locator('.space-concept-images input[type=file]').isDisabled());
+  await dropConcept();
+  assert.equal(await page.locator('.space-concept-image').count(), 4);
+  await page.setViewportSize({ width: 1220, height: 672 });
+  const multiFit = await page.locator('.space-direction-scroll').evaluate(e => ({ scroll: e.scrollHeight, height: e.clientHeight, goal: e.querySelector('textarea').getBoundingClientRect().height }));
+  assert(multiFit.scroll <= multiFit.height + 1 && multiFit.goal >= 44, `four concepts overflow ${JSON.stringify(multiFit)}`);
+  await page.locator('.space-concept-image').last().hover();
+  await page.screenshot({ path: `${out}/space-four-concepts-hover.png` });
+  await page.locator('.space-concept-image > button').last().click();
+  await page.waitForFunction(() => document.querySelectorAll('.space-concept-image').length === 3);
+  await page.getByRole('button', { name: '삭제 되돌리기', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.space-concept-image').length === 4);
+  actual.fourConceptImages = { fit: multiFit, deletionUndo: true };
+  await page.setViewportSize({ width: 1920, height: 1080 });
   const clip = await page.locator('.swipe-carousel--notched .is-active .space-photo').evaluate(e => getComputedStyle(e).clipPath);
   assert(clip.includes('A 14.4 14.4'));
   await page.screenshot({ path: `${out}/space.png` });

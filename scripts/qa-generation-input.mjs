@@ -17,7 +17,7 @@ try {
     return route.fulfill({json:{imageDataUrl:'data:image/jpeg;base64,'+fs.readFileSync('public/sample/campus/projectroom-front.jpg').toString('base64')}});
   });
   await page.goto(base);
-  await page.getByRole('button',{name:'저장한 프로젝트·다른 공간',exact:true}).click();
+  await page.getByRole('button',{name:'프로젝트 목록으로 이동',exact:true}).click();
   await page.getByRole('button',{name:'졸업전시 구상 시작',exact:true}).click();
   const id = new URL(page.url()).pathname.split('/')[2];
   await page.locator('.step-nav').getByRole('button',{name:'04 시안 생성',exact:true}).click();

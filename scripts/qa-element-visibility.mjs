@@ -17,6 +17,7 @@ try {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ imageDataUrl: 'data:image/jpeg;base64,' + fs.readFileSync('public/sample/campus/projectroom-front.jpg').toString('base64') }) });
   });
   await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: '프로젝트 목록으로 이동', exact: true }).click();
   await page.getByLabel('프로젝트 이름 필수').fill('사진 업로드 흐름 확인');
   await page.getByRole('button', { name: '프로젝트 만들기', exact: true }).click();
   let id = new URL(page.url()).pathname.split('/')[2];
@@ -28,7 +29,7 @@ try {
   let p = await project();
   assert.equal(p.sourceImages[0].role, 'existing-space');
   assert.equal(p.floorPlan, null);assert.equal(p.elements.length, 0);assert.equal(p.cameras.length, 0);
-  assert.match(await page.locator('.source-provenance').innerText(), /도면을 자동 생성하지 않습니다/);
+  assert.equal(await page.locator('.space-evidence .source-provenance').count(), 0);
   await page.getByRole('button', { name: '평면도', exact: true }).click();
   assert(await page.getByRole('button', { name: '빈 도면에서 직접 그리기', exact: true }).isVisible());
   await page.getByRole('button', { name: '가로 개략도', exact: true }).click();
@@ -39,6 +40,7 @@ try {
 
   // Build an isolated legacy fixture scenario from the existing school sample.
   await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: '프로젝트 목록으로 이동', exact: true }).click();
   await page.getByRole('button', { name: '졸업전시 구상 시작', exact: true }).click();
   id = new URL(page.url()).pathname.split('/')[2];p = await project();
   const ceiling = p.floorPlan.areas.find(a => a.kind === 'ceiling');

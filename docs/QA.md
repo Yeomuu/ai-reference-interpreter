@@ -1,5 +1,9 @@
 # Acceptance test matrix
 
+## 원본 SVG·컴포넌트 상태·전체 R8 · v1.4.3 · 2026-10-08 (최신)
+
+원본 노드 전용 투명 SVG, hover/focus 삭제·복구, Corner/Center Marker, 원본 타이포·문구, STEP 02~04 전체 외곽 R8/원본 shadow를 정정했다. 4개 데스크톱 창 크기와 분위기 4장 상태에서 학교 STEP 01의 scrollbar 없음/goal fill/max188/Next 가시성을 확인했다. 전체 260개 자동 테스트·lint·앱/API TypeScript·production build, 원본 치수·전체 흐름·workspace·일반 프로젝트/legacy 가시성 Chrome 검사 통과. 상세는 QA_SOURCE_COMPONENTS_20261008.md. 아래 R0 등 이전 표현은 역사적 기록이며 현재 기준이 아니다.
+
 ## 원본 기준 화면 정정 · 2026-10-08 (최신)
 
 홈·STEP 01 원본 반경/치수, 수정 가능한 기본값과 저장·재개, 원본 홈 이미지·부유, 작은 패럴랙스, STEP 02/03 편집 판과 보조 정보 정리를 확인했다. 전체 260개 자동 테스트, ESLint, 앱·API TypeScript, production build, 원본 치수 Chrome 검사, 4단계 흐름 및 기존 workspace 회귀 통과. 유료 이미지 호출 0. 시간 제한에 걸린 기존 대형 fixture 한 개만 테스트 제한을 30초로 조정했다. 상세·한계는 QA_SOURCE_20261008.md, Figma 수정 내역은 FIGMA_HANDOFF_20261008.md 참조. 아래 이전 검증은 당시 버전의 기록이다.

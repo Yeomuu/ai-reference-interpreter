@@ -1,5 +1,11 @@
 # ReSpace implementation architecture
 
+## 원본 자산·표현 레이어 정정 · 2026-10-08
+
+public/figma/source/의 SVG 28개는 사용자 원본 노드와 provenance manifest로 대응한다. 26개는 원본 노드의 투명 SVG_STRING export이며 2개는 원본 썸네일 Boolean의 흰 마스크 clone export다. 원본 프레임은 수정하지 않았다. SpaceDirection은 방향별 기본 구조 SVG와 등록 마커, 조건에 따른 썸네일 mask/삭제 노출을 렌더링한다. respace.css/tokens.css는 패널 R8과 원본 치수·색 별칭, goal fill/max188 및 짧은 창 간격을 담당한다. 고정 학교 시나리오 외 일반 공간에는 기존 도면/윤곽/구조 스크롤을 보존한다.
+
+FilePick drop은 기존 업로드 callback을 사용하고 disabled를 확인한다. WelcomeScreen의 dialog ref는 App의 홈 로고와 공유한다. 데이터 구조·마이그레이션·검증·카메라·생성 계약에는 변경이 없다.
+
 ## 원본 화면 복원 · 2026-10-08
 
 WelcomeScreen은 기본값이 있는 프로젝트 이름·공간 유형 state와 수정한 필드 목록을 onPrepare로 전달한다. createStudyProject의 선택적 StudyProjectDetails는 새 프로젝트 제목·유형만 바꾼다. App의 진행 중 기록 재개 분기는 수정한 필드만 updateCommon/saveProject로 저장하여 revision/stale 계약을 따른다. 저장 키·schema·기하학·quota/API는 바꾸지 않는다. qa-source-design.mjs는 실제 브라우저의 원본 치수·반경과 수정 입력/재개/새로고침을 검증한다. 외부 CLI 스킬 폴더는 앱 lint 대상에서 제외한다.
