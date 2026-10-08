@@ -13,9 +13,9 @@ interface Props {
   activeTool?: LayoutKind | string; onItemTool: (kind: LayoutKind | null) => void;
   onStructureTool: (kind: Structure['kind'], role: 'base' | 'partition') => void;
   onAreaTool: (kind: Area['kind']) => void; onSelect: (item: DesignElement) => void;
-  selectedId?: string; inspectorTitle?: string;
+  selectedId?: string; inspectorTitle?: string; footer?: ReactNode;
 }
-export default function LayoutWorkspace({ project, canvas, inspector, tools, activeTool, onItemTool, onStructureTool, onAreaTool, onSelect, selectedId, inspectorTitle = '선택 요소 설정' }: Props) {
+export default function LayoutWorkspace({ project, canvas, inspector, tools, activeTool, onItemTool, onStructureTool, onAreaTool, onSelect, selectedId, inspectorTitle = '선택 요소 설정', footer }: Props) {
   const count=countLayoutItems(project),limitReached=count>=MAX_LAYOUT_ITEMS;
   return <div className="layout-editor">
     <aside className="layout-panel"><div className="panel-heading"><h2><NucleoIcon name="layers" />레이아웃 도구</h2><span className="tool-count" aria-label={`배치 요소 ${count} / ${MAX_LAYOUT_ITEMS}`} role="status">배치 요소 {count} / {MAX_LAYOUT_ITEMS}</span></div>
@@ -29,6 +29,6 @@ export default function LayoutWorkspace({ project, canvas, inspector, tools, act
       </div>
     </aside>
     <section className="layout-canvas-panel">{canvas}</section>
-    <aside className="layout-panel layout-inspector"><div className="panel-heading"><h2><NucleoIcon name="edit" />{inspectorTitle}</h2></div><div className="layout-tool-scroll">{inspector}</div></aside>
+    <aside className="layout-panel layout-inspector"><div className="panel-heading"><h2><NucleoIcon name="edit" />{inspectorTitle}</h2></div><div className="layout-tool-scroll">{inspector}</div>{footer}</aside>
   </div>;
 }

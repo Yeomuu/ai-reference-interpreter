@@ -1,4 +1,5 @@
-// Compare the supplied 1920×1080 Figma geometry with actual browser rendering.
+// Compare retained source geometry and the user-approved v1.4.5 web typography.
+// Text-flow offsets below follow the explicit 2026-10-08 readability override.
 // Isolated profile; no generation requests or production data changes.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -10,11 +11,13 @@ const out = process.env.QA_SCREENSHOT_DIR || 'qa-screens/source-20261008/geometr
 const browser = await chromium.launch({ headless: true, args: ['--no-proxy-server'], ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) });
 await mkdir(out, { recursive: true });
 try {
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce' });
   const errors = [], actual = {};
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/generate', route => route.abort());
-  await page.goto(base); await page.evaluate(() => document.fonts.ready);
+  await page.goto(base);
+  await page.waitForFunction(() => /wf-(active|inactive)/.test(document.documentElement.className), { timeout: 10000 });
+  await page.evaluate(() => document.fonts.ready);
   async function box(selector, expected) {
     const value = await page.locator(selector).first().evaluate(e => {
       const b = e.getBoundingClientRect(), s = getComputedStyle(e);
@@ -27,31 +30,37 @@ try {
     }
   }
   await box('.welcome', { x: 0, y: 0, w: 1920, h: 1080 });
-  await box('.welcome-panel__surface', { x: 920, y: 0, w: 1000, h: 1080, r: '40px 0px 0px 40px', border: '0px' });
+  await box('.welcome-panel__surface', { x: 1077, y: 0, w: 843, h: 1080, r: '40px 0px 0px 40px', border: '0px' });
   await box('.app-header', { h: 76 });
   await box('.brand-mark', { x: 242, y: 14, w: 48, h: 48 });
   await box('.welcome-art__parallax', { x: 240, y: 258, w: 630, h: 473 });
-  await box('.welcome-wordmark', { x: 1077, y: 188, h: 34 });
-  for (const [field, y] of [['project', 351], ['space', 482], ['participant', 617]]) {
-    await box(`.welcome-field--${field} input`, { x: 1077, y, w: 575, h: 62, r: '8px', border: '0px' });
+  await box('.welcome-wordmark', { x: 1163, y: 188, h: 32 });
+  for (const [field, y] of [['project', 349], ['space', 480], ['participant', 615]]) {
+    await box(`.welcome-field--${field} input`, { x: 1161, y, w: 496, h: 62, r: '8px', border: '0px' });
   }
-  await box('.welcome-guidance', { x: 1077, y: 723, w: 575 });
-  await box('.welcome-start', { x: 1052, y: 814, w: 600, h: 80, r: '12px' });
+  await box('.welcome-guidance', { x: 1161, y: 721, w: 516 });
+  await box('.welcome-start', { x: 1139, y: 812, w: 541, h: 80, r: '12px' });
+  const homeType = await page.locator('.welcome-art h1, .welcome-field > span, .welcome-wordmark, .welcome-start').evaluateAll(nodes => nodes.map(n => ({ name: n.className, tag: n.tagName, size: getComputedStyle(n).fontSize })));
+  for (const item of homeType) assert.equal(item.size, item.tag === 'H1' ? '46px' : item.name.includes('wordmark') ? '32px' : '22px');
+  actual.homeTypography = homeType;
   await page.screenshot({ path: `${out}/home.png` });
   await page.getByRole('textbox', { name: '참가자 번호', exact: true }).fill('P03');
   await page.getByRole('button', { name: '프로젝트 시작하기', exact: true }).click();
   await page.waitForURL('**/space');
+  await page.waitForFunction(() => document.querySelector('.space-direction-panel') && document.querySelector('.content-wrap').getBoundingClientRect().x === 242);
   await box('.app-header', { h: 92 });
-  await box('.content-wrap', { x: 240, w: 1440 });
-  // Main/header alignment deliberately shares x=240; source main frame is x=242.
-  await box('.swipe-carousel--notched', { x: 286, y: 218, w: 932, h: 694 });
-  await box('.space-direction-panel', { x: 1274, y: 171, w: 396, h: 792, r: '8px', border: '0px' });
+  await page.evaluate(() => document.fonts.ready);
+  await box('.content-wrap', { x: 242, w: 1440 });
+  await box('.step-nav', { x: 1105, w: 422 });
+  await box('.step-link.is-current .step-marker', { x: 1128, w: 24, h: 24 });
+  await box('.swipe-carousel--notched', { x: 288, y: 218, w: 932, h: 694 });
+  await box('.space-direction-panel', { x: 1276, y: 171, w: 396, h: 792, r: '8px', border: '0px' });
   await box('.space-section-title', { y: 199, h: 24 });
-  await box('.space-baseline-list', { y: 409, h: 161, r: '6px' });
-  await box('.space-goal textarea', { y: 644, w: 370, h: 188, r: '8px', background: 'rgba(243, 244, 244, 0.6)' });
+  await box('.space-baseline-list', { y: 433, h: 161, r: '6px' });
+  await box('.space-goal textarea', { y: 668, w: 370, h: 188, r: '8px', background: 'rgba(243, 244, 244, 0.6)' });
   await box('.space-direction-footer .button', { y: 901, w: 162, h: 44, r: '12px' });
   const type = await page.locator('.space-source-tabs button, .space-direction-section h2, .space-baseline-select, .space-goal textarea, .space-direction-footer .button').evaluateAll(nodes => nodes.map(n => ({ name: n.className, text: n.textContent, size: getComputedStyle(n).fontSize, line: getComputedStyle(n).lineHeight })));
-  for (const text of type) assert.equal(text.size, text.name === 'space-baseline-select' ? '16px' : text.name === '' && !text.text ? '14px' : '20px', JSON.stringify(text));
+  for (const text of type) assert.equal(text.size, text.name === 'space-baseline-select' || (text.name === '' && !text.text) ? '16px' : '18px', JSON.stringify(text));
   assert.equal(await page.locator('.source-provenance').count(), 0);
   assert.equal(await page.locator('.workspace-pin').count(), 6);
   assert.deepEqual(await page.locator('.space-baseline-select > img').evaluateAll(nodes => nodes.map(n => n.getAttribute('src'))), ['structure-front', 'structure-back', 'structure-window', 'structure-entrance-wall', 'structure-entrance'].map(n => `/figma/source/${n}.svg`));
@@ -72,14 +81,20 @@ try {
     await page.mouse.move(0, 0); await page.locator('.space-source-tabs button').first().focus();
     assert.equal(await deleteButton.evaluate(e => getComputedStyle(e).opacity), '0');
     await page.locator('.space-concept-image').first().hover();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.space-concept-image > button')).opacity === '1');
     assert.equal(await deleteButton.evaluate(e => getComputedStyle(e).opacity), '1');
     await page.mouse.move(0, 0); await deleteButton.focus();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.space-concept-image > button')).opacity === '1');
     assert.equal(await deleteButton.evaluate(e => getComputedStyle(e).opacity), '1');
     await page.locator('.space-source-tabs button').first().focus();
     await page.screenshot({ path: `${out}/space-${viewport.width}x${viewport.height}.png` });
     sizes.push({ viewport, fit });
   }
   actual.responsiveFit = sizes; actual.typography = type;
+  const sourceText = await page.locator('.step-link.is-current .step-label, .space-evidence__content .swipe-carousel__count').evaluateAll(nodes => nodes.map(n => ({ className: n.className, size: getComputedStyle(n).fontSize, weight: getComputedStyle(n).fontWeight, family: getComputedStyle(n).fontFamily })));
+  assert.equal(sourceText[0].size,'18px'); assert.equal(sourceText[0].weight,'500'); assert(sourceText[0].family.startsWith('Paperlogy'));
+  assert.equal(sourceText[1].size,'16px'); assert.equal(sourceText[1].weight,'500');
+  actual.sourceText = sourceText;
   await page.setViewportSize({ width: 1920, height: 1080 });
   const dropConcept = () => page.locator('.space-concept-images .file-pick').evaluate(async node => {
     const blob = await (await fetch('/sample/campus/projectroom-front.jpg')).blob();
@@ -106,6 +121,7 @@ try {
   assert(Math.abs(thumbnailFit.ratio - 93 / 79) < .01);
   assert.equal(thumbnailFit.imageGap, 3);
   await page.screenshot({ path: `${out}/space-four-concepts-hover.png` });
+  await page.locator('.space-concept-image').last().hover();
   await page.locator('.space-concept-image > button').last().click();
   await page.waitForFunction(() => document.querySelectorAll('.space-concept-image').length === 3);
   await page.getByRole('button', { name: '삭제 되돌리기', exact: true }).click();

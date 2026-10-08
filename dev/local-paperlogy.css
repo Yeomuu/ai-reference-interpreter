@@ -1,6 +1,13 @@
 /* Optional local font preview. This stylesheet is loaded only by the dev server. */
 @font-face {
   font-family: Paperlogy;
+  src: url('/Paperlogy/Paperlogy-8ExtraBold.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: Paperlogy;
   src: url('/Paperlogy/Paperlogy-4Regular.ttf') format('truetype');
   font-style: normal;
   font-weight: 400;

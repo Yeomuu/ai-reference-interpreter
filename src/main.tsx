@@ -7,13 +7,6 @@ import './styles/studio.css'
 import './styles/viewport.css'
 import './styles/simplified.css'
 
-if (import.meta.env.DEV) {
-  const localFontStyles = document.createElement('link')
-  localFontStyles.rel = 'stylesheet'
-  localFontStyles.href = '/dev/local-paperlogy.css'
-  document.head.append(localFontStyles)
-}
-
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

@@ -1,5 +1,19 @@
 # Paperlogy 폰트 검증
 
+## 동일한 개발·production 폰트 · 2026-10-08 (최신 사용자 지시)
+
+사용자가 폰트 파일 배포 금지를 철회했다. 제공 Paperlogy 400/500/600/700/800을 public/fonts/paperlogy/로 원본 그대로 복사한다. scripts/sync-paperlogy-fonts.py는 기존 검증 SHA-256과 5개 파일을 모두 대조한 뒤 복사하며 변환·부분 추출·윤곽 변경·다운로드를 하지 않는다. 5개 총 6,546,240bytes이며 public/fonts/Paperlogy-OFL.txt 고지도 빌드에 포함된다. 경로·해시·크기: FONT_ASSETS_20261008.json. 원본 Paperlogy/는 보존한다.
+
+public/fonts/fonts.css가 개발·production 공통 @font-face를 제공한다. src/main.tsx의 개발 전용 link는 제거했다. Wanted Sans Variable, 제공 MemomentKkukkukk 웹 파일과 Adobe 공식 키트 방식은 유지한다. Noto Sans KR은 기존 공식 Google Fonts 공급을 유지한다. 네트워크 기반 Adobe/Noto 공급까지 자체 파일로 바뀌었다고 주장하지 않는다.
+
+진행은 Paperlogy Medium 18px·500, 사진 캡션 18px·400, 사진 순서는 기존 16px·500/800이다. 크기와 검증은 DESIGN_SYSTEM.md 및 QA_TYPOGRAPHY_NAVIGATION_20261008.md를 따른다.
+
+## 실제 원본 역할별 로딩 · 2026-10-08 (이전 기록)
+
+이전 Progress는 22px·500이고 사진 순서는 16px·500/800이었다. 당시 개발 전용 로딩으로 실제 400/500/800 loaded 상태를 확인했다. 개발 전용 및 production fallback 제한은 위 최신 사용자 지시로 폐기되었다.
+
+사진/평면도 탭은 Noto Sans KR 20px·500이다. 공식 Google Fonts CSS `https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;800&display=swap`을 index.html에서 읽고 500 loaded를 확인했다. 임의 font URL을 만들거나 폰트 바이너리를 내려받아 번들링하지 않는다. 근거: [공식 Noto Sans KR OFL](https://github.com/google/fonts/blob/main/ofl/notosanskr/OFL.txt). Wanted Sans/Adobe 공급 방식과 사용자 원본은 유지한다. 이전 단일 웹 UI font 해석은 최신 source-specific 역할에 한해 대체된다.
+
 ## 웹·Figma 최신 글꼴 · 2026-10-07 (아래 이전 UI 정책보다 우선)
 
 사용자 지시에 따라 웹 UI는 작업 폴더에서 제공된 WantedSansVariable.woff2를 사용한다. public/fonts/wanted/OFL.txt에 공식 wanteddev/wanted-sans 저장소의 OFL 고지를 함께 둔다. https://github.com/wanteddev/wanted-sans/blob/main/OFL.txt . SHA-256: `4259e7e9a172e634c2cb419d793b84148990316341e910443e5d10965b2c8f16`.
@@ -24,6 +38,6 @@ Figma 도구에서 위 글꼴을 사용할 수 없어 사용자의 최신 승인
 | `Paperlogy-8ExtraBold.ttf` | `FB0324F8AC057E50F4F4632331617E347BFE5A04184F7B0DB514BE682FB6B25C` |
 | `Paperlogy-9Black.ttf` | `9A2149095D72AE268ABB3ACF6A3A6AB4ADCAE8C0EBB98999BD2D607F22149BC0` |
 
-화면에는 400, 500, 600, 700 굵기만 포함합니다. 제작자 [공식 안내](https://freesentation.blog/paperlogyfont)는 Paperlogy v1.001을 SIL OFL로 배포합니다. 제작자 저장소의 [라이선스 전문](https://github.com/Freesentation/paperlogy/blob/main/OFL%20license.txt)을 `public/fonts/Paperlogy-OFL.txt`에 포함했습니다.
+화면에는 400, 500, 600, 700, 800 굵기를 포함합니다. 제작자 [공식 안내](https://freesentation.blog/paperlogyfont)는 Paperlogy v1.001을 SIL OFL로 배포합니다. 제작자 저장소의 [라이선스 전문](https://github.com/Freesentation/paperlogy/blob/main/OFL%20license.txt)을 `public/fonts/Paperlogy-OFL.txt`에 포함했습니다.
 
-개발 화면은 사용자 작업 폴더의 `Paperlogy/`를 루트 경로에서 읽습니다. `dev/local-paperlogy.css`는 개발 서버에서만 불러오므로 프로덕션 빌드가 TTF를 복사하거나 없는 폰트를 요청하지 않습니다. `Paperlogy/`는 버전 관리에서 제외합니다. 배포 화면은 문서화된 `Noto Sans KR`, 시스템 산세리프 순으로 대체됩니다. 폰트 파일을 포함하는 별도 배포는 라이선스 고지와 함께 소유자가 결정해야 합니다.
+개발과 배포는 모두 public/fonts/의 같은 제공 폰트를 읽습니다. 원본 `Paperlogy/`는 버전 관리에서 제외하지만 검증된 배포 사본은 public/fonts/paperlogy/에 포함합니다. 소유자는 최신 사용자 지시에서 이를 명시적으로 승인했습니다.

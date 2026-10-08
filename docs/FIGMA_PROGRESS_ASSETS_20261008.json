@@ -1,0 +1,76 @@
+{
+  "fileKey": "J2ZHftzWmLR7OQhpyMFJQA",
+  "componentNode": "164:702",
+  "assets": [
+    {
+      "path": "public/figma/progress/space-current.svg",
+      "sourceNodeId": "275:2141",
+      "sourceUrl": "http://localhost:3845/assets/02a761088a92cb7babb0338762b6c56841199948.svg",
+      "sha256": "73583648a2f8fdce80b7a7eef91b98005811a550571914d9f09f33f625f13c4e",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/space-before.svg",
+      "sourceNodeId": "275:2047",
+      "sourceUrl": "http://localhost:3845/assets/a6ea9eef89b6c9ef32f85c10c4a70a0680160390.svg",
+      "sha256": "17b8717697e05cd34c6551992611c704eaf724b4f57e61e2561f0bb52d81ec1c",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/layout-upcoming.svg",
+      "sourceNodeId": "275:1979",
+      "sourceUrl": "http://localhost:3845/assets/d3f0b50a39954814190378325e162c2ce4d8f8c0.svg",
+      "sha256": "eb50e2ac7db622a08b8772ea66029c41dd117b6a43c5a2e94ec814f48ce1bdd6",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/layout-current.svg",
+      "sourceNodeId": "275:2036",
+      "sourceUrl": "http://localhost:3845/assets/d036d5db97a4c43e2c7abbd34f36c5ea55862099.svg",
+      "sha256": "aef6bb53d3e0aed43cdd74c830f56f4a1399b26569653364681919676a6b9aca",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/layout-before.svg",
+      "sourceNodeId": "275:1968",
+      "sourceUrl": "http://localhost:3845/assets/74087c042c348a1be335fc312183d5eeed20ed8b.svg",
+      "sha256": "0b672aca80844a3b63504d93de5b6017162331bda185c30296bcb3a9425c7205",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/reference-upcoming.svg",
+      "sourceNodeId": "275:2199",
+      "sourceUrl": "http://localhost:3845/assets/cc01778d492b05801ade70e7ee5c396bcc6d8a29.svg",
+      "sha256": "f209ed2c9f8567929378209220f719c8b6877016bde3a26458045353574359f4",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/reference-current.svg",
+      "sourceNodeId": "275:2281",
+      "sourceUrl": "http://localhost:3845/assets/8178716f21c319e8ac674d2bf14e84e3a96cb550.svg",
+      "sha256": "c4836bd307c6b034771265113ec864b72b3636a13a33022a988f91fb302b8701",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/reference-before.svg",
+      "sourceNodeId": "275:2298",
+      "sourceUrl": "http://localhost:3845/assets/3961ea6d88f1a4d8b27fff5f80ea20db4e9849cf.svg",
+      "sha256": "8785ac67dac96fbfd1186a015a456cf096015211961a326146db5502b2cf9c1d",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/image-upcoming.svg",
+      "sourceNodeId": "I222:1283;213:362",
+      "sourceUrl": "http://localhost:3845/assets/97c742293ae44763e360dcfb5fe1b0ea098a6b1c.svg",
+      "sha256": "b229109a7e254f6d66f15a5eaa0ab31b43f11b9fed9a43f625fbfcb3811d5f17",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    },
+    {
+      "path": "public/figma/progress/image-current.svg",
+      "sourceNodeId": "I222:1343;213:362",
+      "sourceUrl": "http://localhost:3845/assets/06ef33a78f22613889e887803750340d06e77854.svg",
+      "sha256": "dc66d4ae0ed7bb2e6795aa8480ea211de32a36fd820274b6fb63c0cfde9cef16",
+      "operation": "Read-only get_design_context asset GET; unchanged SVG bytes"
+    }
+  ]
+}

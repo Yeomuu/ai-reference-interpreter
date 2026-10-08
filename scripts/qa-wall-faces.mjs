@@ -13,6 +13,7 @@ try {
   await page.route('**/api/status', r => r.fulfill({ json: { available: false, message: 'QA 샘플 검사' } }));
   await page.route('**/api/generate', r => { paidRequests++; return r.abort(); });
   await page.goto(base);
+  await page.getByRole('button', { name: '프로젝트 목록으로 이동', exact: true }).click();
   await page.getByRole('button', { name: '졸업전시 구상 시작', exact: true }).click();
   const id = new URL(page.url()).pathname.split('/')[2];
   const project = () => page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key)).projects.find(p => p.id === id), { key, id });

@@ -14,6 +14,7 @@ try {
   await page.route('**/api/status', route => route.fulfill({ json: { available: false, message: 'QA: 이미지 생성은 호출하지 않습니다.' } }));
   await page.route('**/api/generate', route => { paidRequests++; return route.abort(); });
   await page.goto(base);
+  await page.getByRole('button', { name: '프로젝트 목록으로 이동', exact: true }).click();
   await page.getByRole('button', { name: '졸업전시 구상 시작', exact: true }).click();
   const id = new URL(page.url()).pathname.split('/')[2];
   const project = () => page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key)).projects.find(p => p.id === id), { key, id });
@@ -65,9 +66,11 @@ try {
   await tool('진열 상품'); await click(.3, .3);
   assert.equal(await count('display-product'), 1);
   assert.equal((await project()).elements.find(e => e.kind === 'display-product').target.fixtureElementId, stand.id);
-  // A ceiling light is also above this table. Use the stand border to select its support layer.
+  // The rectangle has rounded corners. Click its painted top edge, not the
+  // transparent corner outside the footprint; a ceiling light must not intercept it.
   const tableHit = page.locator(`[data-element-id="${table.id}"] .plan-element__footprint`);
-  await tableHit.click({ position: { x: 3, y: 3 } });
+  const tableBox = await tableHit.boundingBox();
+  await tableHit.click({ position: { x: tableBox.width / 2, y: 3 } });
   assert.equal(await count('display-product'), 2);
   assert.equal((await project()).elements.filter(e => e.kind === 'display-product').at(-1).target.fixtureElementId, table.id);
   // Product glyphs must not swallow the host selection when adding another product.
@@ -113,7 +116,7 @@ try {
   assert(cameras.some(c => c.name === '수정한 관람 시점'));
   await page.getByRole('button', { name: '이전 단계', exact: true }).click();
   await page.waitForURL('**/review');
-  assert.equal(await page.locator('.step-link.is-current').innerText(), '04 시안 생성');
+  assert.match(await page.locator('.step-link.is-current').innerText(), /04\.?\s*시안 생성/);
   assert.deepEqual((await project()).cameras, cameras);
   await page.goBack(); await page.waitForURL('**/camera');
   await page.goForward(); await page.waitForURL('**/review');

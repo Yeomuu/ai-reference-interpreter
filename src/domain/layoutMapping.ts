@@ -56,7 +56,10 @@ export function unbindReference(project: Project, bindingId: string): Project {
   if (!binding) return project;
   return updateCommon(project, {
     referenceBindings: project.referenceBindings!.filter(item => item.id !== bindingId),
-    elements: project.elements.map(item => binding.layoutItemIds.includes(item.id) ? { ...item, origin: item.origin === 'mapping-condition' ? 'mapping-condition' : 'layout', sourceReferenceId: '', sourceRegion: undefined } : item),
+    // Projected appearance exists only because of this binding. Independent
+    // furniture/attachments retain their geometry when the source is removed.
+    elements: project.elements.flatMap(item => !binding.layoutItemIds.includes(item.id) ? [item]
+      : item.origin === 'mapping-condition' ? [] : [{ ...item, origin: 'layout' as const, sourceReferenceId: '', sourceRegion: undefined }]),
   });
 }
 

@@ -17,7 +17,7 @@ interface Props {
   referenceId: string; onReference: (id: string) => void; region: Rect | null; onRegion: (region: Rect | null) => void;
   onApply: () => void; onUnbind: (id: string) => void; onBindingScope: (id: string, scope: Scope) => boolean;
   onDelete: (id: string) => void; onWholeSpace: () => void;
-  scope: Scope; onScope: (value: Scope) => void;
+  scope: Scope; onScope: (value: Scope) => void; footer?: ReactNode;
 }
 export default function MappingWorkspace(props: Props) {
   const { project, canvas, upload, selectedIds, referenceId, onReference, region, onRegion } = props;
@@ -81,5 +81,5 @@ export default function MappingWorkspace(props: Props) {
       <p className="muted small">{!image ? '먼저 레퍼런스를 등록하세요.' : crop && !region ? '이미지에서 필요한 부분을 먼저 선택하세요.' : !selectedIds.length ? '도면에서 대상을 고른 뒤 적용하세요. 이미지나 선택한 부분을 대상에 끌어 놓아도 됩니다.' : '선택한 내용만 연결합니다. 이미지나 선택한 부분을 대상에 끌어 놓아도 됩니다.'}</p>
     </div>}
     <dialog ref={library} className="reference-library" aria-labelledby="reference-library-title" onClick={event => { if (event.target === event.currentTarget) library.current?.close(); }}><div className="group-heading"><h2 id="reference-library-title">등록한 레퍼런스 · {sources.length}장</h2><button className="button button-quiet" aria-label="레퍼런스 전체 보기 닫기" onClick={() => library.current?.close()}><NucleoIcon name="close" /></button></div><div className="reference-library-grid">{sources.map(({ reference: item, source }) => <button key={item.id} aria-pressed={referenceId === item.id} onClick={() => { choose(item.id); library.current?.close(); }}><AssetImage uri={source.uri} alt="" /><span>{source.name}</span></button>)}</div></dialog>
-  </aside><section className="layout-canvas-panel"><div className="mapping-selection-bar"><strong><NucleoIcon name="check" />{selectedIds.length ? selectedIds.length + '개 선택됨' : '적용할 요소를 선택하세요'}</strong><label><input type="checkbox" checked={props.multi} onChange={event => props.onMulti(event.target.checked)} /><NucleoIcon name="layers" />다중 선택</label><span>Shift로 여러 대상을 선택합니다. 배치 요소는 끌어서 위치를 조정할 수 있습니다.</span></div>{canvas}</section></div>;
+  {props.footer}</aside><section className="layout-canvas-panel"><div className="mapping-selection-bar"><strong><NucleoIcon name="check" />{selectedIds.length ? selectedIds.length + '개 선택됨' : '적용할 요소를 선택하세요'}</strong><label><input type="checkbox" checked={props.multi} onChange={event => props.onMulti(event.target.checked)} /><NucleoIcon name="layers" />다중 선택</label><span>Shift로 여러 대상을 선택합니다. 배치 요소는 끌어서 위치를 조정할 수 있습니다.</span></div>{canvas}</section></div>;
 }

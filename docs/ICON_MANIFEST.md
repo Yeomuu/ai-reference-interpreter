@@ -1,5 +1,18 @@
 # Nucleo 무료 아이콘 목록
 
+## 사용자 최신 Figma 진행 아이콘 · 2026-10-08
+
+사용자가 직접 바꾼 Progress 164:702의 원본을 읽기 전용 asset GET으로 복사했다. Figma 편집/clone/export 쓰기를 하지 않는다. 이 원본 반영은 아래 이전 step-file/layers/images 사용을 대체한다. 새 일반 UI 라이브러리를 추가하거나 사용자 도형을 공식 Nucleo라고 주장하지 않는다. image는 기존 공식 Nucleo 컴포넌트 원본이며 나머지는 사용자 지정 Figma Group이다. 원래 path·stroke·색·SVG 바이트는 그대로 두고 원본 Group inset만 CSS로 배치한다. 세부 노드·해시는 FIGMA_PROGRESS_ASSETS_20261008.json.
+
+| 원본 노드 | 실제 자산 → 의미 | 사용 |
+|---|---|---|
+| 275:2141 / 2047 | space-current/before.svg → WorkflowStepIcon.space | 공간 단계 현재/이전 |
+| 275:1979 / 2036 / 1968 | layout-upcoming/current/before.svg → WorkflowStepIcon.layout | 레이아웃 단계 세 상태 |
+| 275:2199 / 2281 / 2298 | reference-upcoming/current/before.svg → WorkflowStepIcon.reference | 레퍼런스 단계 세 상태 |
+| I222:1283;213:362 / I222:1343;213:362 | image-upcoming/current.svg → WorkflowStepIcon.image | 시안 단계 예정/현재 |
+
+로컬 디렉터리는 public/figma/progress/. 일반 조작에 쓰는 public/icons/nucleo/와 그 라이선스는 유지한다.
+
 2026-10-01 화면 정리: 기존 Camera를 전체 배치 포함 모든 시점 요약에 사용한다. Xmark는 일시 알림·범례·전체 이미지 목록·확인 폼의 닫기, CircleInfo/Plus/Minus는 범례 열기 상태, Pen3는 같은 탭의 연결 내용 수정에 재사용한다. 새 SVG·외부 아이콘 라이브러리는 추가하지 않았다. PlanSymbol/LayoutSymbol은 그대로 유지한다.
 
 2026-09-30 예외: 사용자가 잠금 해제 상태용 SVG 원본을 직접 제공했다. `public/icons/user-provided/open-lock.svg`는 그 원본을 그대로 저장한 자산이며 Nucleo 아이콘으로 표시하거나 이 목록의 무료 패키지에 포함됐다고 주장하지 않는다. 잠긴 상태는 아래의 공식 Nucleo 아이콘을 계속 사용한다.

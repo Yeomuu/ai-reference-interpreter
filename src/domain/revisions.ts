@@ -146,7 +146,9 @@ export function removeReference(project: Project, referenceId: string): Project 
     references,
     sourceImages: references.some((item) => item.imageId === reference.imageId)
       ? project.sourceImages : project.sourceImages.filter((item) => item.id !== reference.imageId),
-    elements: cleanDisplayTargets(project.elements.flatMap(item => item.sourceReferenceId !== referenceId ? [item] : item.layoutKind ? [{ ...item, origin: item.origin === 'mapping-condition' ? 'mapping-condition' as const : 'layout' as const, sourceReferenceId: '', sourceRegion: undefined }] : [])),
+    elements: cleanDisplayTargets(project.elements.flatMap(item => item.sourceReferenceId !== referenceId ? [item]
+      : item.origin === 'mapping-condition' ? []
+      : item.layoutKind ? [{ ...item, origin: 'layout' as const, sourceReferenceId: '', sourceRegion: undefined }] : [])),
     referenceBindings: project.referenceBindings?.filter(item => item.referenceId !== referenceId),
   });
 }

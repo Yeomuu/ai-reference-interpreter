@@ -23,6 +23,12 @@ html { scroll-padding: 0; }
 .notification-stack .alert > .nucleo-icon, .notification-stack .alert > strong { flex: none; }
 .notification-stack .alert > button { margin: 0; }
 .notification-stack .undo-banner > span { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; }
+@media (min-width: 1000px) {
+  .app-shell--project .notification-stack {
+    bottom: calc(var(--control-height-44) + var(--workflow-navigation-height) + var(--space-32));
+    max-height: calc(100% - var(--control-height-44) - var(--workflow-navigation-height) - var(--space-48));
+  }
+}
 
 /* Optional study controls have a fixed summary and an overlaid content panel. */
 .experiment-panel { flex: none; position: static; margin: 0; }

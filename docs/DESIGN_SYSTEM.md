@@ -1,5 +1,35 @@
 # Design system — ReSpace / v1.2
 
+## 사용자 승인 타이포그래피·배포 폰트·패널 내부 이동 · v1.4.5 · 2026-10-08 (최우선)
+
+사용자가 화면 가독성을 기준으로 Figma와 달라도 글자 크기를 조정하도록 명시했다. 이전의 원본 크기 고정과 폰트 파일 handoff 금지는 대체된다. Figma는 편집하지 않는다. 원본 아이콘·색·외곽 비율과 기능을 유지한다.
+
+| 역할 | 크기 / 줄높이 | 적용 |
+|---|---|---|
+| 캡션·상태 | 12 / 18px | 카운터·안내, 기존 10px 안내는 12px |
+| 보조 내용 | 14 / 22px | 덜 중요한 설명·속성명 |
+| 본문·일반 입력·일반 버튼 | 16 / 24–26px | 기존 적절한 16–18px는 유지 |
+| 섹션·패널·탭·진행·이동 버튼 | 18 / 24–29px | 진행 22→18, Step 1 제목·탭·사진 캡션·Next 20→18 |
+| 제목 | 20–22 / 28–32px | 공통 h2 20, 페이지 h1 22 |
+| 홈 폼 제목·시작 버튼 | 22 / 29–35px | 원본 24/28에서 축소, 입력 18 유지 |
+| 홈 브랜드·큰 소개 | 32 / 32, 46 / 73.6px | identity 역할을 유지하며 원본에서 각각 2px 축소 |
+
+Wanted Sans와 제공 임시 fallback은 기존 로컬 웹 자산을 유지한다. Paperlogy 400/500/600/700/800은 검증된 제공 TTF 그대로 public/fonts/paperlogy/에 포함하고 기존 OFL 고지를 함께 배포한다. 개발·production 공통 fonts.css로 읽는다. Adobe 브랜드는 공식 키트를 유지한다. 출처·해시: FONT_PROVENANCE.md, FONT_ASSETS_20261008.json.
+
+모든 단계의 이전·다음은 Step 1처럼 사이드 패널 내부 하단 WorkflowNavigation에 둔다. 패널 내용만 스크롤하고 footer는 패널의 마지막 고정 영역이다. 3단계는 기존 레퍼런스 패널을 오른쪽으로 배치하여 도면이 왼쪽, 패널·이동이 오른쪽이 되게 한다. 모바일은 도면 다음 패널 순서와 작업 영역 스크롤을 사용한다. 사용자가 카메라/이전 프로젝트 inspector를 숨긴 경우에만 외부 하단 이동을 fallback으로 제공한다.
+
+## 로컬 Figma 최신 정합성 · v1.4.4 · 2026-10-08 (이전 기록)
+
+Home 175:272 / Step 1 173:118 및 사용자 실시간 수정 Progress 164:702를 읽기 전용으로 확인해 적용한다. Figma는 편집하지 않는다. 아래 이전 Home x920/575px/600px와 진행 430px/256px 값은 최신 값이 아니다. 현재 홈은 흰 패널 x1077, 입력 496×62, 주 행동 541×80이며 원본 Wanted Sans 48/34/24/18/28px 역할을 유지한다. Step 1 main은 원본 x242(+2), 헤더는 x240이다.
+
+Progress는 422×36, 현재 pill 248×36/R18, Paperlogy Medium 22/26px·500·흰색이다. 이전 단계는 surface-selected/border-selected, 예정 단계와 연결선은 원본 #C4CBCF 별칭이다. 실제 아이콘/상태 10개의 경로·해시는 FIGMA_PROGRESS_ASSETS_20261008.json. 48px 조작 영역과 단계 이동 의미를 유지한다. 사진/평면도 탭은 Noto Sans KR 20px·500, 설명/캡션/순서는 Paperlogy이며 사진 순서는 16px·500/800이다.
+
+Step 2 이후에는 중복된 상단 제목/이전·다음 행을 시각적으로 숨기고 이동을 하단 오른쪽 WorkflowNavigation에 둔다. 접근 가능한 route 제목·헤더 진행·Step 4 기능 탭은 유지한다. 공통 패널 제목은 Step 1 20px·600·24px, 외곽 R8·무테·0 0 8px/중립 4% shadow. 빈 결과 조건 패널에는 장식 프레임을 추가하지 않는다.
+
+999px 이하 editor는 1열로 재배치하고 기존 280px canvas 최소 높이를 사용한다. 도구는 280px 내부 스크롤, 속성은 작업 영역 세로 스크롤로 제공한다. 좁은 헤더에서 22px 진행 글자를 축소하지 않고 가로 스크롤하며 가이드를 유지한다. 원본 흰색 radial wash와 탭의 중립 linear wash만 source 전용 token으로 복구한다. 새 브랜드 색·폰트 크기 스케일·장식/애니메이션은 없다.
+
+이 기록의 개발 전용 Paperlogy 정책은 v1.4.5 사용자 지시로 폐기되었다. 원본 역할별 family를 유지하며 글자 크기와 배포 방식은 위 최신 규칙을 따른다.
+
 ## 원본 SVG·상태·패널 정정 · v1.4.3 · 2026-10-08 (최우선)
 
 홈 175:272 / STEP 01 173:118의 디자인과 실제 텍스트·노드 치수를 기준으로 적용한다. 아래 v1.4.2의 STEP 02/03 R0 해석은 사용자 지시에 맞지 않아 폐기한다. STEP 02~04 외곽 패널은 STEP 01과 같은 R8, 스트로크 없음, 0 0 8px 중립 4% 그림자를 쓴다. STEP 02의 도구–캔버스–설정 3열과 STEP 03의 2열 및 기존 편집 로직을 유지한다. 안쪽 구분 행까지 장식 카드로 만들지 않는다.
@@ -463,28 +493,28 @@ Use shadow to explain layer separation, not prestige.
 
 ### 5.1 Font policy
 
-Local development:
-- Paperlogy 400 / 500 / 600 / 700 from the verified user-provided files described in
-  `FONT_PROVENANCE.md`.
+Development and production:
+- Use the same verified supplied web fonts and license notices described in `FONT_PROVENANCE.md`.
+- Paperlogy 400 / 500 / 600 / 700 / 800 is self-hosted from public/fonts/paperlogy/.
 
-Production fallback:
+Fallback only when the intended font is unavailable:
 1. `Noto Sans KR`
 2. `system-ui`
 3. `sans-serif`
 
 Do not invent a Paperlogy CDN URL.
-Do not silently bundle font binaries into a handoff.
+The user authorizes including the verified supplied font files in production and handoff, with their license notices.
 
 ### 5.2 Type ramp
 
 | Role | Size / line | Weight | Use |
 |---|---:|---:|---|
-| Page title | 28 / 40 | 700 | current step/page title |
+| Page title | 22 / 32 | 700 | current step/page title |
 | Large heading | 22 / 32 | 700 | rare large section title |
 | Panel heading | 18 / 28 | 600–700 | editor/result panel titles |
 | Body | 16 / 26 | 400 | explanatory content |
 | Compact body | 14 / 22 | 400 | editor copy, rows |
-| Label | 14 / 22 | 500 | controls, values, actions |
+| Label | 16 / 24 | 500 | controls, values, actions |
 | Compact label | 12 / 18 | 500 | status/meta label |
 | Caption | 12 / 18 | 400 | provenance, secondary metadata |
 

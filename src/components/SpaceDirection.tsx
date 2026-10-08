@@ -4,6 +4,7 @@ import { isStructureLocked } from '../domain';
 import { BASELINE_STRUCTURE_IDS, STUDY_START } from '../domain/studyStart';
 import AssetImage from './AssetImage';
 import PlanSymbol from './PlanSymbol';
+import WorkflowNavigation from './WorkflowNavigation';
 
 const baselineIcons: Record<string, string> = {
   'campus-front': 'structure-front', 'campus-back': 'structure-back',
@@ -11,10 +12,10 @@ const baselineIcons: Record<string, string> = {
   'campus-door': 'structure-entrance',
 };
 
-export default function SpaceDirection({ project, tab, onTab, photos, plan, sourceActions, outlineControls, conceptUpload, onDeleteConcept, onToggleKeep, onSelectStructure, onGoal, onNext }: {
+export default function SpaceDirection({ project, tab, onTab, photos, plan, sourceActions, outlineControls, planReplacementControls, conceptUpload, onDeleteConcept, onToggleKeep, onSelectStructure, onGoal, onNext }: {
   project: Project; tab: 'photo' | 'plan'; onTab: (tab: 'photo' | 'plan') => void;
   photos: ReactNode; plan: ReactNode; sourceActions: ReactNode;
-  outlineControls: ReactNode; conceptUpload: ReactNode;
+  outlineControls: ReactNode; planReplacementControls?: ReactNode; conceptUpload: ReactNode;
   onDeleteConcept: (id: string) => void; onToggleKeep: (structure: Structure) => void;
   onSelectStructure: (id: string) => void; onGoal: (goal: string) => void; onNext: () => void;
 }) {
@@ -37,9 +38,9 @@ export default function SpaceDirection({ project, tab, onTab, photos, plan, sour
           {structure.preservationRequired ? <span className="space-required" title="위치·형태는 유지하며 호환되는 벽면 장식·조명은 적용할 수 있습니다.">필수</span> : <label className="space-preservation"><span className="sr-only">{structure.name} 필수 보존</span><input type="checkbox" checked={isStructureLocked(project, structure)} onChange={() => onToggleKeep(structure)} aria-label={`${structure.name} 필수 보존`} /></label>}
         </div>)}</div><p className={fixedScenario ? 'sr-only' : 'space-section-help'}>{fixedScenario ? '기본 구조의 위치·형태는 변경할 수 없습니다. ' : '보존한 구조의 위치·형태를 유지합니다. '}호환되는 벽면 장식·조명은 적용할 수 있습니다.</p></section>
         <section className="space-direction-section space-goal"><label className="field"><span>디자인 목표</span><textarea key={`${project.id}-${project.designGoal ?? ''}`} defaultValue={project.designGoal ?? ''} maxLength={STUDY_START.maxDesignGoalLength} placeholder="예: 모두의 작품이 돋보이는 깔끔하고 모던한 전시 공간" onBlur={event => onGoal(event.target.value)} aria-describedby="design-goal-help" /></label><p id="design-goal-help" className={fixedScenario ? 'sr-only' : 'space-section-help'}>원하는 공간을 적어주세요. 시안 생성에 함께 반영됩니다.</p></section>
-        {outlineControls}
+        {planReplacementControls}{outlineControls}
       </div>
-      <div className="space-direction-footer"><button type="button" className="button button-primary" onClick={onNext}>다음으로</button></div>
+      <div className="space-direction-footer"><WorkflowNavigation onNext={onNext} /></div>
     </aside>
   </div>;
 }

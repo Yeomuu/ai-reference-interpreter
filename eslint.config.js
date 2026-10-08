@@ -8,7 +8,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['scripts/qa-*.mjs'],
+    files: ['scripts/qa-*.mjs', 'scripts/read-figma-source.mjs', 'scripts/sync-figma-progress-assets.mjs'],
     // Node harness with browser callbacks in the isolated Playwright page.
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },

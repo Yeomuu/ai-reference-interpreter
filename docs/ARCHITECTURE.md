@@ -1,5 +1,19 @@
 # ReSpace implementation architecture
 
+## 삭제 복구 및 로직 QA · 2026-10-08 (최신)
+
+src/services/deletionUndo.ts는 프로젝트별 마지막 삭제의 CommonPatch를 별도 localStorage 스키마로 보관한다. 복구 기록은 삭제 전 준비하고 프로젝트 저장 실패 시 이전 기록으로 롤백한다. 읽기에서는 프로젝트 ID/commonRevision/허용 patch 필드/복구 Project 스키마를 검증한다. 기록이 없거나 후속 commonRevision이면 복구하지 않는다. 일반 편집 history의 50개 메모리 스택과 분리하며 과거 결과 스냅샷을 덮어쓰지 않는다. layoutMapping/revisions의 연결 해제·삭제는 mapping-condition 제거와 독립 layout 출처 해제를 구분한다. 전체 현행 로직과 실행 범위는 CURRENT_LOGIC_20261008.md 및 QA_LOGIC_20261008.md를 따른다.
+
+## 공통 배포 폰트·사이드바 footer · v1.4.5 · 2026-10-08
+
+public/fonts/fonts.css가 개발·production에 같은 face를 선언한다. main.tsx 개발 전용 link를 제거하고 제공 Paperlogy 5종을 검증된 원본 그대로 포함한다. scripts/sync-paperlogy-fonts.py는 기존 SHA-256/OFL 고지를 검사하고 FONT_ASSETS_20261008.json에 배포 경로·해시를 기록한다.
+
+App의 renderWorkflowFooter는 기존 go/previousWorkflowStep/WORKFLOW를 유지한다. LayoutWorkspace/MappingWorkspace는 footer ReactNode 슬롯을 사이드 패널 마지막에 렌더링한다. Camera/Review/Results와 기존 프로젝트 패널도 같은 footer를 쓴다. 콘텐츠 스크롤과 footer를 분리한다. 사용자가 inspector를 숨길 때만 외부 이동 fallback이 표시된다. 매핑 패널의 오른쪽 재배치는 CSS에 제한되며 저장/API/도메인 모델은 바뀌지 않는다.
+
+## 읽기 전용 정합성 복구 · 2026-10-08
+
+WorkflowNavigation은 Step 1 Next와 이후 하단 이동을 공유하며 App의 기존 go/previousWorkflowStep을 사용한다. WorkflowStepIcon은 읽기 전용 Figma asset의 원래 Group inset을 재현하고 current/before/upcoming SVG를 선택한다. public/figma/progress/와 FIGMA_PROGRESS_ASSETS_20261008.json을 대응하며 일반 NucleoIcon/PlanSymbol/LayoutSymbol과 구분한다. tokens.css/respace.css는 원본 역할별 글꼴·치수와 editor의 작은 화면 1열 재배치를 담당한다. 새 저장 스키마·API·quota·도메인 모델은 없다. 상세 증거와 한계는 QA_FIGMA_ALIGNMENT_20261008.md.
+
 ## 원본 자산·표현 레이어 정정 · 2026-10-08
 
 public/figma/source/의 SVG 28개는 사용자 원본 노드와 provenance manifest로 대응한다. 26개는 원본 노드의 투명 SVG_STRING export이며 2개는 원본 썸네일 Boolean의 흰 마스크 clone export다. 원본 프레임은 수정하지 않았다. SpaceDirection은 방향별 기본 구조 SVG와 등록 마커, 조건에 따른 썸네일 mask/삭제 노출을 렌더링한다. respace.css/tokens.css는 패널 R8과 원본 치수·색 별칭, goal fill/max188 및 짧은 창 간격을 담당한다. 고정 학교 시나리오 외 일반 공간에는 기존 도면/윤곽/구조 스크롤을 보존한다.

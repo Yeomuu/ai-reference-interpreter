@@ -121,6 +121,16 @@ try {
   assert.equal(await page.getByRole('button',{name:'결과 확인·수정',exact:true}).isEnabled(),true);
   await page.waitForFunction(()=>document.querySelector('img.result-image')?.naturalWidth>0);await screenshot('workspace-result-mocked');
   assert.equal((await project()).results.length,1);
+  const exportDownload = page.waitForEvent('download');
+  await page.getByRole('button',{name:'작업 기록 JSON',exact:true}).click();
+  const recordDownload = await exportDownload;
+  const exported = JSON.parse(fs.readFileSync(await recordDownload.path(),'utf8'));
+  assert.equal(exported.schemaVersion,1);
+  assert.equal(exported.project.id,id);
+  assert.deepEqual(exported.project.results[0].conditionsSnapshot,(await project()).results[0].conditionsSnapshot);
+  const imageDownload = page.waitForEvent('download');
+  await page.getByRole('button',{name:'이미지 내보내기',exact:true}).click();
+  assert((await imageDownload).suggestedFilename().endsWith('.jpg'));
   await page.locator('.result-inspector').getByRole('button',{name:'레퍼런스 수정',exact:true}).click();
   await target(stand.id).focus();await page.keyboard.press('ArrowRight');assert((await project()).results[0].stale);
   const snapshot=(await project()).results[0].conditionsSnapshot;assert(Math.abs(snapshot.common.elements.find(e=>e.id===stand.id).target.x-.6)<.001);

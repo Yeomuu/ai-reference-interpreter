@@ -75,7 +75,7 @@
 .layout-panel .panel-heading,.layout-canvas-panel>.panel-heading { padding:var(--space-16); min-height:56px; gap:var(--space-12); }
 .layout-panel h2 { font-size:var(--font-size-panel); }
 .layout-tool-scroll { flex:1; min-height:0; overflow:auto; padding:var(--space-16); overscroll-behavior:contain; }
-.layout-tool-scroll h3 { font-size:var(--font-size-compact); margin:var(--space-20) 0 var(--space-12); }
+.layout-tool-scroll h3 { font-size:var(--font-size-panel); margin:var(--space-20) 0 var(--space-12); }
 .layout-tool-scroll .field { margin:var(--space-12) 0; }
 .layout-tool-scroll .field>input,.layout-tool-scroll .field>select,.layout-tool-scroll .field>textarea { min-width:0; width:100%; }
 .layout-tool-scroll>.button { width:100%; margin:var(--space-4) 0; }

@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-08",
+  "license": "SIL OFL 1.1",
+  "licensePath": "fonts/Paperlogy-OFL.txt",
+  "licenseSha256": "603b2e7ef9effb9037b0b67f0530cacdc05e71a4e569032d7e4d98c2e6763135",
+  "method": "Byte-identical copies of user-supplied verified TTFs; no subsetting or conversion",
+  "fonts": [
+    {
+      "family": "Paperlogy",
+      "weight": 400,
+      "source": "Paperlogy/Paperlogy-4Regular.ttf",
+      "publicPath": "fonts/paperlogy/Paperlogy-4Regular.ttf",
+      "bytes": 1312616,
+      "sha256": "05e1021e3de620dddc97875342e2be1a94c5f8e9b9f792bd16c4c1d0085343b3"
+    },
+    {
+      "family": "Paperlogy",
+      "weight": 500,
+      "source": "Paperlogy/Paperlogy-5Medium.ttf",
+      "publicPath": "fonts/paperlogy/Paperlogy-5Medium.ttf",
+      "bytes": 1311560,
+      "sha256": "f3c97ace885bb7d2a53a73dc71d832fa79988d5f546c2562abbb87aa07492f4b"
+    },
+    {
+      "family": "Paperlogy",
+      "weight": 600,
+      "source": "Paperlogy/Paperlogy-6SemiBold.ttf",
+      "publicPath": "fonts/paperlogy/Paperlogy-6SemiBold.ttf",
+      "bytes": 1309568,
+      "sha256": "ca92034a1c4602a57c55434dfdbf8428a0bb88ac84a99a5effec1a41f0118127"
+    },
+    {
+      "family": "Paperlogy",
+      "weight": 700,
+      "source": "Paperlogy/Paperlogy-7Bold.ttf",
+      "publicPath": "fonts/paperlogy/Paperlogy-7Bold.ttf",
+      "bytes": 1307936,
+      "sha256": "7effb892621474e9c2a9112f482eb87dd25b65a470e5ae5971be5a68d89ad89b"
+    },
+    {
+      "family": "Paperlogy",
+      "weight": 800,
+      "source": "Paperlogy/Paperlogy-8ExtraBold.ttf",
+      "publicPath": "fonts/paperlogy/Paperlogy-8ExtraBold.ttf",
+      "bytes": 1304560,
+      "sha256": "fb0324f8ac057e50f4f4632331617e347bfe5a04184f7b0db514be682fb6b25c"
+    }
+  ]
+}

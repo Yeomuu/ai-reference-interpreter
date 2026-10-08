@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSampleProject } from '../src/data/sample';
-import { migrateLayout, createLayoutItem, bindReference, unbindReference } from '../src/domain/layoutMapping';
+import { migrateLayout, createLayoutItem, bindReference, unbindReference, targetCondition } from '../src/domain/layoutMapping';
 import { createConditionsSnapshot, removeReference, placeElement, updateCommon } from '../src/domain/revisions';
 import { validatePreflight } from '../src/domain/validation';
 import { isProject } from '../src/services/persistence';
@@ -8,6 +8,31 @@ import { buildGenerationPrompt } from '../src/services/generationContract';
 import { assessmentOutput, ExperimentRecorder } from '../src/services/experiment';
 
 describe('layout first compatibility', () => {
+  it.each(['unbind', 'delete'] as const)('%s removes projected wall/space conditions while retaining physical layout, products and history', operation => {
+    const project = migrateLayout(createSampleProject());
+    const stand = { ...createLayoutItem(project, 'stand', 'display'), target: { kind: 'floor-point' as const, x: .5, y: .45, footprint: { width: .05, height: .05 } } };
+    const product = { ...createLayoutItem(project, 'product', 'product'), target: { kind: 'fixture-surface' as const, fixtureElementId: stand.id, offset: { x: .5, y: .5 } } };
+    const conditions = [
+      targetCondition(project, 'wall-condition', { kind: 'wall-segment', wallId: 'wall-south', start: .05, end: .2 }, 'appearance'),
+      targetCondition(project, 'space-condition', { kind: 'whole-space' }, 'appearance'),
+    ];
+    const draft = { ...project, elements: [stand, product, ...conditions], referenceBindings: [] };
+    const mapped = bindReference(draft, project.references[0].id, [stand.id, ...conditions.map(item => item.id)]);
+    expect(mapped.error).toBeUndefined();
+    const snapshot = createConditionsSnapshot(mapped.project, project.cameras[0].id)!;
+    const before = { ...mapped.project, results: [{ ...project.results[0], conditionsSnapshot: snapshot }] };
+    expect(validatePreflight(before).valid).toBe(true);
+    const after = operation === 'unbind' ? unbindReference(before, before.referenceBindings![0].id) : removeReference(before, project.references[0].id);
+    expect(after.elements).toEqual([{ ...stand, sourceRegion: undefined }, product]);
+    expect(after.referenceBindings).toEqual([]);
+    expect(after.floorPlan).toEqual(before.floorPlan);
+    expect(after.keeps).toEqual(before.keeps);
+    expect(after.results[0].conditionsSnapshot).toEqual(snapshot);
+    expect(after.results[0].stale).toBe(true);
+    expect(validatePreflight(after).valid).toBe(true);
+    expect(isProject(after)).toBe(true);
+    expect(after.references.length).toBe(before.references.length - (operation === 'delete' ? 1 : 0));
+  });
   it('preserves IDs, geometry, result snapshots and is idempotent', () => {
     const old=createSampleProject();
     const next=migrateLayout(old);

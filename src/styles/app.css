@@ -1,14 +1,14 @@
 * { box-sizing: border-box; }
 html { color-scheme: light; }
-body { margin: 0; background: var(--surface-workspace); color: var(--text-primary); font-family: var(--font-ui); font-size: 14px; line-height: 1.55; }
+body { margin: 0; background: var(--surface-workspace); color: var(--text-primary); font-family: var(--font-ui); font-size: var(--font-size-body); line-height: 1.55; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 img { display: block; max-width: 100%; }
 h1, h2, h3, p, figure { margin: 0; }
-h1 { font-size: 28px; line-height: 40px; font-weight: 700; letter-spacing: -.025em; }
-h2 { font-size: 18px; line-height: 28px; font-weight: 700; letter-spacing: -.018em; }
-h3 { font-size: 14px; line-height: 22px; font-weight: 700; }
+h1 { font-size: var(--font-size-workspace-title); line-height: 32px; font-weight: 700; letter-spacing: -.025em; }
+h2 { font-size: var(--font-size-title); line-height: 28px; font-weight: 700; letter-spacing: -.018em; }
+h3 { font-size: var(--font-size-panel); line-height: 24px; font-weight: 700; }
 p { line-height: 1.65; }
 :focus:not(:focus-visible) { outline: none; }
 :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -42,7 +42,7 @@ p { line-height: 1.65; }
 .small, .meta, small { font-size: 12px; line-height: 18px; }
 .meta, small { color: var(--text-secondary); }
 .required { color: var(--red-700); font-size: 12px; margin-left: var(--space-4); }
-.button { display: inline-flex; justify-content: center; align-items: center; min-height: var(--control-height-40); padding: 0 var(--space-16); border: 1px solid transparent; border-radius: var(--radius-12); font-size: 14px; line-height: 22px; font-weight: 600; white-space: nowrap; text-decoration: none; transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
+.button { display: inline-flex; justify-content: center; align-items: center; min-height: var(--control-height-40); padding: 0 var(--space-16); border: 1px solid transparent; border-radius: var(--radius-12); font-size: var(--font-size-body); line-height: 22px; font-weight: 600; white-space: nowrap; text-decoration: none; transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
 .button:has(.nucleo-icon), .file-pick:has(.nucleo-icon) { gap: var(--space-8); }
 .nucleo-icon { display: inline-block; width: 20px; height: 20px; flex: none; background-color: currentColor; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
 :is(h1, h2, h3):has(> .nucleo-icon),
@@ -66,7 +66,7 @@ p { line-height: 1.65; }
 .file-pick input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0,0,0,0); }
 .file-pick:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .field { display: flex; flex-direction: column; gap: var(--space-8); min-width: 0; color: var(--text-primary); font-size: 14px; font-weight: 500; }
-.field input:not([type=range]), .field select, .field textarea { width: 100%; min-width: 0; min-height: var(--control-height-40); padding: var(--space-8) var(--space-12); border: 1px solid var(--border-control); border-radius: var(--radius-12); background: var(--surface-subtle); color: var(--text-primary); font-size: 14px; font-weight: 400; }
+.field input:not([type=range]), .field select, .field textarea { width: 100%; min-width: 0; min-height: var(--control-height-40); padding: var(--space-8) var(--space-12); border: 1px solid var(--border-control); border-radius: var(--radius-12); background: var(--surface-subtle); color: var(--text-primary); font-size: var(--font-size-body); font-weight: 400; }
 .field textarea { resize: vertical; line-height: 1.5; }
 .field input:disabled, .field select:disabled, .field textarea:disabled { background: var(--neutral-100); border-color: var(--border-default); color: var(--text-secondary); cursor: not-allowed; }
 .field input[readonly], .field textarea[readonly] { background: var(--surface-base); border-style: dashed; color: var(--text-secondary); }
@@ -105,7 +105,7 @@ p { line-height: 1.65; }
 .project-card-body strong { color: var(--text-primary); font-size: 18px; line-height: 28px; }
 .project-card-top { display: flex; align-items: center; gap: var(--space-12); }
 .project-card-plain { min-height: 96px; }
-.project-monogram { width: 68px; height: 68px; flex: none; display: grid; place-items: center; border-radius: var(--radius-8); background: var(--neutral-100); color: var(--text-secondary); font-size: 28px; font-weight: 600; }
+.project-monogram { width: 68px; height: 68px; flex: none; display: grid; place-items: center; border-radius: var(--radius-8); background: var(--neutral-100); color: var(--text-secondary); font-size: var(--font-size-workspace-title); font-weight: 600; }
 .list-footnote { color: var(--text-secondary); font-size: 12px; margin-top: var(--space-8); }
 .new-project { display: flex; flex-direction: column; gap: var(--space-20); padding: var(--space-32); border: 1px solid var(--border-default); border-radius: var(--radius-16); background: var(--surface-base); box-shadow: var(--shadow-panel); }
 .new-project .eyebrow { margin-bottom: calc(-1 * var(--space-16)); }
