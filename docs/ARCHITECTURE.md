@@ -1,5 +1,9 @@
 # ReSpace implementation architecture
 
+## 원본 화면 복원 · 2026-10-08
+
+WelcomeScreen은 기본값이 있는 프로젝트 이름·공간 유형 state와 수정한 필드 목록을 onPrepare로 전달한다. createStudyProject의 선택적 StudyProjectDetails는 새 프로젝트 제목·유형만 바꾼다. App의 진행 중 기록 재개 분기는 수정한 필드만 updateCommon/saveProject로 저장하여 revision/stale 계약을 따른다. 저장 키·schema·기하학·quota/API는 바꾸지 않는다. qa-source-design.mjs는 실제 브라우저의 원본 치수·반경과 수정 입력/재개/새로고침을 검증한다. 외부 CLI 스킬 폴더는 앱 lint 대상에서 제외한다.
+
 ## 디자인 v1.4 구현 · 2026-10-07
 
 - studyConfig.ts: 새 시작 기본값, 참가자 형식, 기본 구조 5개 ID, 분위기 4장/목표 1000자 한도. generationContract는 가벼운 config만 참조한다.

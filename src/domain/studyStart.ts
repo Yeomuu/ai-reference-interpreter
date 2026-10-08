@@ -10,16 +10,18 @@ const names: Record<string, string> = {
   'campus-right': '출입문이 있는 벽', 'campus-door': '출입문',
 };
 
+export type StudyProjectDetails = { projectName: string; spaceType: string };
+
 /** Applies only to newly started participant projects; never relocks saved projects. */
-export function createStudyProject(id: string): Project {
+export function createStudyProject(id: string, details: StudyProjectDetails = STUDY_START): Project {
   const project = createCampusProject('exhibition');
   const structures = project.floorPlan!.structures.map(structure => ({
     ...structure, name: names[structure.id] ?? structure.name, role: 'base' as const,
     preservationRequired: true, immutable: true, protected: true,
   }));
   return migrateLayout({
-    ...project, id: `${CAMPUS_PREFIX}${id}`, name: STUDY_START.projectName,
-    spaceType: STUDY_START.spaceType, designGoal: '',
+    ...project, id: `${CAMPUS_PREFIX}${id}`, name: details.projectName.trim(),
+    spaceType: details.spaceType.trim(), designGoal: '',
     floorPlan: { ...project.floorPlan!, structures },
     keeps: structures.map(structure => ({
       id: `keep-${structure.id}`, structureId: structure.id, intent: 'preserve',

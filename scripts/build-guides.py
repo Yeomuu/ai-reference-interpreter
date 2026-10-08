@@ -44,7 +44,7 @@ def note(text): return {'type': 'note', 'text': text}
 def table(head, rows): return {'type': 'table', 'head': head, 'rows': rows}
 def steps(items): return {'type': 'steps', 'items': items}
 
-GUIDE_DATE = '2026.10.07'
+GUIDE_DATE = '2026.10.08'
 participant_text = (ROOT / 'docs/USER_GUIDE_CONTENT.json').read_text(encoding='utf-8')
 participant = json.loads(participant_text.replace('{{MAX_LAYOUT}}', str(MAX_LAYOUT)).replace('{{MAX_REFERENCES}}', str(MAX_REFERENCES)))
 

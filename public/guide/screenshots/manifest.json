@@ -1,45 +1,53 @@
 {
-  "capturedAt": "2026-10-06T02:31:32.474Z",
-  "appCommit": "01c8f67",
-  "workingTreeChanges": "2026-10-06 브랜드·팔레트 변경",
-  "source": "http://127.0.0.1:5173",
-  "statusSource": "https://ai-reference-interpreter.vercel.app/api/status",
-  "scenario": "한국공학대학교 프로젝트룸 졸업전시 기본 예시",
-  "profile": "격리된 일회용 브라우저",
-  "generationCalls": 0,
-  "originalImages": "서비스에 포함된 기본 자료만 사용",
-  "captures": [
+  "date": "2026-10-08",
+  "baseUrl": "http://127.0.0.1:5174",
+  "baseCommit": "ce681e1",
+  "source": "Local working changes, source restoration v1.4.2; isolated Chrome profile; real browser UI and plan. Status is mocked only in flow captures; no actual generation result pictured, no paid call.",
+  "screenshots": [
+    {
+      "file": "00-home.png",
+      "route": "/",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "sha256": "9334b966defc902dcf70964c076eeaed2e74aec79c160a0ce84985d2c999a8be"
+    },
     {
       "file": "01-space.png",
-      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/space",
-      "viewport": {
-        "width": 1440,
-        "height": 900
-      }
+      "route": "/projects/{isolated-participant-project}/space",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "sha256": "8f9fc4adeca09e1c6d0eb5df5f0c7db8f501aa2ba2c02119d555ee2e08e53d70"
     },
     {
       "file": "02-layout.png",
-      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/placement",
-      "viewport": {
-        "width": 1440,
-        "height": 900
-      }
+      "route": "/projects/{isolated-participant-project}/placement",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "sha256": "fce8c785912097b637ccd95b5b951ef9bebfa69eeac0b8e17651c0cc104aad6f"
     },
     {
       "file": "03-references.png",
-      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/references",
-      "viewport": {
-        "width": 1440,
-        "height": 900
-      }
+      "route": "/projects/{isolated-participant-project}/references",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "sha256": "8899883382ac747bcf5730db3c4da97573525315ab0794e0984270dea116060d"
     },
     {
       "file": "04-generate.png",
-      "page": "http://127.0.0.1:5173/projects/tuk-projectroom-exhibition/review",
-      "viewport": {
-        "width": 1440,
-        "height": 900
-      }
+      "route": "/projects/{isolated-participant-project}/review",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "sha256": "2cf862fda400435c6523699fff5195afafdb79977b0640ff44c6e87469250503"
     }
   ]
 }

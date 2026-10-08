@@ -69,12 +69,17 @@
   --font-size-workspace-title:24px;
   --font-size-panel:18px; --font-size-body:16px;
   --font-size-compact:14px; --font-size-caption:12px;
-  --landing-dark-ratio:48%; --landing-form-width:600px;
+  --landing-dark-ratio:47.9166666667%; --landing-form-width:600px;
   --landing-input-height:62px; --landing-button-height:80px;
   --landing-form-inset:25px; --landing-art-offset:282px;
-  --space-direction-inset-top:80px; --space-direction-inset-bottom:64px;
-  --motion-entry:720ms; --motion-float:10s; --motion-parallax:800ms;
+  /* Direct measurements from the user-owned Home 175:272 / Step 01 173:118. */
+  --space-direction-inset-top:79px; --space-direction-inset-bottom:67px;
+  --space-direction-inset-inline:10px; --space-photo-canvas-inset:46px;
+  --space-photo-offset-top:126px;
+  --landing-header-height:76px; --landing-label-gap:12px;
+  --landing-input-surface:rgb(243 244 244 / 60%);
+  --motion-entry:720ms; --motion-float:6s; --motion-parallax:800ms;
   --landing-parallax-x:2px; --landing-parallax-y:1.5px;
-  --landing-parallax-rotation:.08deg; --landing-float-distance:2px;
+  --landing-parallax-rotation:.08deg; --landing-float-distance:14px; --landing-float-rotation:.5deg;
   --layout-space-direction-width:416px; --space-direction-width:var(--layout-space-direction-width);
 }

@@ -1,5 +1,9 @@
 # Acceptance test matrix
 
+## 원본 기준 화면 정정 · 2026-10-08 (최신)
+
+홈·STEP 01 원본 반경/치수, 수정 가능한 기본값과 저장·재개, 원본 홈 이미지·부유, 작은 패럴랙스, STEP 02/03 편집 판과 보조 정보 정리를 확인했다. 전체 260개 자동 테스트, ESLint, 앱·API TypeScript, production build, 원본 치수 Chrome 검사, 4단계 흐름 및 기존 workspace 회귀 통과. 유료 이미지 호출 0. 시간 제한에 걸린 기존 대형 fixture 한 개만 테스트 제한을 30초로 조정했다. 상세·한계는 QA_SOURCE_20261008.md, Figma 수정 내역은 FIGMA_HANDOFF_20261008.md 참조. 아래 이전 검증은 당시 버전의 기록이다.
+
 ## 원본 반경·패널 표현·홈·로고 복원 · v1.4.1 · 2026-10-07
 
 전체 30개 파일/259개 자동 테스트, ESLint, 앱·API TypeScript와 production build 통과. 격리 Chrome에서 홈→4단계/반응형/reduced-motion 및 기존 workspace 회귀를 실행했다. 외곽 패널 R8·스트로크 없음·8px 그림자, 검은 전체 배경/흰 R40 프레임, 작은 포인터 이동, 원본 로고 색과 새 홈 독립 이미지를 확인했다. 사용자 시안 생성은 모의 응답으로 검증해 유료 서비스 호출 0회다. 홈 자산은 실제 built-in imagegen 1회로 제작했다. Figma 최신 섹션과 가이드를 v1.4.1로 맞추고 원본을 보존했다. 상세: QA_SURFACE_20261007.md.

@@ -37,6 +37,7 @@ import NucleoIcon from '../components/NucleoIcon'
 import WelcomeScreen from '../components/WelcomeScreen'
 import SpaceDirection from '../components/SpaceDirection'
 import { createStudyProject, STUDY_START } from '../domain/studyStart'
+import type { StudyProjectDetails } from '../domain/studyStart'
 import ReferenceRegionPicker, { validReferenceRegion } from '../components/ReferenceRegionPicker'
 import type { NucleoIconName } from '../components/NucleoIcon'
 import { STEPS, useProjectRoute } from './routes'
@@ -630,18 +631,23 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' })
     window.requestAnimationFrame(() => pageTitleRef.current?.focus({ preventScroll: true }))
   }
-  function prepareStudy(participant: string): boolean {
-    if (!STUDY_START.participantPattern.test(participant)) return false;
+  function prepareStudy(participant: string, details: StudyProjectDetails, edited: (keyof StudyProjectDetails)[]): boolean {
+    if (!STUDY_START.participantPattern.test(participant) || !details.projectName.trim() || !details.spaceType.trim()) return false;
     try {
       if (experiment.getSnapshot().fault) throw new Error(experiment.getSnapshot().fault);
       if (experiment.active) {
         if (experiment.active.participant_id !== participant) throw new Error('다른 참가자의 기록이 진행 중입니다. 저장한 프로젝트에서 기록을 먼저 종료해 주세요.');
         const saved = loadProjects().find(item => item.id === experiment.active?.project_id);
         if (!saved) throw new Error('진행 중인 기록의 프로젝트를 찾지 못했습니다. 실험 기록을 확인해 주세요.');
-        preparedStudyRef.current = saved;
+        const resumed = edited.length ? updateCommon(saved, {
+          ...(edited.includes('projectName') ? { name: details.projectName.trim() } : {}),
+          ...(edited.includes('spaceType') ? { spaceType: details.spaceType.trim() } : {}),
+        }) : saved;
+        if (resumed !== saved) saveProject(resumed);
+        preparedStudyRef.current = resumed;
         return true;
       }
-      const next = createStudyProject(crypto.randomUUID());
+      const next = createStudyProject(crypto.randomUUID(), details);
       saveProject(next);
       experiment.start(participant, STUDY_START.task, next, 'space');
       if (experiment.getSnapshot().fault) throw new Error(experiment.getSnapshot().fault);
@@ -1457,14 +1463,16 @@ export default function App() {
     try {
       for (const image of project.sourceImages.filter((item) => item.role !== 'existing-space')) referencePreparationFor(project, image.id)
     } catch (cause) { referencePreparationError = cause instanceof Error ? cause.message : '레퍼런스 선택 영역을 확인해 주세요.' }
-    const generationBlocker = firstBlockingIssue ? <div className="generation-panel__warning" role="status"><strong>생성 전에 확인할 조건</strong><p>{firstBlockingIssue.message}</p><button type="button" onClick={() => {
+    // The issue list already explains current-view errors; only show a separate
+    // blocker for another selected view so the same warning is not repeated.
+    const generationBlocker = firstBlockingIssue && preflight.valid ? <div className="generation-panel__warning" role="status"><strong>생성 전에 확인할 조건</strong><p>{firstBlockingIssue.message}</p><button type="button" onClick={() => {
       const destination = issueStep(firstBlockingIssue)
       if (destination === 'placement' && firstBlockingIssue.elementId) editElement(firstBlockingIssue.elementId)
       else go(destination)
     }}>해당 항목 수정하기</button></div> : chosenCameraIds.length === 0 ? <p role="status">생성할 시점을 하나 이상 선택해 주세요.</p> : null
     return <div className="review-layout"><div className="review-main"><CameraSummary cameras={project.cameras} selectedId={reviewCamera?.id} onSelect={setSelectedCameraId} onEdit={()=>go('camera')} />
       <section className="review-plan" aria-label="생성 시점 도면"><div className="section-heading"><div><h2><NucleoIcon name="file" />배치와 시점</h2></div></div><p className="muted small">배치한 요소와 선택한 카메라를 함께 확인하세요. 카메라가 바라보는 모습은 시안을 만든 뒤 볼 수 있습니다.</p><PlanCanvas quietLabels project={project} mode="view" showCameraPreview selectedCameraId={reviewCamera?.id} /></section>
-      <section className="review-overview"><h2>이대로 시안을 만들까요?</h2><dl className="review-brief"><div><dt>유지</dt><dd>{project.keeps.map((keep) => project.floorPlan?.structures.find((item) => item.id === keep.structureId)?.name ?? keep.description).join(' · ') || '보존할 구조 없음'}</dd></div><div><dt>제외</dt><dd>{excluded.map((element) => element.label).join(' · ') || '제외한 요소 없음'}</dd></div><div><dt>시점</dt><dd>{reviewCamera ? `${reviewCamera.name} · ${reviewCamera.fovPreset === 'wide' ? '넓은' : reviewCamera.fovPreset === 'narrow' ? '좁은' : '기본'} 화각` : '시점을 지정해 주세요'}</dd></div></dl><div className="condition-synthesis"><strong>시안의 방향</strong><p>{feel ? `분위기는 ‘${feel}’을 의도합니다.` : '분위기 조건을 추가하면 이곳에 함께 정리됩니다.'} {reviewCamera ? `${reviewCamera.name} 시점에서 검토합니다.` : '시점을 지정해 주세요.'}</p><small>입력한 조건을 정리한 설명입니다. 이미지 분석이나 생성 결과 예측은 아닙니다.</small></div></section>
+      <details className="review-overview"><summary>유지 구조·시안 방향 확인</summary><dl className="review-brief"><div><dt>유지</dt><dd>{project.keeps.map((keep) => project.floorPlan?.structures.find((item) => item.id === keep.structureId)?.name ?? keep.description).join(' · ') || '보존할 구조 없음'}</dd></div><div><dt>제외</dt><dd>{excluded.map((element) => element.label).join(' · ') || '제외한 요소 없음'}</dd></div><div><dt>시점</dt><dd>{reviewCamera ? `${reviewCamera.name} · ${reviewCamera.fovPreset === 'wide' ? '넓은' : reviewCamera.fovPreset === 'narrow' ? '좁은' : '기본'} 화각` : '시점을 지정해 주세요'}</dd></div></dl><div className="condition-synthesis"><strong>시안의 방향</strong><p>{feel ? `분위기는 ‘${feel}’을 의도합니다.` : '분위기 조건을 추가하면 이곳에 함께 정리됩니다.'} {reviewCamera ? `${reviewCamera.name} 시점에서 검토합니다.` : '시점을 지정해 주세요.'}</p><small>입력한 조건을 정리한 설명입니다. 이미지 분석이나 생성 결과 예측은 아닙니다.</small></div></details>
       <details className="review-condition-details" open={!preflight.valid || undefined}><summary>세부 조건 확인·수정</summary><div>
       <section className="review-section"><div className="section-heading"><div><p className="eyebrow">01 · 보존</p><h2>유지할 구조</h2></div><Button tone="quiet" icon="edit" onClick={() => go('keep')}>보존 조건 편집</Button></div>{project.keeps.length ? <details className="review-details" open={project.keeps.length <= 3}><summary>보존 구조 {project.keeps.length}개 · 목록 {project.keeps.length <= 3 ? '접기' : '펼쳐서 확인하기'}</summary>{project.keeps.map((keep) => <div className="summary-row" key={keep.id}><span><strong>{project.floorPlan?.structures.find((item) => item.id === keep.structureId)?.name ?? '구조 없음'}</strong><small>{keep.description}</small></span><Badge tone="keep">보존</Badge></div>)}</details> : <Empty>보존할 구조가 등록되지 않았습니다.</Empty>}</section>
       <section className="review-section"><div className="section-heading"><div><p className="eyebrow">02 · 적용</p><h2>디자인 요소와 위치</h2></div><Button tone="quiet" icon="edit" onClick={() => go('references')}>요소 편집</Button></div>{applied.length ? applied.map((element) => <div className="summary-row" key={element.id}><span><strong>{element.label}</strong><small>{sourceFor(project, element.sourceReferenceId)?.name ?? '출처 없음'} · {element.sourceRegion ? '이미지 일부' : '이미지 전체'} · {targetDescription(project, element.target)}</small>{element.conditions && <small>{element.conditions}</small>}</span><Button tone="quiet" icon="edit" onClick={() => editElement(element.id)}>위치 수정</Button></div>) : <Empty>적용할 요소가 없습니다.</Empty>}</section>

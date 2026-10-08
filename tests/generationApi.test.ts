@@ -136,7 +136,7 @@ describe('image generation API boundary', () => {
     expect(values.statusCode).toBe(200);
     expect(generationQuota.reserve).toHaveBeenCalledTimes(1);
     expect(upstream).toHaveBeenCalledTimes(1);
-  });
+  }, 30_000); // Full 20-object geometry/recommendation fixture; independent of provider timeouts.
   it('reports an overlong saved input as 400 without quota reservation or a model call', async () => {
     const input=sampleRequest();
     for(let i=0;i<80;i++) input.project.floorPlan!.areas.push({id:`area-${i}`,name:`분위기 영역 ${i} `+'상세 공간 설명 '.repeat(18),kind:'spatial',bounds:{x:.4,y:.4,width:.02,height:.02}});

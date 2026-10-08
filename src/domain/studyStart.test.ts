@@ -34,6 +34,17 @@ describe('participant start and fixed baseline', () => {
     expect(reshapeStructure(project, 'campus-front', { kind: 'segment', start: { x: .2, y: .2 }, end: { x: .8, y: .2 } }).validation.valid).toBe(false);
     expect(validateStructureOperation(project, 'campus-front', 'remove').valid).toBe(false);
   });
+  it('saves edited default text fields and keeps the same geometry and baseline', () => {
+    const defaults = createStudyProject('one');
+    const custom = createStudyProject('one', { projectName: '  새 전시 프로젝트  ', spaceType: '  미디어 전시 공간  ' });
+    expect(custom.name).toBe('새 전시 프로젝트');
+    expect(custom.spaceType).toBe('미디어 전시 공간');
+    expect(custom.floorPlan).toEqual(defaults.floorPlan);
+    expect(custom.keeps).toEqual(defaults.keeps);
+    const storage = memoryStorage(); vi.stubGlobal('localStorage', storage);
+    saveProject(custom);
+    expect(loadProjects()[0]).toMatchObject({ name: custom.name, spaceType: custom.spaceType });
+  });
   it('permits compatible removable graphics and wall lights on the fixed wall', () => {
     const project = createStudyProject('one');
     for (const kind of ['wall-graphic', 'wall-light'] as const) {

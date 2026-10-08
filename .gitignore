@@ -9,6 +9,7 @@ Paperlogy/
 qa-screens/
 tmp/
 private/
+.agents/
 
 .vercel
 .env*

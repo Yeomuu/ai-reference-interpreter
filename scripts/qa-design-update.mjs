@@ -18,15 +18,16 @@ try {
   await page.route('**/api/generate', route => { requests.push(route.request().postDataJSON()); return route.fulfill({ json: { imageDataUrl } }); });
   const shot = async name => { await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: `${out}/${name}.png` }); };
   async function checkPanelSurfaces() {
+    const continuousEditor = await page.locator('.layout-editor, .mapping-editor').count() > 0;
     const panels = await page.locator('.layout-panel, .layout-canvas-panel, .space-direction-panel, .workspace-main, .workspace-side, .review-main, .review-side, .result-main, .result-inspector').evaluateAll(nodes => nodes.filter(n => n.getClientRects().length && !n.classList.contains('space-evidence')).map(n => {
       const s = getComputedStyle(n);
       return { name: n.className, radius: s.borderRadius, border: s.borderTopWidth, shadow: s.boxShadow };
     }));
     assert(panels.length > 0);
     for (const panel of panels) {
-      assert.equal(panel.radius, '8px', panel.name);
+      assert.equal(panel.radius, continuousEditor ? '0px' : '8px', panel.name);
       assert.equal(panel.border, '0px', panel.name);
-      assert(panel.shadow.includes('0px 0px 8px'), panel.name);
+      assert(continuousEditor ? panel.shadow === 'none' : panel.shadow.includes('0px 0px 8px'), panel.name);
     }
   }
   async function exportPlan(name) {
@@ -45,11 +46,14 @@ try {
   assert.equal(await page.locator('.welcome-panel__surface').evaluate(e => getComputedStyle(e).borderRadius), '40px 0px 0px 40px');
   assert.equal(await page.locator('.brand-wordmark').getAttribute('src'), '/brand/figma-wordmark-dark.svg');
   assert.equal(await page.locator('.brand-wordmark').evaluate(e => getComputedStyle(e).filter), 'none');
-  assert.equal(await page.locator('.welcome-art__image').getAttribute('src'), '/brand/home-exhibition-concept.png');
+  assert.equal(await page.locator('.welcome-art__image').getAttribute('src'), '/brand/home-spatial-collage.png');
   await page.waitForFunction(() => document.querySelector('.welcome-art__image')?.naturalWidth > 0);
   const start = page.getByRole('button', { name: '프로젝트 시작하기', exact: true });
   assert(await start.isDisabled());
-  assert.equal(await page.getByRole('textbox', { name: '프로젝트명', exact: true }).inputValue(), '한국공학대학교 프로젝트룸 · 졸업전시');
+  const projectName = page.getByRole('textbox', { name: '프로젝트 이름', exact: true });
+  const spaceType = page.getByRole('textbox', { name: '공간 유형', exact: true });
+  assert.equal(await projectName.inputValue(), '한국공학대학교 프로젝트룸 · 졸업전시');
+  assert(await projectName.isEditable()); assert(await spaceType.isEditable());
   assert.equal(await page.getByRole('textbox', { name: '공간 유형', exact: true }).inputValue(), '졸업전시 공간');
   await page.mouse.move(700, 400);
   assert.notEqual(await page.locator('.welcome-art__parallax').evaluate(e => e.style.getPropertyValue('--pointer-x')), '0');
@@ -60,15 +64,21 @@ try {
   assert(Math.abs(movement.x) <= 2 && Math.abs(movement.y) <= 1.5);
   assert.equal(movement.maxX.trim(), '2px'); assert.equal(movement.maxY.trim(), '1.5px');
   assert.equal(await page.locator('.welcome-art__image').evaluate(e => getComputedStyle(e).animationName), 'welcome-float');
-  assert.equal(await page.locator('.welcome-art__image').evaluate(e => getComputedStyle(e).animationDuration), '10s');
+  assert.equal(await page.locator('.welcome-art__image').evaluate(e => getComputedStyle(e).animationDuration), '6s');
+  assert.equal(await page.locator('.welcome-art__image').evaluate(e => getComputedStyle(e).getPropertyValue('--landing-float-distance').trim()), '14px');
   const participant = page.getByRole('textbox', { name: '참가자 번호', exact: true });
   await participant.fill('wrong'); assert(await start.isDisabled());
-  await participant.fill('p01'); assert.equal(await participant.inputValue(), 'P01'); assert(await start.isEnabled()); await shot('home-ready');
+  await participant.fill('p01'); assert.equal(await participant.inputValue(), 'P01'); assert(await start.isEnabled());
+  await projectName.fill('   '); assert(await start.isDisabled());
+  const customName = '한국공학대학교 프로젝트룸 · 작품 전시', customType = '졸업작품 전시 공간';
+  await projectName.fill(customName); await spaceType.fill(''); assert(await start.isDisabled());
+  await spaceType.fill(customType); assert(await start.isEnabled()); await shot('home-ready');
   const fonts = await page.evaluate(() => ({ ui: document.fonts.check('500 16px "Wanted Sans Variable"'), loaded: [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family), brand: document.fonts.check('700 34px "timeline-210"') }));
   await start.click(); assert.equal(await page.locator('.welcome').getAttribute('aria-busy'), 'true');
   assert(await page.getByRole('button', { name: '프로젝트 여는 중', exact: true }).isDisabled()); await page.waitForURL('**/space');
   const id = new URL(page.url()).pathname.split('/')[2];
   const project = () => page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key)).projects.find(p => p.id === id), { key, id });
+  assert.equal((await project()).name, customName); assert.equal((await project()).spaceType, customType);
   const sessions = await page.evaluate(() => JSON.parse(localStorage.getItem('ai-reference-interpreter:experiment:v1')).sessions);
   assert.equal(sessions.length, 1); assert.equal(sessions[0].participant_id, 'P01');
   assert.equal((await project()).floorPlan.structures.filter(s => s.preservationRequired).length, 7);
