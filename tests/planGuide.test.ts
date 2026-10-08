@@ -77,6 +77,9 @@ describe('saved plan guide and scoped visual transfer', () => {
     expect(prompt).toContain('Retain ceiling projectors, HVAC, mounted speakers, radiators');
     expect(prompt).toContain('not the number of objects pictured in a reference');
     expect(prompt).toContain('represents ONE installation inside its saved footprint');
+    expect(prompt).toContain('ADDED floor installations: 1');
+    expect(prompt).toContain('Their E keys: E01');
+    expect(prompt).toContain('never the pictured group');
     expect(prompt).toContain('E03');
     expect(prompt).toContain('Transfer this graphic as a removable print/lettering');
   });

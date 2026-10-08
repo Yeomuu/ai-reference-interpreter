@@ -53,7 +53,7 @@ describe('reference source region', () => {
     expect(referencePreparationFor(changed, 'photo-product')).toBeUndefined()
     const prompt = buildGenerationPrompt(changed, 'camera-entrance', images)
     expect(prompt).toContain('Use only its normalized region x 20% to 60%, y 25% to 75%')
-    expect(prompt).toContain('Use the whole reference image for this element.')
+    expect(prompt).toContain('Use the whole reference only to identify this named attribute.')
   })
 
   it('maps different selected parts of one source to named grid panels', () => {
