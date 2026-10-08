@@ -66,7 +66,13 @@ Paperlogy Regular/Medium/SemiBold/Bold/ExtraBold는 Figma에서 확인해 적용
 
 최초 무료 모델 메타데이터 조회는 로컬 키의 HTTP401/invalid_api_key였다. 사용자가 서버 키 갱신을 완료한 뒤 재조회하여 **HTTP200, model id=gpt-image-2**를 확인했다. 두 조회 모두 이미지 생성 호출 0회다. 실제 유료 편집 권한·결제·이미지 품질 또는 Vercel 서버 키가 검증되었다고 해석하지 않는다.
 
-코드 커밋 `62350400b64d66c80e049719db4f05583310707b`는 원격 작업 브랜치에 올라갔고 GitHub의 해당 커밋 Vercel 상태가 success임을 확인했다. 당시 production의 /api/status는 여전히 gpt-image-1-mini/low이므로 작업 브랜치 배포를 운영 반영으로 보고하지 않는다. main 반영은 자동 승인 검토가 공유·배포 영향에 대한 별도 승인 부족을 이유로 거절했으나, 이후 사용자가 **main 반영과 자동 배포를 명시적으로 승인**했다. 승인 후 main 반영·운영 검증을 이어간다.
+코드 커밋 `62350400b64d66c80e049719db4f05583310707b`와 키 재조회 기록 커밋 `1f36a70081cd7937745f75c7eabe66fb26cd481e`를 작업 브랜치에 push했다. main 반영은 자동 승인 검토가 공유·배포 영향에 대한 별도 승인 부족을 이유로 거절했으나, 이후 사용자가 **main 반영과 자동 배포를 명시적으로 승인**하여 main fast-forward·push를 완료했다. 원격 main/작업 브랜치의 동일 SHA와 원격 복구 브랜치9af990e를 확인했다.
+
+Vercel MCP는 이 scope의 목록 권한 오류를 반환했으므로 동일 팀·프로젝트의 기존 로그인된 CLI로 읽기 확인했다. 운영 배포 `dpl_E9N7gV2aw7K87B1yEgPPvGfo8GNA`, main SHA1f36a70, target production, READY, build32초/post-build11초, 운영 alias 연결을 확인했다. GitHub Vercel 상태는 success, 운영 /api/status는 gpt-image-2/high/1536x1024다. 운영 사이트의 공간/배치/레퍼런스/검토를 직접 캡처했다.
+
+운영 실제 생성 POST1회는 6.5초 후 HTTP502(OpenAI 인증·권한의 상위401/403 범주)로 실패했다. 실제 이미지0장이며 자동 재호출하지 않았다. 서비스 한도60→59/QA브라우저20→19와 busy 해제를 확인했다. 예약 기록을 지우거나 환불하지 않았다. 원격 env metadata의 OPENAI_API_KEY(production/preview)는 마지막 수정이 9월로, 새 로컬 키 동기화·재배포 승인을 요청했다. 실제 이미지 품질·OpenAI 과금과 runtime 전체 오류 감시는 아직 검증하지 않았다. 상세 IMAGE_GENERATION_20261008.md.
+
+운영 추가 검사에서 1254×884·1920×1080·390×844의 6상태, 총18개 캡처와 가로 overflow0·JS0·생성POST0을 확인했다. 이후 명시적 Paperlogy load 단계는 NetworkError로 실패했고, 실제 운영 WOFF5개와 TTF의 HTTP404를 확인했다(Wanted/OFL/fonts.css는200). 기존 local production preview의 폰트 성공과 운영 성공을 구분한다. `.vercelignore`의 source Paperlogy 제외를 루트에 한정하고 public/fonts를 명시적 포함으로 수정했다. build/typecheck는 재통과했으며 수정 배포 후 HTTP·해시·glyph 재검증을 진행한다. 현재까지 검토한20분/해당배포 error-level runtime log 검색은0개이며 실패한 HTTP502 요청이 없었다는 뜻은 아니다.
 
 ## 변경 파일 범위
 

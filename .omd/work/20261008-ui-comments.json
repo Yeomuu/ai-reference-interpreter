@@ -60,7 +60,7 @@
   ],
   "unknowns": [
     "Wanted Sans는 Figma available fonts에 없음",
-    "실제 유료 모델 호출은 QA 대상에서 제외"
+    "운영 실제 요청1회 인증·권한 오류, 이미지0장, 자동 재호출 없음"
   ],
   "verification": {
     "routes": [
@@ -96,7 +96,7 @@
   "delivery": {
     "code": "verified",
     "figma": "partial: Education MCP limit, pending icon coordinates saved",
-    "generation": "mocked/local preparation; user updated key; free model metadata retry HTTP 200; no new paid model call",
+    "generation": "local free model metadata HTTP200; production POST1 returned502(auth/permission); image0; quota59/19; remote env sync pending approval",
     "qa": "31 files /272 tests; browser scripts passed"
   }
 }

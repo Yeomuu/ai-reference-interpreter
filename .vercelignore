@@ -3,5 +3,8 @@ private/
 qa-screens/
 output/
 tmp/
-Paperlogy/
+/Paperlogy/
+# Keep the supplied source folder local; serve the verified web assets.
+!public/fonts/
+!public/fonts/**
 .git/

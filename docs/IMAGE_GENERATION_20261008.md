@@ -51,6 +51,7 @@
 - 좌표·E 번호·벽 endpoint·천장 offset의 단위 검사를 추가했다. 전체 31파일 272검사 통과.
 - 실제 Edge 입력 준비: 공간 1600×1200/444,411bytes, crop 1600×1200/365,203bytes, 2-crop grid 1600×800/233,595bytes, 모음 1536²/159,301bytes. 모음 JPEG encoding은 **1회**, JS 오류 0, 모델 POST 0. 가이드 캡처를 직접 확인했다. 파일: `qa-screens/ui-polish-20261008/generation-inputs/`.
 - 최초 로컬 서버 키의 무료 GET /v1/models/gpt-image-2 조회는 HTTP401/invalid_api_key였다. 사용자가 서버 키 갱신 완료를 알린 뒤 동일한 무료 조회를 다시 실행했고 **HTTP200, model id=gpt-image-2**를 확인했다. 키·오류 원문은 출력하지 않았고 키 생성·교체를 대신하지 않았다. 이 성공은 로컬 키의 인증·모델 메타데이터 접근 확인이며 Vercel 키, 유료 이미지 편집 권한·결제·생성 품질을 검증한 것은 아니다. 두 조회 모두 이미지 생성 호출 0회다.
-- 새 모델의 실제 유료 생성은 수행하지 않았다. 유효한 계정 모델 접근·결제·high 지연 시간·실제 이미지 노이즈/기하 일치는 아직 확인하지 못했다. status 연결 성공이나 mock 이미지 수신을 실제 모델 품질 통과로 보고하지 않는다.
+- main 운영 배포 후 별도 Edge QA 프로필에서 실제 생성 POST를 **1회** 실행했다. 기존 공간 사진 444,411bytes·도면 46,244bytes·조명 참고 311,209bytes·전시대 참고 184,500bytes를 전송했으며, 운영 서버는 6.5초 후 HTTP502와 OpenAI 인증/권한(상위 401/403) 범주의 오류를 반환했다. 응답이 상위 401과403을 구분하지 않으므로 원인을 invalid key 또는 모델 권한으로 단정하지 않는다. 서비스 공유 한도는 60→59, 해당 QA 브라우저는20→19로 기록됐고 busy는 해제됐다. 실패 요청의 기록은 초기화하지 않았고 자동 재호출하지 않았다. OpenAI 과금 여부·모델 이미지 품질은 확인하지 않았다.
+- 무료 로컬 인증 진단은 이미지 없이 edits를 요청해 HTTP400/missing_required_parameter(image)였다. 실제 생성 0회이며 이 응답만으로 완전한 이미지 모델 접근 권한을 인증하지 않는다. Vercel CLI의 값이 없는 metadata에서 OPENAI_API_KEY(production/preview)의 마지막 수정이 9월임을 확인했다. 새 로컬 키의 원격 동기화·재배포에 대한 사용자 승인을 요청했다. 키 값은 출력·커밋하지 않았다.
 
 구현: `src/services/generationContract.ts`, `planGuide.ts`, `imageProvider.ts`, `api/generate.ts`. 재현: `scripts/qa-generation-inputs.mjs`, `tests/generationApi.test.ts`, `tests/planGuide.test.ts`.
