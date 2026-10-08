@@ -64,6 +64,7 @@ export interface PlanCanvasProps {
   onElementSelect?: (id: string) => void;
   onElementMove?: (id: string, x: number, y: number) => void;
   onElementRotate?: (id: string, degrees: number) => void;
+  rotationSnapStep?: number;
   onWallElementMove?: (id: string, wallId: string, start: number, end: number) => void;
   onCameraSelect?: (id: string) => void;
   onCameraMove?: (id: string, x: number, y: number) => void;
@@ -172,6 +173,7 @@ export default function PlanCanvas({
   onElementSelect,
   onElementMove,
   onElementRotate,
+  rotationSnapStep,
   onWallElementMove,
   onCameraSelect,
   onCameraMove,
@@ -313,7 +315,7 @@ export default function PlanCanvas({
   const visibleAreas = plan.areas.filter(area => area.kind === 'passage' || showAreas && (areaLayers[area.kind] || area.id === selectedArea?.id || mappingSelectedIds.includes(`area:${area.id}`)));
   const areaLabels = visibleAreas.filter(area => showAreaNames || area.id === selectedArea?.id || mappingSelectedIds.includes(`area:${area.id}`) || hoveredId===`area:${area.id}`);
   const selectedDesignElement = project.elements.find(element => element.id === selectedElementId);
-  const linkableAreaIds = mode === 'place' && onAreaSelect && selectedDesignElement ? new Set(plan.areas.filter(area => targetForArea(selectedDesignElement.kind, area)).map(area => area.id)) : undefined;
+  const linkableAreaIds = mode === 'place' && !areaSelectionMode && onAreaSelect && selectedDesignElement ? new Set(plan.areas.filter(area => targetForArea(selectedDesignElement.kind, area)).map(area => area.id)) : undefined;
   function selectArea(id: string) {
     if (onAreaSelect) onAreaSelect(id);
     else setLocalAreaId(id);
@@ -588,7 +590,9 @@ export default function PlanCanvas({
       if (!drag.center) return;
       const dx = (point.x - drag.center.x) * width;
       const dy = (point.y - drag.center.y) * height;
-      next = { kind: drag.kind, id: drag.id, degrees: normalDegrees(Math.atan2(dy, dx) * 180 / Math.PI) };
+      const degrees = Math.atan2(dy, dx) * 180 / Math.PI;
+      next = { kind: drag.kind, id: drag.id, degrees: normalDegrees(event.shiftKey && drag.kind === 'element-rotate' && rotationSnapStep
+        ? Math.round(degrees / rotationSnapStep) * rotationSnapStep : degrees) };
     }
     previewRef.current = next;
     setPreview(next);
@@ -700,10 +704,13 @@ export default function PlanCanvas({
 
   function handleRotateKeyDown(event: KeyboardEvent<SVGGElement>, owner: 'element' | 'camera', id: string, currentDegrees: number) {
     let next: number;
+    const snapStep = event.shiftKey && owner === 'element' ? rotationSnapStep : undefined;
     if (event.key === 'Home') next = 0;
     else if (event.key === 'End') next = 359;
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next = normalDegrees(currentDegrees - (event.shiftKey ? 15 : 5));
-    else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = normalDegrees(currentDegrees + (event.shiftKey ? 15 : 5));
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next = normalDegrees(snapStep
+      ? (Math.ceil(currentDegrees / snapStep) - 1) * snapStep : currentDegrees - (event.shiftKey ? 15 : 5));
+    else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = normalDegrees(snapStep
+      ? (Math.floor(currentDegrees / snapStep) + 1) * snapStep : currentDegrees + (event.shiftKey ? 15 : 5));
     else return;
     event.preventDefault();
     event.stopPropagation();
@@ -858,6 +865,7 @@ export default function PlanCanvas({
           onPointerDown={(event) => startDrag(event, 'element-rotate', element.id, position)}
           onKeyDown={(event) => handleRotateKeyDown(event, 'element', element.id, target.rotationDegrees ?? 0)}
           onClick={(event) => event.stopPropagation()}>
+          {rotationSnapStep && <title>Shift를 누르면 {rotationSnapStep}° 단위로 회전합니다.</title>}
           <line x1={x} y1={y} x2={handleX} y2={handleY} />
           <rect x={handleX - 22} y={handleY - 12} width={44} height={24} rx={12} />
           <text x={handleX} y={handleY + 4} textAnchor="middle">회전</text>
