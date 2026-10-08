@@ -80,6 +80,8 @@ describe('saved plan guide and scoped visual transfer', () => {
     expect(prompt).toContain('ADDED floor installations: 1');
     expect(prompt).toContain('Their E keys: E01');
     expect(prompt).toContain('never the pictured group');
+    expect(prompt).toContain('Do not add new fixtures, track rails, strips, coves or ceiling recesses');
+    expect(prompt).toContain('New physical light fixtures require separately saved ceiling-light, wall-light or standing-light elements');
     expect(prompt).toContain('E03');
     expect(prompt).toContain('Transfer this graphic as a removable print/lettering');
   });
