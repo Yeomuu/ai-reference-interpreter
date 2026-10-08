@@ -77,4 +77,9 @@ Latest visual source: Figma active v1.3 section `125:2` and Design System v1.2. 
 - Include the supplied web fonts in production; the earlier font-binary handoff prohibition is removed. Keep licensing and provenance records.
 - The user now authorizes readable web typography over exact Figma text sizes: captions 12px, secondary content 14px, body 16px, category/progress labels 18px, titles 20–22px. Preserve appropriate existing 16–18px text. Reduce the home display copy and wordmark modestly while keeping their identity roles.
 - Keep step navigation inside the side panel at its bottom, like Step 1. Place the reference panel on the right so navigation remains in the right side panel throughout the workflow. Keep a visible navigation fallback when a legacy inspector is explicitly hidden.
-- Do not edit Figma. Keep source icons, colors, functionality and user data; verify development and production font loading, rendered typography and panel navigation.
+- Keep source icons, colors, functionality and user data; verify development and production font loading, rendered typography and panel navigation. The latest explicit user instruction permits syncing only the final-design section `216:262` to current code, including available fonts. Other sections and original design-system components remain read-only. Preserve recovery copies before replacing synced content.
+
+## User-directed UI comments and image generation update · 2026-10-08
+- Apply the 17 browser comments through existing shared components. Keep plan geometry, typed anchors, preservation, history, undo, navigation and quota contracts. Review generation belongs in the pinned sidebar footer; result tabs remain disabled before a result exists.
+- Use `gpt-image-2` for explicit image edits, high quality, 1536×1024, one image per reserved request. Omit unsupported `input_fidelity`. Read the server key only; never expose it or require participant credentials.
+- Match element keys and saved coordinates across text and guide. Never claim calibrated 3D projection, guaranteed noise-free output or verified spatial fidelity without inspecting an actual generated result.

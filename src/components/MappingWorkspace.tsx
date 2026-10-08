@@ -1,3 +1,4 @@
+import WorkspaceRegistration from './WorkspaceRegistration';
 import { useRef, useState } from 'react';
 import type { DragEvent, ReactNode } from 'react';
 import type { Project, Rect, ReferenceBinding } from '../domain/types';
@@ -42,7 +43,7 @@ export default function MappingWorkspace(props: Props) {
     event.dataTransfer.setData(REFERENCE_DRAG_TYPE, JSON.stringify({ referenceId: id, region: id === referenceId && crop ? region : undefined }));
     event.dataTransfer.effectAllowed = 'copy';
   };
-  return <div className="mapping-editor"><aside className="layout-panel mapping-panel">
+  return <div className="mapping-editor"><WorkspaceRegistration /><aside className="layout-panel mapping-panel">
     <div className="panel-heading"><h2><NucleoIcon name="images" />레퍼런스</h2><span role="status" aria-label={'레퍼런스 ' + count + ' / ' + MAX_REFERENCE_IMAGES}>{count} / {MAX_REFERENCE_IMAGES}</span></div>
     <div className="mapping-tabs"><button aria-pressed={tab === 'references'} onClick={() => setTab('references')}><NucleoIcon name="images" />레퍼런스</button><button aria-pressed={tab === 'bindings'} onClick={() => setTab('bindings')}><NucleoIcon name="structure" />매핑 현황</button></div>
     <div className="layout-tool-scroll">{tab === 'references' ? <>

@@ -2,7 +2,6 @@ import type { Project, Result } from '../domain/types';
 import { createConditionsSnapshot } from '../domain/revisions';
 import { validatePreflight } from '../domain/validation';
 import { getImageAssetBlob, putImageAsset } from './assets';
-import { rasterizePlanGuide } from './planGuideImage';
 import { planGuideManifest } from './planGuide';
 import {
   GENERATION_MODEL, GENERATION_OUTPUT_PRICE_USD, GENERATION_PRICING_NOTE,
@@ -133,62 +132,70 @@ export async function compactImage(uri: string, preparation?: ReferencePreparati
   try { bitmap = await createImageBitmap(input); }
   catch { throw new Error('입력 이미지를 열 수 없습니다. 파일을 다시 등록해 주세요.'); }
   try {
-    for (const [maxEdge, quality] of [[1024, 0.76], [896, 0.69], [768, 0.62]] as const) {
-      const canvas = document.createElement('canvas');
-      if (preparation?.mode === 'grid') {
-        const edge = Math.min(maxEdge, Math.max(bitmap.width, bitmap.height));
-        canvas.width = Math.max(1, Math.round(edge));
-        canvas.height = Math.max(1, Math.round(edge * (preparation.regions.length === 2 ? 0.5 : 1)));
-      } else {
-        const region = preparation?.regions[0];
-        const width = bitmap.width * (region?.width ?? 1);
-        const height = bitmap.height * (region?.height ?? 1);
-        const scale = Math.min(1, maxEdge / Math.max(width, height));
-        canvas.width = Math.max(1, Math.round(width * scale));
-        canvas.height = Math.max(1, Math.round(height * scale));
-      }
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('이 브라우저에서 이미지 준비 기능을 사용할 수 없습니다.');
-      context.fillStyle = '#fff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      if (preparation?.mode === 'grid') {
-        const gutter = Math.max(4, Math.round(canvas.width * 0.012));
-        const cellWidth = (canvas.width - gutter * 3) / 2;
-        const cellHeight = (canvas.height - gutter * (preparation.regions.length === 2 ? 2 : 3)) /
-          (preparation.regions.length === 2 ? 1 : 2);
-        preparation.regions.forEach((region, index) => {
-          const sourceWidth = bitmap.width * region.width;
-          const sourceHeight = bitmap.height * region.height;
-          const fit = Math.min(cellWidth / sourceWidth, cellHeight / sourceHeight);
-          const targetWidth = sourceWidth * fit;
-          const targetHeight = sourceHeight * fit;
-          const column = index % 2;
-          const row = Math.floor(index / 2);
-          const left = gutter + column * (cellWidth + gutter) + (cellWidth - targetWidth) / 2;
-          const top = gutter + row * (cellHeight + gutter) + (cellHeight - targetHeight) / 2;
-          context.drawImage(bitmap, bitmap.width * region.x, bitmap.height * region.y,
-            sourceWidth, sourceHeight, left, top, targetWidth, targetHeight);
-        });
-      } else if (preparation?.mode === 'crop') {
-        const region = preparation.regions[0];
-        context.drawImage(bitmap, bitmap.width * region.x, bitmap.height * region.y,
-          bitmap.width * region.width, bitmap.height * region.height,
-          0, 0, canvas.width, canvas.height);
-      } else {
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      }
+    for (const [maxEdge, quality] of [[1600, 0.94], [1440, 0.90], [1280, 0.86], [1024, 0.82]] as const) {
+      const canvas = preparedSourceCanvas(bitmap, preparation, maxEdge);
       const output = await jpegBlob(canvas, quality);
       if (output.size <= MAX_GENERATION_IMAGE_BYTES) return blobDataUrl(output);
     }
   } finally {
     bitmap.close();
   }
-  throw new Error('이미지 용량을 줄일 수 없습니다. 더 작은 이미지를 등록해 주세요.');
+  throw new Error('선명도를 유지하며 이미지 용량을 줄이지 못했습니다. 더 작은 이미지를 등록해 주세요.');
+}
+
+/** Crop/tile original pixels in memory; no lossy intermediate JPEG for contact sheets. */
+function preparedSourceCanvas(bitmap: ImageBitmap, preparation: ReferencePreparation | undefined, maxEdge: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  if (preparation?.mode === 'grid') {
+    const edge = Math.min(maxEdge, Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.max(1, Math.round(edge));
+    canvas.height = Math.max(1, Math.round(edge * (preparation.regions.length === 2 ? 0.5 : 1)));
+  } else {
+    const region = preparation?.regions[0];
+    const width = bitmap.width * (region?.width ?? 1);
+    const height = bitmap.height * (region?.height ?? 1);
+    const scale = Math.min(1, maxEdge / Math.max(width, height));
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+  }
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('이 브라우저에서 이미지 준비 기능을 사용할 수 없습니다.');
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingQuality = 'high';
+  if (preparation?.mode === 'grid') {
+    const gutter = Math.max(4, Math.round(canvas.width * 0.012));
+    const cellWidth = (canvas.width - gutter * 3) / 2;
+    const cellHeight = (canvas.height - gutter * (preparation.regions.length === 2 ? 2 : 3)) /
+      (preparation.regions.length === 2 ? 1 : 2);
+    preparation.regions.forEach((region, index) => {
+      const sourceWidth = bitmap.width * region.width;
+      const sourceHeight = bitmap.height * region.height;
+      const fit = Math.min(cellWidth / sourceWidth, cellHeight / sourceHeight);
+      const targetWidth = sourceWidth * fit;
+      const targetHeight = sourceHeight * fit;
+      const column = index % 2;
+      const row = Math.floor(index / 2);
+      const left = gutter + column * (cellWidth + gutter) + (cellWidth - targetWidth) / 2;
+      const top = gutter + row * (cellHeight + gutter) + (cellHeight - targetHeight) / 2;
+      context.drawImage(bitmap, bitmap.width * region.x, bitmap.height * region.y,
+        sourceWidth, sourceHeight, left, top, targetWidth, targetHeight);
+    });
+  } else if (preparation?.mode === 'crop') {
+    const region = preparation.regions[0];
+    context.drawImage(bitmap, bitmap.width * region.x, bitmap.height * region.y,
+      bitmap.width * region.width, bitmap.height * region.height,
+      0, 0, canvas.width, canvas.height);
+  } else {
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  }
+  return canvas;
 }
 
 export async function preparePlanGuideImage(project: Project, cameraId: string): Promise<string> {
   const background = project.floorPlan?.kind === 'uploaded' && project.floorPlan.imageUri
     ? await compactImage(project.floorPlan.imageUri) : undefined;
+  const { rasterizePlanGuide } = await import('./planGuideImage');
   return rasterizePlanGuide(project, cameraId, background);
 }
 
@@ -197,19 +204,23 @@ export async function compactReferenceSheet(project: Project, sheet: SheetSource
   const canvas = document.createElement('canvas'); canvas.width = edge; canvas.height = edge;
   const context = canvas.getContext('2d'); if (!context) throw new Error('참고 이미지 모음을 준비할 수 없습니다.');
   context.fillStyle = '#fff'; context.fillRect(0, 0, edge, edge);
+  context.imageSmoothingQuality = 'high';
   const cellWidth = edge / columns, cellHeight = edge / rows;
   for (let index = 0; index < sheet.length; index++) {
     const part = sheet[index], source = project.sourceImages.find(image => image.id === part.sourceId);
     if (!source) throw new Error('적용한 참고 이미지를 찾을 수 없습니다.');
-    const bitmap = await createImageBitmap(await (await fetch(await compactImage(source.uri, part.referencePreparation))).blob());
-    try { const fit = Math.min((cellWidth - 12) / bitmap.width, (cellHeight - 36) / bitmap.height); const width = bitmap.width * Math.max(.001,fit), height = bitmap.height * Math.max(.001,fit);
+    const input = await localImageBlob(source.uri);
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(input.type)) throw new Error('PNG, JPG 또는 WebP 참고 이미지만 사용할 수 있습니다.');
+    const bitmap = await createImageBitmap(input);
+    try { const prepared = preparedSourceCanvas(bitmap, part.referencePreparation, edge);
+      const fit = Math.min((cellWidth - 12) / prepared.width, (cellHeight - 36) / prepared.height); const width = prepared.width * Math.max(.001,fit), height = prepared.height * Math.max(.001,fit);
       const x = index % columns * cellWidth, y = Math.floor(index / columns) * cellHeight;
-      context.drawImage(bitmap,x+(cellWidth-width)/2,y+30+(cellHeight-30-height)/2,width,height);
+      context.drawImage(prepared,x+(cellWidth-width)/2,y+30+(cellHeight-30-height)/2,width,height);
       context.fillStyle = '#17191d'; context.font = '20px sans-serif'; context.fillText(String(index+1),x+8,y+24);
     } finally { bitmap.close(); }
   }
-  for (const quality of [.76,.64,.5,.36]) { const blob = await jpegBlob(canvas,quality); if(blob.size<=MAX_GENERATION_IMAGE_BYTES) return blobDataUrl(blob); }
-  throw new Error('참고 이미지 모음의 용량이 큽니다. 이미지 해상도를 줄여 주세요.');
+  for (const quality of [.94,.90,.86,.82]) { const blob = await jpegBlob(canvas,quality); if(blob.size<=MAX_GENERATION_IMAGE_BYTES) return blobDataUrl(blob); }
+  throw new Error('참고 이미지 모음의 선명도를 유지하며 용량을 줄이지 못했습니다. 이미지 해상도를 줄여 주세요.');
 }
 
 async function requestImage(project: Project, cameraId: string, existingPhotoId: string | undefined, requestId: string): Promise<string> {

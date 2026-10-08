@@ -1,5 +1,14 @@
 # Domain model, valid targets and interaction contracts
 
+## 2026-10-08 최신 사용자 UI 주석
+
+진행 label의 펼침/닫힘은 240ms, reduced-motion에서는 즉시 전환한다. 아이콘·문구 중심과 균등 padding을 유지한다. STEP 02는 배치/구조/영역 카테고리로 같은 도구를 선택한다. toolbar undo/redo의 접근 가능한 이름·키보드 Ctrl+Z/Ctrl+Shift+Z는 유지하며 가시 zoom/reset만 제거한다. 창·문·통로·typed anchor 검증은 동일하다.
+
+이전/다음은 Step 1과 같은 패널 footer의 space-between이다. STEP 04 검토 footer는 AI 이미지 생성 주 행동이고 이전 단계는 헤더/URL 이동으로 접근한다. 결과 탭은 실제 결과 전까지 disabled다. Keep 요약은 기본 닫힘이며 보존된 벽의 호환 탈착 장식은 허용한다. 실제 제외는 별도 접기이고 비어 있을 때 표시하지 않는다. 검토 문제는 중립 안내와 해당 설정 이동을 제공한다. 학교 샘플 없음 문구를 제거해도 일반 명시적 사전 샘플은 유지한다.
+
+새 모델 실제 결과의 노이즈/공간 정확성은 자동 인증하지 않는다. 고품질 요청과 정확한 저장 좌표·출처 범위를 보내고 사용자가 검토·수정·승인하도록 유지한다. 예약·배치·불확실 재호출·partial success·stale history는 기존 계약이다.
+
+
 ## 로직 QA 후속 · 2026-10-08 (최신)
 
 레퍼런스 연결 해제/삭제 시 독립 배치의 위치는 유지하고 mapping-condition만 제거한다. 고정 벽의 일반 선택은 속성 패널을 연다. 일반 공간의 평면도 교체 옵션(fresh/retain)을 유지한다. 마지막 삭제는 개정이 일치하는 검증된 로컬 복구 patch로 새로고침 이후 도면 실행 취소/Ctrl+Z에서도 복구한다. 일반 편집 50개 스택은 탭 메모리이며 별개다. 후속 공통 조건 수정 후 오래된 복구 patch를 적용하지 않는다. 상세 동작: CURRENT_LOGIC_20261008.md, 검증: QA_LOGIC_20261008.md.

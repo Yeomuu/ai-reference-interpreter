@@ -49,6 +49,11 @@ export interface PlanGuidePalette { paper: string; ink: string; structure: strin
 const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]!);
 const short = (value: string, limit = 22) => value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
 
+/** Same saved-order key in the model's visual guide and textual placement list. */
+export function generationElementKey(project: Project, elementId: string): string {
+  return `E${String(project.elements.filter(item => item.status === 'apply').findIndex(item => item.id === elementId) + 1).padStart(2, '0')}`;
+}
+
 /** Deterministic 2D guide, not image analysis, 3D reconstruction, or measured geometry. */
 export function buildPlanGuideSvg(project: Project, cameraId: string, palette: PlanGuidePalette, uploadedBackground?: string, cameraIcon?: string): string {
   const manifest = planGuideManifest(project, cameraId), plan = project.floorPlan!;
@@ -65,7 +70,7 @@ export function buildPlanGuideSvg(project: Project, cameraId: string, palette: P
   const physical = project.elements.filter(item => item.status === 'apply' && item.target && (isCountedLayoutItem(item) || item.target.kind === 'wall-segment'));
   const anchors = [
     ...plan.structures.map(item => ({ id: item.id, name: item.name, point: center(item.geometry), preserved: kept.has(item.id) })),
-    ...physical.flatMap(item => { const point = elementPlanPosition(project, item); return point ? [{ id: item.id, name: item.label, point, preserved: false }] : []; }),
+    ...physical.flatMap(item => { const point = elementPlanPosition(project, item); return point ? [{ id: item.id, name: `${generationElementKey(project, item.id)} ${item.label}`, point, preserved: false }] : []; }),
   ];
   const obstacles = [
     ...physical.flatMap(item => item.target?.kind === 'floor-point' ? [{ id: item.id, x: item.target.x * width, y: item.target.y * height, width: (item.target.footprint?.width ?? .06) * width + 12, height: (item.target.footprint?.height ?? .06) * height + 12 }] : []),

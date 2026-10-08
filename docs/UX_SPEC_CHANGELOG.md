@@ -1,5 +1,14 @@
 # 제품·인터랙션·시각 사양 변경 기록 · 2026-09-24~28
 
+## 2026-10-08 · 사용자 17주석과 생성 입력 정돈
+
+사용자의 새 지시로만 기존 진행에 --motion-step=240ms 전환을 추가하고 reduced-motion에서 제거한다. 새 브랜드 색·폰트 크기 체계는 없다. STEP 01 photo-top-offset 126→96px, 공통 source marker, STEP 02 category tabs, 투명 STEP 02/03 canvas wrapper, icon-only undo/redo, 동일 toolbar 높이, footer space-between 및 Review 고정 생성 행동을 적용한다. Keep 기본접힘/빈 제외 숨김/중립 issue/STEP 01 형식 생성 tabs/compact guide/기록3면 border는 실제 사용자 주석에 대응한다.
+
+Paperlogy 원본 테이블이 같은 WOFF와 guide/vendor lazy loading을 추가한다. 모델을 명시 요청한 gpt-image-2/high로 전환하고 미지원 fidelity를 제거, JPEG100/선명한 단일 encoding 입력과 같은 E키/정확한 저장 좌표를 전달한다. 도메인·한도·복구 계약은 유지하며 무노이즈/실측/3D 일치를 주장하지 않는다.
+
+Figma 최종 섹션216:262 동기화는 사용자가 새로 승인했다. 외부54개 원본 위치·크기/이름을 확인했다. 일부 아이콘 정렬 재적용과 전체 재캡처는 Figma Education MCP 호출 한도에 차단되었다. 픽셀 완료로 보고하지 않으며 QA_UI_POLISH_20261008.md 및 pending 좌표 JSON에 남긴다.
+
+
 ## 로직 회귀·빈 상태·알림 정합성 · 2026-10-08
 
 QA에서 파생 벽/공간 조건의 출처 해제 후 잔존, 도면 없는 2단계 footer 누락, 일반 도면 retain 옵션 누락, 고정 벽 속성 선택 누락, 새로고침 삭제 복구 손실을 재현·수정했다. 마지막 삭제 복구는 별도 저장하며 후속 공통 수정에는 적용하지 않는다. 빈 도면도 기존 canvas/오른쪽 패널 폭·R8·공유 footer를 사용한다. 데스크톱 알림은 기존 workflow-navigation-height 토큰만큼 위로 올려 이동 버튼을 가리지 않는다. 새 색·폰트 크기·장식 variant를 만들지 않았다. 상세: QA_LOGIC_20261008.md.

@@ -129,7 +129,7 @@ try {
   await page.getByRole('button', { name: '조건 확인', exact: true }).click();
   for (const checkbox of await page.locator('.generation-viewpoints input').all()) await checkbox.check();
   const generate = page.getByRole('button', { name: 'AI 이미지 생성', exact: true }); assert(await generate.isEnabled());
-  await generate.click(); await page.waitForFunction(() => document.querySelector('.generation-panel button.button-primary')?.disabled);
+  await generate.click(); await page.waitForFunction(() => document.querySelector('.workflow-footer--generate button.button-primary')?.disabled);
   await snapshot('batch-in-flight'); releaseFirst();
   await page.waitForURL('**/results', { timeout: 60000 });
   assert.equal(requests.length, 2); assert.notEqual(requests[0].requestId, requests[1].requestId);

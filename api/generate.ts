@@ -180,9 +180,9 @@ export default async function handler(request: BodyRequest, response: ServerResp
     form.set('quality', GENERATION_QUALITY);
     form.set('size', GENERATION_SIZE);
     form.set('n', '1');
-    form.set('input_fidelity', 'low');
+    // GPT Image 2 always uses high input fidelity; sending input_fidelity is unsupported.
     form.set('output_format', 'jpeg');
-    form.set('output_compression', '72');
+    form.set('output_compression', '100');
     decoded.forEach((bytes, index) => form.append('image[]', new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }), `reference-${index + 1}.jpg`));
     stage = 'identity';
     const userId = generationIdentity(request);

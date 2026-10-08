@@ -8,6 +8,33 @@ import { buildGenerationPrompt, type GenerationImage } from '../src/services/gen
 const palette: PlanGuidePalette = { paper: 'white', ink: 'black', structure: 'gray', info: 'blue', selected: 'purple', subtle: 'white', border: 'gray' };
 
 describe('saved plan guide and scoped visual transfer', () => {
+  it('links precise plan anchors to the same element keys in the visual guide', () => {
+    const project = createSampleProject();
+    const element = project.elements.find(item => item.id === 'element-display')!;
+    element.target = { kind: 'floor-point', x: .3125, y: .4567, footprint: { width: .08, height: .12 } };
+    const prompt = buildGenerationPrompt(project, 'camera-entrance', []);
+    const guide = buildPlanGuideSvg(project, 'camera-entrance', palette);
+    expect(prompt).toContain(`E01 ${element.label}`);
+    expect(guide).toContain(`E01 ${element.label}`);
+    expect(prompt).toContain('Plan anchor x=0.3125, y=0.4567');
+    expect(prompt).toContain(`logical plan x=${Number((.3125 * project.floorPlan!.width).toFixed(4))}`);
+    expect(prompt).toContain('NOT meters, photo pixels, image-output pixels');
+    expect(prompt).toContain('TOP-LEFT of the plan content');
+    expect(prompt).toContain('No artificial film grain');
+  });
+
+  it('transmits wall endpoints and ceiling offsets without treating a ceiling as the floor', () => {
+    const project = createSampleProject();
+    project.elements.push({ id: 'offset-light', label: '지정 위치 천장등', kind: 'ceiling-light', status: 'apply', sourceReferenceId: '',
+      target: { kind: 'ceiling-zone', zoneId: 'ceiling-main', offset: { x: .2345, y: .6789 }, height: '기존 천장' } });
+    const prompt = buildGenerationPrompt(project, 'camera-entrance', []);
+    expect(prompt).toContain('local offset x=0.2345, y=0.6789');
+    expect(prompt).toContain('attach to the ceiling, never to the floor');
+    expect(prompt).toContain('endpoints x=');
+    const position = elementPlanPosition(project, project.elements.at(-1)!)!;
+    expect(prompt).toContain(`Plan anchor x=${Number(position.x.toFixed(4))}, y=${Number(position.y.toFixed(4))}`);
+  });
+
   it('includes physical ceiling objects and floor footprints without losing mapped wall spans', () => {
     const project = createSampleProject();
     project.elements.push({ id: 'ceiling-exhibit', label: '천장 작품', kind: 'other-ceiling', status: 'apply', sourceReferenceId: '', target: { kind: 'ceiling-zone', zoneId: 'ceiling-main', offset: { x: .2, y: .3 } } });

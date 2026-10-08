@@ -1,3 +1,4 @@
+import NucleoIcon from './NucleoIcon';
 import LayoutSymbol from './LayoutSymbol';
 import { layoutKindFor, LAYOUT_LABELS } from '../domain/layoutMapping';
 import { isCountedLayoutItem } from '../domain/prototypeLimits';
@@ -69,9 +70,6 @@ export interface PlanCanvasProps {
   onCameraRotate?: (id: string, degrees: number) => void;
 }
 
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 3;
-const ZOOM_STEP = 0.25;
 
 type DragKind = 'element-move' | 'element-rotate' | 'wall-element-move' | 'camera-move' | 'camera-rotate' | 'structure-move';
 type WallDrag = {
@@ -1047,15 +1045,11 @@ export default function PlanCanvas({
     <div className="plan-canvas__toolbar">
       <div className="plan-canvas__status">
         <strong>{plan.kind === 'schematic' ? '개략 도면' : '등록한 도면'}</strong>
-        <span>{plan.geometryConfidence === 'schematic' ? '치수 미확인' : '등록된 치수 기준'}</span>
+        <span>{plan.geometryConfidence === 'schematic' ? '실측 전 개략도' : '등록된 치수 기준'}</span>
       </div>
       <div className="plan-canvas__controls" aria-label="도면 보기 도구">
-        {onUndo && <button type="button" disabled={!canUndo && !outlineDraft.length} onClick={() => { if (outlineDraft.length) { setOutlineRedo(points => [...points, outlineDraft.at(-1)!]); setOutlineDraft(points => points.slice(0, -1)); } else onUndo(); }}>실행 취소</button>}
-        {onRedo && <button type="button" disabled={!canRedo && !outlineRedo.length} onClick={() => { if (outlineRedo.length) { setOutlineDraft(points => [...points, outlineRedo.at(-1)!]); setOutlineRedo(points => points.slice(0, -1)); } else onRedo(); }}>다시 실행</button>}
-        <button type="button" onClick={() => setZoom((value) => clamp(value - ZOOM_STEP, MIN_ZOOM, MAX_ZOOM))} disabled={zoom <= MIN_ZOOM}>축소</button>
-        <span aria-live="polite">{Math.round(zoom * 100)}%</span>
-        <button type="button" onClick={() => setZoom((value) => clamp(value + ZOOM_STEP, MIN_ZOOM, MAX_ZOOM))} disabled={zoom >= MAX_ZOOM}>확대</button>
-        <button type="button" onClick={() => setZoom(1)}>보기 초기화</button>
+        {onUndo && <button type="button" className="plan-canvas__icon-button" aria-label="실행 취소" title="실행 취소 (Ctrl+Z)" disabled={!canUndo && !outlineDraft.length} onClick={() => { if (outlineDraft.length) { setOutlineRedo(points => [...points, outlineDraft.at(-1)!]); setOutlineDraft(points => points.slice(0, -1)); } else onUndo(); }}><NucleoIcon name="undo" /></button>}
+        {onRedo && <button type="button" className="plan-canvas__icon-button" aria-label="다시 실행" title="다시 실행 (Ctrl+Shift+Z)" disabled={!canRedo && !outlineRedo.length} onClick={() => { if (outlineRedo.length) { setOutlineDraft(points => [...points, outlineRedo.at(-1)!]); setOutlineRedo(points => points.slice(0, -1)); } else onRedo(); }}><NucleoIcon name="redo" /></button>}
       </div>
       <div className="plan-canvas__layer-controls" aria-label="표시 레이어">
         <button type="button" aria-pressed={showStructureLayer} disabled={Boolean(drawTool)} onClick={() => setLayers((current) => ({ ...current, structures: !current.structures }))}>구조 {showStructureLayer ? '표시' : '숨김'}</button>
@@ -1142,7 +1136,7 @@ export default function PlanCanvas({
       {visibleAreas.some(a=>a.kind==='spatial') && <span><i className="legend-area" />점선 윤곽 · 분위기 영역</span>}
       {visibleAreas.some(a=>a.kind==='ceiling') && <span>천장 영역</span>}
       {selectedArea?.kind==='floor' && <span>사용 바닥</span>}
-      {plan.areas.some(a=>a.kind==='passage') && <span><i className="legend-hatch legend-hatch--passage" />빗금 · 비워 둘 통행 동선{mode==='camera'?' (시점 배치 가능)':''}</span>}
+      {plan.areas.some(a=>a.kind==='passage') && <span><i className="legend-hatch legend-hatch--passage" />세로 점선 · 비워 둘 통행 동선{mode==='camera'?' (시점 배치 가능)':''}</span>}
       {mode==='mapping' && <span>보라 윤곽 · 연결·선택</span>}
       {showStructureLayer&&plan.structures.some(s=>keptIds.has(s.id))&&<span><img src="/icons/nucleo/IconLockOutline18.svg" width="14" height="14" alt="" />위치 고정 구조</span>}
       {showStructureLayer&&plan.structures.some(structure => structure.role === 'partition') && <span><i className="plan-canvas__legend-partition" aria-hidden="true" />점선 · 추가 가벽</span>}

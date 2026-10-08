@@ -91,7 +91,8 @@
   /* Direct measurements from the user-owned Home 175:272 / Step 01 173:118. */
   --space-direction-inset-top:79px; --space-direction-inset-bottom:67px;
   --space-direction-inset-inline:10px; --space-photo-canvas-inset:46px;
-  --space-photo-offset-top:126px;
+  --space-photo-offset-top:96px;
+  --motion-step:240ms ease;
   --space-type-heading:var(--font-size-panel); --space-line-heading:24px;
   --space-tab-active:var(--lavender-500); --space-tab-inactive:#C4CBCF;
   --landing-grid-opacity:.6;

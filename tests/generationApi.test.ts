@@ -299,7 +299,7 @@ describe('image generation API boundary', () => {
     expect(values.statusCode).toBe(200);
     expect(JSON.parse(values.body)).toMatchObject({
       available: true, requiresAccessCode: false, quota: { remaining: 60 },
-      model: 'gpt-image-1-mini', quality: 'low', size: '1536x1024', outputPriceUsd: 0.006,
+      model: 'gpt-image-2', quality: 'high', size: '1536x1024', outputPriceUsd: null,
     });
   });
 
@@ -355,15 +355,17 @@ describe('image generation API boundary', () => {
     expect(generationQuota.reserve).not.toHaveBeenCalled();
   });
 
-  it('sends exactly one low-cost image edit only after valid preflight', async () => {
+  it('sends exactly one GPT Image 2 high-quality edit only after valid preflight', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
     const call = vi.fn(async (_url: string, options: RequestInit) => {
       const form = options.body as FormData;
-      expect(form.get('model')).toBe('gpt-image-1-mini');
-      expect(form.get('quality')).toBe('low');
+      expect(form.get('model')).toBe('gpt-image-2');
+      expect(form.get('quality')).toBe('high');
       expect(form.get('size')).toBe('1536x1024');
       expect(form.get('n')).toBe('1');
-      expect(form.get('input_fidelity')).toBe('low');
+      expect(form.has('input_fidelity')).toBe(false);
+      expect(form.get('output_format')).toBe('jpeg');
+      expect(form.get('output_compression')).toBe('100');
       expect(form.getAll('image[]')).toHaveLength(5);
       return { ok: true, json: async () => ({ data: [{ b64_json: jpeg }] }) };
     });

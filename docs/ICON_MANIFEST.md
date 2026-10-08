@@ -1,5 +1,14 @@
 # Nucleo 무료 아이콘 목록
 
+## 2026-10-08 주석 반영
+
+| 공식 자산 | 의미 컴포넌트 | 사용 |
+|---|---|---|
+| IconArrowDottedRotateAnticlockwiseOutline18.svg | NucleoIcon.undo | PlanCanvas 실행 취소 |
+| 동일 자산의 수평 반전 | NucleoIcon.redo | PlanCanvas 다시 실행 |
+
+기존 공식 무료 팩의 원본을 재사용하며 새 경로·라이브러리를 만들지 않는다. 버튼 title/aria-label은 유지한다. WorkspaceRegistration은 아래 기존 Figma Corner/Center 자산을 여러 작업 화면에서 재사용한다.
+
 ## 사용자 최신 Figma 진행 아이콘 · 2026-10-08
 
 사용자가 직접 바꾼 Progress 164:702의 원본을 읽기 전용 asset GET으로 복사했다. Figma 편집/clone/export 쓰기를 하지 않는다. 이 원본 반영은 아래 이전 step-file/layers/images 사용을 대체한다. 새 일반 UI 라이브러리를 추가하거나 사용자 도형을 공식 Nucleo라고 주장하지 않는다. image는 기존 공식 Nucleo 컴포넌트 원본이며 나머지는 사용자 지정 Figma Group이다. 원래 path·stroke·색·SVG 바이트는 그대로 두고 원본 Group inset만 CSS로 배치한다. 세부 노드·해시는 FIGMA_PROGRESS_ASSETS_20261008.json.

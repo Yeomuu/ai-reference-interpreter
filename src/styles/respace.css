@@ -8,17 +8,18 @@
 .brand-wordmark { width: 116px; height: auto; display: block; }
 .brand small { margin-top: var(--space-8); font-size: var(--font-size-caption); }
 .app-shell--project .brand small { display: none; }
-.header-right .help-link { width: 113px; color: var(--source-help-color); font-size: var(--font-size-panel); font-weight: 500; white-space: nowrap; padding: 0; gap: 6px; line-height: 21px; }
+.header-right .help-link { width: 113px; color: var(--source-help-color); font-size: var(--font-size-compact); font-weight: 500; white-space: nowrap; padding: 0; gap: 6px; line-height: 21px; }
 .app-shell--project .step-nav { border: 0; background: none; margin: 0 0 0 auto; padding: 0; width: auto; height: auto; flex: 0 0 auto; }
 .app-shell--project .step-nav-inner { display: flex; flex-direction: row; align-items: center; gap: var(--space-20); padding: 0; width: auto; overflow: visible; }
-.app-shell--project .step-link { position: relative; width: auto; flex: 0 0 auto; min-width: 38px; min-height: var(--control-height-48); height: auto; padding: 0; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: var(--radius-progress); background: none; color: var(--text-secondary); }
-.app-shell--project .step-link .step-marker { width: var(--source-progress-marker-width); height: var(--source-progress-height); border: 1px solid var(--source-progress-upcoming); border-radius: var(--radius-progress); background: transparent; box-shadow: none; margin: 0; }
-.app-shell--project .step-link.is-before .step-marker { border-color: var(--border-selected); background: var(--surface-selected); }
-.app-shell--project .step-marker .nucleo-icon { width: var(--space-24); height: var(--space-24); }
-.app-shell--project .step-link .step-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.app-shell--project .step-link.is-current { width: var(--source-progress-width); min-width: var(--source-progress-width); justify-content: flex-start; background: transparent; border-radius: var(--radius-progress); padding: var(--space-8) 23px; color: var(--text-inverse); isolation: isolate; }
-.app-shell--project .step-link.is-current:nth-child(2), .app-shell--project .step-link.is-current:nth-child(3) { padding-inline: 26.5px; }
-.app-shell--project .step-link.is-current:nth-child(4) { padding-inline: 45.5px; }
+/* Width changes reveal the current label while preserving the button's Korean name. */
+.app-shell--project .step-link { position: relative; flex: 0 0 auto; flex-direction: row; width: var(--source-progress-height); min-width: 0; height: var(--control-height-48); min-height: var(--control-height-48); padding: 0; display: flex; align-items: center; justify-content: center; gap: 0; border: 0; border-radius: var(--radius-progress); background: transparent; color: var(--text-secondary); isolation: isolate; transition: width var(--motion-step), padding var(--motion-step), gap var(--motion-step); }
+.app-shell--project .step-link::before { content: ''; position: absolute; inset: 6px 0; border: 1px solid var(--source-progress-upcoming); border-radius: var(--radius-progress); background: transparent; z-index: -1; }
+.app-shell--project .step-link.is-before::before { border-color: var(--border-selected); background: var(--surface-selected); }
+.app-shell--project .step-link .step-marker { display: grid; place-items: center; flex: none; width: var(--space-24); height: var(--space-24); border: 0; background: transparent; margin: 0; outline: none; box-shadow: none; }
+.app-shell--project .step-link .step-label { display: block; position: static; max-width: 0; width: auto; height: auto; margin: 0; overflow: hidden; clip-path: none; white-space: nowrap; opacity: 0; font-family: var(--font-source-annotation); font-size: var(--source-progress-font); font-weight: 500; line-height: var(--source-progress-line); transition: max-width var(--motion-step), opacity var(--motion-step); }
+.app-shell--project .step-link.is-current { width: var(--source-progress-width); min-width: 0; justify-content: center; padding: 0 var(--space-16); gap: var(--space-8); color: var(--text-inverse); }
+.app-shell--project .step-link.is-current .step-label { max-width: var(--source-progress-width); opacity: 1; }
+.app-shell--project .step-link.is-current::before { border-color: var(--border-selected); background: var(--lavender-300); }
 .progress-icon { display: block; position: relative; width: var(--space-24); height: var(--space-24); flex: none; }
 .progress-icon__group, .progress-icon__asset { position: absolute; inset: 0; }
 .progress-icon--space .progress-icon__group { inset: 6.89% 6.89% 12.5% 12.5%; }
@@ -28,12 +29,9 @@
 .progress-icon--reference .progress-icon__group { inset: 12.5% 8.33% 12.5% 12.5%; }
 .progress-icon--reference .progress-icon__asset { inset: -4.17% -3.95%; }
 .progress-icon img { display: block; width: 100%; height: 100%; max-width: none; }
-.app-shell--project .step-link.is-current::before { content: ''; display: block; position: absolute; inset: 6px 0; border: 1px solid var(--border-selected); border-radius: var(--radius-progress); background: var(--lavender-300); z-index: -1; }
-.app-shell--project .step-link.is-current .step-marker { width: var(--space-24); height: var(--space-24); border: 0; background: transparent; outline: none; box-shadow: none; color: var(--text-primary); }
-.app-shell--project .step-link.is-current .step-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip-path: none; font-family: var(--font-source-annotation); font-size: var(--source-progress-font); font-weight: 500; line-height: var(--source-progress-line); }
 .app-shell--project .step-link:not(:last-child)::after { content: ''; position: absolute; width: var(--space-12); height: 2px; border-radius: var(--radius-4); top: 50%; left: auto; right: calc(-1 * var(--space-16)); background: var(--source-progress-upcoming); }
 .app-shell--project .step-link.is-before::after { background: var(--border-selected); }
-.app-shell--project .step-link:not(.is-current)::before { display: none; }
+
 .app-shell--project .main-content { padding: 0; }
 .app-shell--project .content-wrap { padding: 0; gap: 0; }
 .app-shell--project .page-intro { padding: var(--space-16) 0; min-height: 70px; margin: 0; }
@@ -41,13 +39,13 @@
 .app-shell--project .page-intro h1 { font-size: var(--font-size-panel); }
 .app-shell--project .page-intro { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; overflow: hidden; clip-path: inset(50%); }
 .workflow-footer { display: flex; justify-content: flex-end; align-items: center; flex: none; min-height: var(--workflow-navigation-height); }
-.workflow-navigation { display: flex; align-items: center; justify-content: center; gap: var(--space-12); }
+.workflow-navigation { display: flex; align-items: center; justify-content: space-between; gap: var(--space-24); }
 .workflow-footer .workflow-navigation { width: var(--layout-inspector-width); }
 .workflow-navigation .button { min-height: var(--control-height-44); font-size: var(--space-type-heading); font-weight: 400; line-height: 1.6; }
 .workflow-navigation .button-primary { min-width: 162px; }
 /* Shared Step 1-style footer: inside the side panel, outside its content scroll. */
 .app-shell--project :is(.layout-inspector, .mapping-panel, .workspace-side.inspector, .review-side, .result-inspector, .element-panel, .side-panel) > .workflow-footer { width: 100%; padding: 18px var(--space-16); margin-top: auto; justify-content: center; min-height: var(--workflow-navigation-height); background: var(--surface-base); }
-.app-shell--project :is(.layout-inspector, .mapping-panel, .workspace-side.inspector, .review-side, .result-inspector, .element-panel, .side-panel) > .workflow-footer .workflow-navigation { width: 100%; justify-content: center; padding: 0; }
+.app-shell--project :is(.layout-inspector, .mapping-panel, .workspace-side.inspector, .review-side, .result-inspector, .element-panel, .side-panel) > .workflow-footer .workflow-navigation { width: 100%; justify-content: space-between; padding: 0; }
 .app-shell--project :is(.workspace-side.inspector, .review-side, .element-panel, .side-panel) { display: flex; flex-direction: column; overflow: hidden; }
 .workflow-panel-content { flex: 1; min-height: 0; overflow-y: auto; }
 .app-shell--project .workspace-side.inspector > .inspector-content { flex: 1; min-height: 0; overflow-y: auto; }
@@ -61,7 +59,7 @@
 .app-shell--project .generation-stage-tabs { padding-top: var(--space-16); }
 .app-shell--project:is(.app-shell--review, .app-shell--results, .app-shell--camera) .page-workspace { padding-top: var(--space-12); }
 .app-shell--project .page-workspace { padding: 0; }
-.app-shell--project .experiment-panel { border: 0; border-radius: var(--radius-panel) var(--radius-panel) 0 0; margin: 0; background: var(--surface-base); min-height: 44px; }
+.app-shell--project .experiment-panel { border: 1px solid var(--border-default); border-bottom: 0; border-radius: var(--radius-panel) var(--radius-panel) 0 0; margin: 0; background: var(--surface-base); min-height: 44px; }
 .app-shell--project .experiment-panel > summary { min-height: 44px; display: flex; align-items: center; gap: var(--space-8); padding: 0 18px; }
 .app-shell--project :is(.layout-panel, .layout-canvas-panel, .surface-panel, .side-panel, .library-panel, .reference-preview, .element-panel, .workspace-main, .workspace-side, .review-main, .review-side, .review-inspector, .result-main, .result-inspector) { border: 0; border-radius: var(--radius-panel); box-shadow: var(--shadow-panel); }
 .app-shell--project .review-main > section { border-radius: 0; box-shadow: none; }
@@ -262,7 +260,7 @@
   .app-shell--project .brand-wordmark { width: 96px; }
   .app-shell--project .step-nav-inner { gap: var(--space-12); }
   .app-shell--project .step-link:not(:last-child)::after { width: var(--space-4); right: calc(-1 * var(--space-8)); }
-  .app-shell--project .step-link.is-current { min-width: 0; padding: var(--space-8) var(--space-12); }
+  .app-shell--project .step-link.is-current { min-width: 0; padding: 0 var(--space-16); }
   .header-right .help-link { font-size: var(--font-size-compact); }
   .space-direction--figma { grid-template-columns: minmax(0, 1fr) 320px; }
   .space-direction--figma .space-evidence { padding: 0 var(--space-16); }
@@ -280,7 +278,7 @@
   .app-shell--project .header-right .help-link { display: flex; width: var(--control-height-44); min-height: var(--control-height-44); justify-content: center; gap: 0; font-size: 0; }
   .app-shell--project .step-nav { min-width: 0; width: 0; flex: 1; overflow-x: auto; scrollbar-width: thin; }
   .app-shell--project .step-nav-inner { gap: var(--space-20); width: max-content; }
-  .app-shell--project .step-link.is-current { min-width: var(--source-progress-width); padding-inline: 23px; }
+  .app-shell--project .step-link.is-current { min-width: 0; padding-inline: var(--space-16); }
   .app-shell--project .step-link:not(:last-child)::after { width: var(--space-12); right: calc(-1 * var(--space-16)); }
   .app-shell--project .brand-mark { width: var(--space-32); height: var(--space-32); }
   .space-direction--figma { display: flex; flex-direction: column; height: auto; }
@@ -385,4 +383,57 @@
   .workflow-footer { min-height: 68px; background: var(--surface-base); border-top: 1px solid var(--border-subtle); }
   .workflow-footer .workflow-navigation { width: 100%; justify-content: flex-end; padding: var(--space-12) var(--space-16); }
   .workflow-navigation .button { font-size: var(--space-type-heading); }
+}
+
+/* User comments · 2026-10-08: shared alignment and quiet editing chrome. */
+.workflow-navigation .button:only-child { margin-left: auto; }
+.workflow-footer--generate > .button { width: 100%; min-height: var(--control-height-44); }
+.header-right .help-link { width: auto; min-height: var(--control-height-32); font-size: var(--font-size-compact); gap: var(--space-4); }
+.header-right .help-link > img, .header-right .help-link .nucleo-icon { width: var(--space-20); height: var(--space-20); }
+.app-shell--project :is(.layout-editor, .mapping-editor, .review-layout, .results-layout, .workspace-layout) { position: relative; }
+.app-shell--project :is(.layout-editor, .mapping-editor) > .layout-canvas-panel,
+.app-shell--project:is(.app-shell--placement, .app-shell--references) .plan-canvas,
+.app-shell--project:is(.app-shell--placement, .app-shell--references) .plan-canvas__surface { background: transparent; border: 0; box-shadow: none; }
+.app-shell--project:is(.app-shell--placement, .app-shell--references) .plan-canvas__backdrop { fill: none; }
+.layout-editor .workspace-pin--center-top, .layout-editor .workspace-pin--center-bottom, .workspace-layout .workspace-pin--center-top, .workspace-layout .workspace-pin--center-bottom { right: calc(var(--layout-inspector-width) + var(--space-12) / 2 - 14px); }
+.mapping-editor .workspace-pin--center-top, .mapping-editor .workspace-pin--center-bottom, .results-layout .workspace-pin--center-top, .results-layout .workspace-pin--center-bottom { right: calc(var(--layout-detail-width) + var(--space-12) / 2 - 14px); }
+.review-layout .workspace-pin--center-top, .review-layout .workspace-pin--center-bottom { right: calc(var(--layout-review-width) + var(--space-20) / 2 - 14px); }
+.layout-tool-categories { display: flex; gap: var(--space-4); padding-block: var(--space-16) var(--space-8); }
+.layout-tool-categories button { flex: 1; min-height: var(--control-height-32); padding: var(--space-4); border: 0; border-radius: var(--radius-button); background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--font-size-compact); }
+.layout-tool-categories button[aria-pressed='true'] { background: var(--surface-selected); color: var(--text-primary); font-weight: 600; }
+.layout-tool-category[hidden] { display: none; }
+.layout-tool-category h3 { margin: var(--space-16) 0 var(--space-8); font-size: var(--font-size-compact); color: var(--text-secondary); font-weight: 500; }
+.app-shell--project .layout-tool-grid { gap: var(--space-8); }
+.app-shell--project .layout-tool-grid > button { min-height: var(--control-height-48); padding: var(--space-12) var(--space-4); background: transparent; }
+.app-shell--project .plan-canvas__controls button, .app-shell--project .plan-canvas__layer-controls > button, .app-shell--project .plan-area-controls > summary { box-sizing: border-box; min-height: var(--control-height-32); height: var(--control-height-32); padding: var(--space-4) var(--space-8); display: inline-flex; align-items: center; font-size: var(--font-size-caption); line-height: var(--space-line-help); }
+.app-shell--project .plan-canvas__controls .plan-canvas__icon-button { width: var(--control-height-32); padding: 0; justify-content: center; border-color: transparent; background: transparent; }
+.nucleo-icon--redo { transform: scaleX(-1); }
+.plan-canvas__legend i.legend-hatch--passage { background: repeating-linear-gradient(90deg, transparent 0 6px, var(--canvas-passage) 6px 7px); }
+.app-shell--project .generation-stage-tabs { min-height: var(--space-tabs-height); align-items: flex-start; justify-content: center; gap: var(--space-8); padding: var(--space-16) 0 0; background-image: var(--source-tabs-wash); }
+.app-shell--project .generation-stage-tabs > button { position: relative; border: 0; border-radius: 0; background: transparent; padding: var(--space-4) var(--space-12) var(--space-12); color: var(--text-secondary); font-size: var(--space-type-heading); font-weight: 500; line-height: var(--space-line-heading); }
+.app-shell--project .generation-stage-tabs > button[aria-current] { color: var(--space-tab-active); background: transparent; }
+.app-shell--project .generation-stage-tabs > button[aria-current]::after { content: ''; position: absolute; bottom: 0; width: var(--space-20); height: 2px; left: calc(50% - 9px); background: currentColor; }
+.app-shell--project .generation-stage-tabs > button:disabled { color: var(--text-secondary); }
+.app-shell--review .review-state.blocked { background: transparent; color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); }
+.app-shell--review .issue-row { color: var(--text-primary); align-items: flex-start; flex-direction: column; gap: var(--space-12); padding: var(--space-16); }
+.app-shell--review .issue-row:hover { background: var(--surface-hover); }
+.issue-row > span { display: flex; flex-direction: column; gap: var(--space-4); line-height: var(--space-line-label); }
+.issue-row small { font-size: var(--font-size-caption); color: var(--text-secondary); }
+.issue-row strong { display: flex; align-items: center; align-self: flex-end; gap: var(--space-4); font-size: var(--font-size-compact); font-weight: 500; }
+.review-exclusions > summary { font-weight: 600; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  .app-shell--project .step-link, .app-shell--project .step-link .step-label { transition: none; }
+}
+
+.app-shell--project .step-link.is-current .step-marker { background: transparent; border: 0; outline: none; box-shadow: none; color: var(--text-inverse); }
+.app-shell--project .step-link.is-before .step-marker { background: transparent; border: 0; }
+
+/* Final HIG pass: readable support text and marks at both editor dividers. */
+.header-right .help-link { color: var(--text-secondary); }
+.workspace-pin--left-divider-top, .workspace-pin--left-divider-bottom { left: calc(var(--layout-tools-width) + var(--space-12) / 2 - 14px); }
+.workspace-pin--left-divider-top { top: var(--space-registration-center-offset); }
+.workspace-pin--left-divider-bottom { bottom: var(--space-registration-center-offset); }
+.workspace-layout.is-right-hidden .workspace-pin--center-top, .workspace-layout.is-right-hidden .workspace-pin--center-bottom { display: none; }
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .workspace-pin--left-divider-top, .workspace-pin--left-divider-bottom { left: calc(var(--layout-tools-compact-width) + var(--space-12) / 2 - 14px); }
 }

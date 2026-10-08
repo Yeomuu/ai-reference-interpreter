@@ -1,6 +1,6 @@
 # OpenAI 이미지 생성 연결
 
-확인일: 2026-09-28. 아래 가격과 모델 지원 범위는 배포 후에도 [OpenAI 공식 모델·요금 안내](https://developers.openai.com/api/docs/models/gpt-image-1-mini)에서 다시 확인해야 한다.
+현재 모델 확인일: 2026-10-08. 모델·지원 범위는 [OpenAI 공식 GPT Image 2 안내](https://developers.openai.com/api/docs/models/gpt-image-2), 비용은 공식 요금표를 따른다. 아래 날짜별 과거 기록과 최신 설정을 구분한다.
 
 ## 동작 범위
 
@@ -14,13 +14,15 @@
 - 생성 결과는 브라우저 IndexedDB에 저장하고 프로젝트 기록에는 `asset://` URI와 `origin: 'ai'`를 보관한다. 과거 결과를 덮어쓰지 않는다. 생성 응답을 확인했지만 프로젝트 기록 저장이 실패하면 현재 탭의 메모리에 결과를 표시하고 즉시 이미지 내보내기와 기록 저장 재시도를 제공한다. 저장 문제를 해결하기 전에는 추가 유료 요청을 막는다.
 - 전송 뒤 네트워크가 끊기거나 성공 응답을 읽지 못하면 서버 작업과 과금 여부를 단정할 수 없다. 같은 페이지 세션에서 180초 동안 재시도를 막고, 이후에도 사용자가 결과 이력·사용량을 확인한 뒤 명시적으로 잠금을 풀어야 한다. 이 보호와 별도로 서버의 공유 저장소가 요청 UUID 재전송, 동시에 진행 중인 요청, 전체/하루 호출 상한을 검사한다. 이미 예약한 요청은 실패하거나 결과가 불확실해도 횟수를 반환하지 않는다.
 
-## 모델과 비용
+## 모델과 비용 · 2026-10-08 최신
 
-현재 서버 설정은 `gpt-image-1-mini`, `quality=low`, `size=1536x1024`, `n=1`, `input_fidelity=low`, JPEG 출력이다. OpenAI의 [GPT-Image-1 Mini 공식 가격 표](https://developers.openai.com/api/docs/models/gpt-image-1-mini)는 낮은 품질의 1536×1024 출력 1장에 **$0.006** 예시를 제시한다. 이는 총 청구액이 아니다. 입력 문장은 $2/백만 토큰, 입력 이미지는 $2.50/백만 토큰의 별도 요금이 있으며 실제 비용은 입력 내용과 청구 시점 가격에 따라 달라진다. 모델 페이지는 무료 사용 등급에서 이미지 생성을 지원하지 않는다고 명시하므로, 프로젝트 결제 설정과 사용 한도도 별도로 확인해야 한다.
+현재 서버는 `gpt-image-2`, `quality=high`, `size=1536x1024`, `n=1`, JPEG `output_compression=100`을 사용한다. GPT Image 2는 높은 입력 충실도를 기본 사용하므로 미지원 `input_fidelity`를 보내지 않는다. 모델·품질·크기는 공용 generationContract에 있다. 입력과 좌표 전달·압축·범위는 [현재 생성 설명](IMAGE_GENERATION_20261008.md)을 따른다.
 
-이 모델은 [OpenAI 공식 사용 종료 공지](https://developers.openai.com/api/docs/deprecations)에 따라 **2026-12-01 API 종료 예정**이다. 초기 비용 최소화를 위한 한시적인 선택이며, 그 전에 `gpt-image-2` 같은 지원 모델로 교체해야 한다. `gpt-image-2`는 낮은 품질의 가로 출력 예시가 $0.005이지만 입력 이미지 토큰은 $4/백만 토큰이고 입력 충실도를 낮출 수 없어, 여러 레퍼런스를 보내는 이 흐름의 총액이 반드시 더 저렴하다고 단정할 수 없다. 모델 이름·품질·크기 값은 공용 계약 파일 한곳에 모아 교체하도록 했다.
+이전 Mini $0.006/장 예시와 Mini 종료 문구는 현재 설정에 적용하지 않는다. outputPriceUsd는 검증된 고정 장당 요금이 없음을 뜻하는 null이다. 총 비용은 입력 문장·이미지 및 출력 토큰과 청구 시점 공식 가격에 따라 달라진다. high 품질이 이전 low보다 저렴하거나 빠르다고 주장하지 않는다. [공식 모델](https://developers.openai.com/api/docs/models/gpt-image-2), [공식 요금](https://developers.openai.com/api/docs/pricing).
 
-[공식 이미지 생성 안내](https://developers.openai.com/api/docs/guides/image-generation)는 이미지 편집 API가 여러 참조 사진을 입력받고 JPEG 출력을 지원한다고 설명한다. 같은 안내는 구조화된 구도에서 정확한 위치 재현에 한계가 있음을 명시한다. 따라서 이 서비스의 Keep·도면 검증은 생성 **전 입력 검증**이며, 생성 이미지가 그 제약을 완벽히 지켰다는 자동 판정이 아니다. 사용자가 결과를 직접 검토하고 승인해야 한다.
+기존 공간을 건축 기준, 저장 도면을 유일한 2D 배치 기준, 레퍼런스를 선택된 외관 속성으로 분리한다. 저장 E키와 정규화/논리 좌표는 사진 픽셀이나 검증된 3D 투영이 아니다. 모델 품질 설정·보존 프롬프트가 완전한 공간 일치나 무노이즈를 보장하지 않는다. 결과는 사용자 검토·승인 대상이다. [공식 이미지 생성](https://developers.openai.com/api/docs/guides/image-generation), [프롬프팅](https://developers.openai.com/api/docs/guides/image-prompting).
+
+이 변경 QA는 mocked provider와 브라우저 로컬 입력 렌더링으로 수행했다. 무료 모델 조회에서 로컬 서버 키의 401 invalid_api_key를 확인했다. 키의 만료/폐기 원인과 Vercel 키 상태를 단정하지 않는다. 새 모델 실제 유료 호출·유효 계정 모델 접근·결제·생성 품질은 검증하지 않았다. 아래 2026-09-28/29 기록의 low/Mini 설정은 당시의 역사 기록이며 현재 설정을 의미하지 않는다.
 
 ## 생성 준비 오류 진단 · 2026-10-06
 

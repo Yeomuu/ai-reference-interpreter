@@ -6,6 +6,7 @@ from hashlib import sha256
 from pathlib import Path
 import json
 import shutil
+import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 FONTS = [
@@ -51,3 +52,31 @@ manifest = {"date": "2026-10-08", "license": "SIL OFL 1.1",
     json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print(json.dumps({"fonts": len(entries), "bytes": sum(x["bytes"] for x in entries),
                   "verified": True}))
+
+# Optional lossless web container; source TTFs and the original manifest stay intact.
+# Uses the already-installed fontTools, without downloading or subsetting glyphs.
+if "--web" in sys.argv:
+    from fontTools.ttLib import TTFont
+    web_entries = []
+    for entry in entries:
+        source = ROOT / "public" / entry["publicPath"]
+        font = TTFont(source, recalcTimestamp=False)
+        font.flavor = "woff"
+        destination = source.with_suffix(".woff")
+        font.save(destination)
+        restored = TTFont(destination, recalcTimestamp=False)
+        original = TTFont(source, recalcTimestamp=False)
+        for tag in original.reader.keys():
+            before, after = original.reader[tag], restored.reader[tag]
+            if tag == "head":
+                before, after = before[:8] + bytes(4) + before[12:], after[:8] + bytes(4) + after[12:]
+            if before != after:
+                raise ValueError(f"Font table changed: {source.name}/{tag}")
+        web_entries.append({**entry, "publicPath": destination.relative_to(ROOT / "public").as_posix(),
+                            "bytes": destination.stat().st_size,
+                            "sha256": sha256(destination.read_bytes()).hexdigest(),
+                            "sourceSha256": entry["sha256"], "tablesVerified": True})
+    (ROOT / "docs/FONT_WEB_ASSETS_20261008.json").write_text(
+        json.dumps({"method": "Lossless WOFF container; all original OpenType tables verified (head checksum normalized)",
+                    "licensePath": "fonts/Paperlogy-OFL.txt", "fonts": web_entries}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"webFonts": len(web_entries), "bytes": sum(x["bytes"] for x in web_entries)}))

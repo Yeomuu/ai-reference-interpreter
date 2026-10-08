@@ -1,23 +1,23 @@
-/* Supplied Paperlogy v1.001. Byte-identical sources; SIL OFL: Paperlogy-OFL.txt. */
+/* Supplied Paperlogy v1.001. Lossless WOFF containers with byte-identical TTF fallback; SIL OFL: Paperlogy-OFL.txt. */
 @font-face {
   font-family: 'Paperlogy'; font-style: normal; font-weight: 400;
-  font-display: swap; src: url('./paperlogy/Paperlogy-4Regular.ttf') format('truetype');
+  font-display: swap; src: url('./paperlogy/Paperlogy-4Regular.woff') format('woff'), url('./paperlogy/Paperlogy-4Regular.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Paperlogy'; font-style: normal; font-weight: 500;
-  font-display: swap; src: url('./paperlogy/Paperlogy-5Medium.ttf') format('truetype');
+  font-display: swap; src: url('./paperlogy/Paperlogy-5Medium.woff') format('woff'), url('./paperlogy/Paperlogy-5Medium.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Paperlogy'; font-style: normal; font-weight: 600;
-  font-display: swap; src: url('./paperlogy/Paperlogy-6SemiBold.ttf') format('truetype');
+  font-display: swap; src: url('./paperlogy/Paperlogy-6SemiBold.woff') format('woff'), url('./paperlogy/Paperlogy-6SemiBold.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Paperlogy'; font-style: normal; font-weight: 700;
-  font-display: swap; src: url('./paperlogy/Paperlogy-7Bold.ttf') format('truetype');
+  font-display: swap; src: url('./paperlogy/Paperlogy-7Bold.woff') format('woff'), url('./paperlogy/Paperlogy-7Bold.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Paperlogy'; font-style: normal; font-weight: 800;
-  font-display: swap; src: url('./paperlogy/Paperlogy-8ExtraBold.ttf') format('truetype');
+  font-display: swap; src: url('./paperlogy/Paperlogy-8ExtraBold.woff') format('woff'), url('./paperlogy/Paperlogy-8ExtraBold.ttf') format('truetype');
 }
 /* User-provided WantedSans variable file; official OFL is included alongside it. */
 @font-face {

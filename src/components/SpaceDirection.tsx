@@ -1,3 +1,4 @@
+import WorkspaceRegistration from './WorkspaceRegistration';
 import type { ReactNode } from 'react';
 import type { Project, Structure } from '../domain';
 import { isStructureLocked } from '../domain';
@@ -23,7 +24,7 @@ export default function SpaceDirection({ project, tab, onTab, photos, plan, sour
   const fixedScenario = project.floorPlan?.structures.some(item => item.preservationRequired);
   const structures = fixedScenario ? BASELINE_STRUCTURE_IDS.flatMap(id => project.floorPlan?.structures.find(item => item.id === id) ?? []) : project.floorPlan?.structures ?? [];
   return <div className="space-direction space-direction--figma">
-    <div className="workspace-registration" aria-hidden="true"><img className="workspace-pin workspace-pin--top-left" src="/figma/source/corner-left.svg" alt="" /><img className="workspace-pin workspace-pin--bottom-left" src="/figma/source/corner-left.svg" alt="" /><img className="workspace-pin workspace-pin--top-right" src="/figma/source/corner-right.svg" alt="" /><img className="workspace-pin workspace-pin--bottom-right" src="/figma/source/corner-right.svg" alt="" /><img className="workspace-pin workspace-pin--center-top" src="/figma/source/center-top.svg" alt="" /><img className="workspace-pin workspace-pin--center-bottom" src="/figma/source/center-bottom.svg" alt="" /></div>
+    <WorkspaceRegistration />
     <section className="layout-canvas-panel space-evidence" aria-label="기준 공간 자료">
       <div className="space-evidence__toolbar"><div className="mapping-tabs space-source-tabs"><button aria-pressed={tab === 'photo'} onClick={() => onTab('photo')}><img src={tab === 'photo' ? '/figma/source/tab-photo.svg' : '/figma/source/tab-photo-inactive.svg'} alt="" aria-hidden="true" />공간 사진</button><button aria-pressed={tab === 'plan'} onClick={() => onTab('plan')}><img src={tab === 'plan' ? '/figma/source/tab-plan-active.svg' : '/figma/source/tab-plan.svg'} alt="" aria-hidden="true" />평면도</button></div><div className="space-evidence__actions">{sourceActions}</div></div>
       <div className={`space-evidence__content space-evidence__content--${tab}`}>{tab === 'photo' ? photos : plan}</div>

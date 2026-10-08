@@ -19,7 +19,7 @@ try {
   const id = new URL(page.url()).pathname.split('/')[2];
   const project = () => page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key)).projects.find(p => p.id === id), { key, id });
   const stage = name => page.locator('.step-nav').getByRole('button', { name }).click();
-  const tool = name => page.locator('.layout-editor>.layout-panel').first().getByRole('button', { name, exact: true }).click();
+  const tool = async name => { const panel = page.locator('.layout-editor>.layout-panel').first(); const category = ['가벽','창','여닫이문','열린 출입구','기둥'].includes(name) ? '구조' : ['분위기 영역','통행 동선'].includes(name) ? '영역' : '배치'; await panel.locator('.layout-tool-categories').getByRole('button', { name: category, exact: true }).click(); await panel.getByRole('button', { name, exact: true }).click(); };
   const right = page.locator('.layout-inspector');
   const count = async kind => (await project()).elements.filter(e => e.kind === kind).length;
   async function point(x, y) {
@@ -125,7 +125,7 @@ try {
   await page.goto(`${base}/projects/${id}/camera`);
   await page.getByRole('button', { name: '이전 단계', exact: true }).click(); await page.waitForURL('**/review');
   assert.deepEqual((await project()).cameras, cameras);
-  await page.getByRole('button', { name: '이전 단계', exact: true }).click(); await page.waitForURL('**/references');
+  await stage('03 레퍼런스 적용'); await page.waitForURL('**/references');
   console.log('camera previous stays STEP 04, edits retained, direct URL/reload/history and review-to-STEP 03 navigation passed');
   if (process.env.QA_SCREENSHOT_DIR) {
     fs.mkdirSync(process.env.QA_SCREENSHOT_DIR, { recursive: true });

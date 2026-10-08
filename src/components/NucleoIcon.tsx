@@ -20,6 +20,8 @@ const ICON_FILES = {
   rotate: 'IconRotation360Outline18.svg',
   structure: 'IconSitemap4Outline18.svg',
   minus: 'IconMinusOutline18.svg',
+  undo: 'IconArrowDottedRotateAnticlockwiseOutline18.svg',
+  redo: 'IconArrowDottedRotateAnticlockwiseOutline18.svg',
 } as const
 
 export type NucleoIconName = keyof typeof ICON_FILES
@@ -28,7 +30,7 @@ export type NucleoIconName = keyof typeof ICON_FILES
 export default function NucleoIcon({ name }: { name: NucleoIconName }) {
   const uri = `/icons/nucleo/${ICON_FILES[name]}`
   return <span
-    className="nucleo-icon"
+    className={`nucleo-icon${name === 'redo' ? ' nucleo-icon--redo' : ''}`}
     aria-hidden="true"
     style={{ WebkitMaskImage: `url("${uri}")`, maskImage: `url("${uri}")` }}
   />

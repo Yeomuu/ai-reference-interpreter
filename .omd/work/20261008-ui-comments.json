@@ -1,0 +1,102 @@
+{
+  "intent": "implement",
+  "task": "17개 사용자 주석, 기존 화면 정돈, 성능 개선 및 Figma 216:262 동기화 및 gpt-image-2 고품질 입력 전환",
+  "implementation_owner": "main-agent",
+  "advisory": "전문 역할 런타임/파일 없음. 사용자 요청 및 프로젝트 문서를 직접 적용",
+  "consumer_route": "/projects/:id/space → placement → references → review → results",
+  "acceptance": [
+    "진행 아이콘 중앙·대칭 여백",
+    "도구 목록 분류",
+    "무테·투명 도면과 간결한 toolbar",
+    "사이드바 footer에 이전/다음 및 실제 생성",
+    "고정/제외 의미 보존",
+    "브라우저 캡처·기능 회귀·빌드",
+    "지정 Figma 섹션만 editable layer 동기화"
+  ],
+  "protected_behaviors": [
+    "보존·typed anchor·충돌 검사",
+    "사진/도면 구분",
+    "기존 저장·undo·결과 history",
+    "생성 전 조건·quota·busy·불확실 요청·저장 실패 차단",
+    "결과 없는 탭 비활성화",
+    "접근 가능한 한국어 이름"
+  ],
+  "protected_contract": {
+    "change_authority": "original-user-task-only",
+    "cardinality": [
+      "toolbar 축소/확대/초기화 삭제 승인",
+      "undo/redo 2개 유지",
+      "도구·표시·배치 목록 기능 유지",
+      "생성 버튼 1개 위치 이동",
+      "빈 학교 sample 영역 삭제",
+      "고정·제외 정보 접기",
+      "카테고리 필터 추가 승인"
+    ],
+    "state_transitions": [
+      "이전/다음 기존 URL",
+      "생성 후 결과 활성화",
+      "모션 감소 전환 생략"
+    ],
+    "facts": [
+      "개략 도면은 실측 아님",
+      "고정 구조는 보존, 제외는 디자인 요소 적용 제외"
+    ]
+  },
+  "visual_equity": [
+    {
+      "identity": "ReSpace source assets and tokens",
+      "user_value": "한 서비스의 연속된 작업 흐름",
+      "before_evidence": "주석 1254×884, 기존 Figma 화면",
+      "decision": "reinforce",
+      "change_authority": "사용자 주석"
+    }
+  ],
+  "evidence": [
+    "DESIGN.md는 Apple 참고 자료, 브랜드 복제 금지",
+    "docs/DESIGN_SYSTEM.md 최신 승인 규칙",
+    "Git backup 9af990e",
+    "Figma 216:262 read-only 검사",
+    "Figma 외부54개 metadata 동일 확인"
+  ],
+  "unknowns": [
+    "Wanted Sans는 Figma available fonts에 없음",
+    "실제 유료 모델 호출은 QA 대상에서 제외"
+  ],
+  "verification": {
+    "routes": [
+      "space",
+      "placement",
+      "references",
+      "review",
+      "results"
+    ],
+    "viewports": [
+      "1254×884",
+      "1920×1080",
+      "390×844",
+      "320×720"
+    ],
+    "commands": [
+      "기존 Playwright QA",
+      "npm run lint",
+      "npm run build",
+      "npm test"
+    ]
+  },
+  "budget": {
+    "required": "주석 구현·실제 QA·복구 branch·Figma 범위 검사",
+    "optional": "중복 시각 검증",
+    "delivery_reserve": true
+  },
+  "first_safe_edit": {
+    "target": "WorkflowNavigation/toolbar/CSS",
+    "effect": "저장·검증·API 조건 변경 없음",
+    "check": "기존 브라우저 QA와 typecheck"
+  },
+  "delivery": {
+    "code": "verified",
+    "figma": "partial: Education MCP limit, pending icon coordinates saved",
+    "generation": "mocked/local preparation, no new paid model call",
+    "qa": "31 files /272 tests; browser scripts passed"
+  }
+}

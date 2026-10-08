@@ -1,5 +1,11 @@
 # Paperlogy 폰트 검증
 
+## 무손실 웹 컨테이너 최적화 · 2026-10-08 (최신)
+
+사용자가 승인한 동일 폰트 배포를 유지하며, 제공 TTF를 무손실 WOFF 컨테이너로 추가한다. `sync-paperlogy-fonts.py --web`은 원본 SHA-256 확인 후 모든 OpenType 테이블을 대조한다(head checksum만 컨테이너 형식에 맞게 정규화). 글리프·메트릭·kerning·글꼴 이름과 원본 TTF는 변경하지 않는다. OFL 고지와 TTF fallback도 함께 배포한다.
+
+5개 WOFF 합계 3,115,092bytes, 원본 TTF 합계 6,546,240bytes로 전송 자산 크기가 52.4% 줄었다. 브라우저 CDP의 실제 glyph-font 조회로 개발·production에서 Paperlogy Medium/Regular 및 Wanted Sans 사용을 확인했다. 변환·해시·테이블 대조 근거는 FONT_WEB_ASSETS_20261008.json과 최신 UI QA 기록이다. 아래 ‘변환하지 않는다’는 이전 기록이며 현재는 원본 파일을 보존한 컨테이너 변환만 허용한다.
+
 ## 동일한 개발·production 폰트 · 2026-10-08 (최신 사용자 지시)
 
 사용자가 폰트 파일 배포 금지를 철회했다. 제공 Paperlogy 400/500/600/700/800을 public/fonts/paperlogy/로 원본 그대로 복사한다. scripts/sync-paperlogy-fonts.py는 기존 검증 SHA-256과 5개 파일을 모두 대조한 뒤 복사하며 변환·부분 추출·윤곽 변경·다운로드를 하지 않는다. 5개 총 6,546,240bytes이며 public/fonts/Paperlogy-OFL.txt 고지도 빌드에 포함된다. 경로·해시·크기: FONT_ASSETS_20261008.json. 원본 Paperlogy/는 보존한다.

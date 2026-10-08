@@ -1,5 +1,14 @@
 # ReSpace implementation architecture
 
+## UI 주석·입력 선명도·GPT Image 2 · 2026-10-08 최신
+
+WorkspaceRegistration은 기존 source marker를 공유한다. LayoutWorkspace 카테고리는 표시 state이며 도메인 도구 계약을 바꾸지 않는다. Review 주 생성 버튼은 footer 슬롯에 고정되며 기존 preflight/quota/batch busy/saved-state 조건을 유지한다. WorkflowNavigation의 이전/다음은 space-between이다. 이전 날짜 기록의 review 이전 버튼 footer는 현재 생성 footer로 대체된다.
+
+PlanGuidePreview와 planGuideImage는 동적 import한다. ResultPlanComparison은 details가 열릴 때만 가이드를 준비한다. React vendor chunk와 async image decoding, Paperlogy 무손실 WOFF로 초기 자산 준비를 정리한다. 원본 TTF·OFL과 웹 글리프는 보존한다.
+
+generationContract는 gpt-image-2/high/1536x1024/n=1을 공유한다. 서버는 검증된 프로젝트와 manifest로 프롬프트를 작성하고 input_fidelity를 생략하며 JPEG100을 요청한다. planGuide의 E키와 elementPlanPosition을 프롬프트/가이드가 함께 사용한다. 이미지 crop→sheet는 in-memory canvas이고 JPEG intermediate가 없다. 기존 저장 스키마·typed targets·예약/일일 한도·불변 replay ledger·history/migration은 변경하지 않는다. 세부 입력·한계는 IMAGE_GENERATION_20261008.md.
+
+
 ## 삭제 복구 및 로직 QA · 2026-10-08 (최신)
 
 src/services/deletionUndo.ts는 프로젝트별 마지막 삭제의 CommonPatch를 별도 localStorage 스키마로 보관한다. 복구 기록은 삭제 전 준비하고 프로젝트 저장 실패 시 이전 기록으로 롤백한다. 읽기에서는 프로젝트 ID/commonRevision/허용 patch 필드/복구 Project 스키마를 검증한다. 기록이 없거나 후속 commonRevision이면 복구하지 않는다. 일반 편집 history의 50개 메모리 스택과 분리하며 과거 결과 스냅샷을 덮어쓰지 않는다. layoutMapping/revisions의 연결 해제·삭제는 mapping-condition 제거와 독립 layout 출처 해제를 구분한다. 전체 현행 로직과 실행 범위는 CURRENT_LOGIC_20261008.md 및 QA_LOGIC_20261008.md를 따른다.

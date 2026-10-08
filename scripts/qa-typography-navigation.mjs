@@ -58,12 +58,12 @@ try {
     assert(fonts.photo.some(f => f.family.includes('Paperlogy') && f.custom && f.glyphs > 0));
     assert(fonts.body.some(f => f.family.includes('Wanted') && f.custom && f.glyphs > 0));
     const screens = [];
-    for (const viewport of [{ width: 1920, height: 1080 }, { width: 1220, height: 672 }, { width: 390, height: 844 }]) {
+    for (const viewport of [{ width: 1920, height: 1080 }, { width: 1220, height: 672 }, { width: 390, height: 844 }, { width: 320, height: 720 }]) {
       await page.setViewportSize(viewport);
       for (const step of ['space', 'placement', 'references', 'review', 'camera', 'results']) {
         await page.goto(`${base}/projects/${id}/${step}`);
         await page.evaluate(() => document.fonts.ready);
-        const nav = page.getByRole('navigation', { name: '단계 이동', exact: true });
+        const nav = step === 'review' ? page.locator('.workflow-footer--generate') : page.getByRole('navigation', { name: '단계 이동', exact: true });
         assert.equal(await nav.count(), 1);
         await nav.scrollIntoViewIfNeeded();
         const fit = await nav.evaluate(n => {
