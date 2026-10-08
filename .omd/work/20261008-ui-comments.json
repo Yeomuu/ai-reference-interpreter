@@ -60,7 +60,8 @@
   ],
   "unknowns": [
     "Wanted Sans는 Figma available fonts에 없음",
-    "운영 최초 인증 오류 뒤 사용자 승인으로 키 동기화, 실제1장 성공; 품질 관찰 후 속성 경계 강화"
+    "Figma Education MCP 호출 한도로 일부 native icon 정렬 미완료",
+    "실제 생성4장 비교; 최종 게시물 자동 추가·참고 상품 세부 분리 차이 남음, 무노이즈/정량 공간 정확도 인증 아님"
   ],
   "verification": {
     "routes": [
@@ -96,7 +97,7 @@
   "delivery": {
     "code": "verified",
     "figma": "partial: Education MCP limit, pending icon coordinates saved",
-    "generation": "user approved production/preview key sync; live POST2 includes auth failure1 and success1; saved/reload/snapshot verified; quota58; stricter attribute prompt awaiting live comparison",
+    "generation": "approved production/preview key sync complete; live POST5 includes auth failure1 and success4; saved/reload/snapshot verified; shared quota55; final crop/ambient output has one floor fixture and no new track/cove, but an unregistered wall poster remains",
     "qa": "31 files /273 tests; lint/typecheck/build pass; local browser scripts passed; production 18 captures/overflow0/JS0; WOFF+TTF 10 hashes match; actual Paperlogy glyph verified"
   }
 }

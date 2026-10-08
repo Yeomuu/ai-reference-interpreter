@@ -296,3 +296,11 @@ Paperlogy 기본 UI 정책은 이번 사용자가 직접 제공한 Wanted/Adobe 
 사용자는 폰트 바이너리 handoff 금지를 철회하고 제공 파일의 production 사용을 승인했다. 검증된 Paperlogy 5종 원본을 public/fonts/paperlogy/로 그대로 복사하며 OFL 고지를 함께 빌드한다. main.tsx 개발 전용 link를 없애 공통 fonts.css를 사용한다. Wanted Sans/임시 fallback/Adobe 공식 키트는 유지한다. 원본/배포 사본 SHA-256: FONT_ASSETS_20261008.json.
 
 이동 버튼의 위치가 Step 1과 달랐던 외부 footer를 사이드 패널 마지막 영역으로 옮긴다. 레퍼런스 패널은 오른쪽으로 이동하여 도면–설정 순서를 통일한다. 내용 스크롤과 footer를 분리하고 사용자가 legacy/camera inspector를 숨겼을 때만 외부 fallback을 제공한다. 기존 이전·다음 함수, URL/history, 상태·API·quota·데이터는 그대로 사용한다. Figma 편집·실제 서비스 배포·유료 생성은 수행하지 않는다.
+
+## v1.4.6 · 사용자 주석 정돈과 실제 생성 검증 · 2026-10-08
+
+위 v1.4.5 이후 사용자의17개 주석과 추가 승인에 따라 진행 대칭 padding·중앙·전환, 도구 카테고리, 무테 도면·간결한 toolbar, 패널 내부 주 행동, 보존/제외 접기, STEP 01 방식의 생성 탭, 가이드 축소·기록3면stroke를 적용했다. 기존 marker를 다른 작업 경계에 재사용하고 사진을30px 위로 옮겼다. 원본 Paperlogy의 무손실 WOFF, async decode·vendor 분리·guide lazy loading을 적용했다. 새 브랜드 색·폰트·아이콘 라이브러리는 없다.
+
+사용자가 최종 Figma216:262만 코드 방향으로 수정하는 작업과 main 반영·자동 배포·Production/Preview 키 동기화를 명시적으로 승인했다. 원격 복구 branch를 유지한다. Figma는 지정 section 내부만 동기화했고 Education MCP 한도로 남은 아이콘 좌표 보정은 별도 기록했다. 외부 원본·전역 컴포넌트 편집 범위로 확대하지 않는다.
+
+gpt-image-2/high·선명한 bounded input·저장 도면 E키/좌표·서버 재작성 prompt를 적용했다. 실제 결과에 나타난 참고 배경·물체 개수·조명 구조 차이를 근거로 named attribute 범위, 한 설치/E키, 기존 고정 설비 유지, 분위기 빛과 새 물리 조명의 구분을 강화했다. 실제 결과를 자동 승인하거나 정량 정확도/무노이즈를 주장하지 않는다. 기존 보존·typed anchor·충돌·undo·stale 이력·공유 quota는 유지한다. 전체 실행 증거와 변경 파일: QA_UI_POLISH_20261008.md / IMAGE_GENERATION_20261008.md.
