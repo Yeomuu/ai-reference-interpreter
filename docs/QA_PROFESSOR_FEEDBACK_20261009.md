@@ -6,6 +6,7 @@
 
 - App.tsx의 WallTargetEditor: 벽면 폭과 시작/끝 위치를 분리해 설명한다. 폭 입력은 끝점을 바꾸고 위치·폭 적용 버튼에서 기존 검증으로 저장한다.
 - PlanCanvas.tsx / plan-canvas.css: 보존 벽 선과 연출 구간을 분리하고 선택된 부착물 양 끝 손잡이를 제공한다. 드래그 preview는 도면 폭과 %를 즉시 바꾸며 완료 후 저장한다. 잠긴 요소·읽기 전용 화면에는 손잡이가 없다.
+- 폭 안내는 도면 축척과 분리해 화면에서12px 캡션으로 표시한다.
 - domain/placementGrid.ts: 긴 변32등분의 정사각 격자. 바닥/천장 요소의 클릭·드래그·방향키 배치를 맞춘다. 토글 끄기·Alt로 자유 이동한다. 받침 위 상품·구조·카메라·벽 구간 편집은 제외한다. 기존 저장 위치를 진입만으로 바꾸지 않는다.
 - data/referenceCatalog.ts / domain/referenceCatalog.ts / components/ReferenceCatalog.tsx: 분류형 기본 자료6장, 선택 등록·중복 선택·기존8장 한도. 자동 배치/자동 연결은 없다. 사용자가 가져올 내용과 적용 대상을 고르는 기존 흐름을 사용한다.
 - layout-mapping.css / tokens.css: 기존 타이포·semantic 색·상태·radius를 재사용하고 catalog의 반응형 치수만 중앙화한다.

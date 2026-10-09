@@ -434,7 +434,7 @@
 .plan-element__wall-hint {
   fill: var(--action-selected);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   pointer-events: none;
 }

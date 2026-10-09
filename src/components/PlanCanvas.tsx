@@ -949,7 +949,7 @@ export default function PlanCanvas({
             <title>끌어서 벽면 연출의 폭 조절</title><circle className="plan-wall-resize-hit" r={20}/><circle r={6}/>
           </g>;
         })}
-        {selected && wallEditable && <text className="plan-element__wall-hint" x={middle.x * width} y={middle.y * height + (middle.y > 0.75 ? -35 : 52)} textAnchor="middle" aria-hidden="true">폭 {Math.round((endFraction-startFraction)*100)}% · 양 끝을 끌어 조절</text>}
+        {selected && wallEditable && <text className="plan-element__wall-hint" transform={`translate(${middle.x * width} ${middle.y * height + (middle.y > 0.75 ? -35 : 52)}) scale(${1/contentPixelScale})`} textAnchor="middle" aria-hidden="true">폭 {Math.round((endFraction-startFraction)*100)}% · 양 끝을 끌어 조절</text>}
       </g>;
     }
     const boundsList = target.kind === 'whole-space'
