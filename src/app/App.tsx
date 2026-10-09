@@ -1,6 +1,8 @@
 import WorkspaceRegistration from '../components/WorkspaceRegistration';
 import LayoutWorkspace from '../components/LayoutWorkspace';
 import MappingWorkspace from '../components/MappingWorkspace';
+import ReferenceCatalog from '../components/ReferenceCatalog';
+import { registerCatalogReference } from '../domain/referenceCatalog';
 import { bindReference, changeBindingScope, createLayoutItem, LAYOUT_LABELS, migrateLayout, targetCondition, unbindReference } from '../domain/layoutMapping';
 import { LIGHT_PLAN_FOOTPRINT } from '../domain/layoutDefaults';
 import { AREA_DESCRIPTIONS } from '../domain/areaDescriptions';
@@ -234,9 +236,12 @@ function WallTargetEditor({ project, walls, target, selection, onSelectionChange
 }) {
   const [localWallId, setLocalWallId] = useState(target?.wallId ?? walls[0]?.id ?? '')
   const [localFace, setLocalFace] = useState<'a' | 'b' | ''>(target?.face ?? '')
+  const [startPercent, setStartPercent] = useState(String(pct(target?.start ?? .10)));
+  const [endPercent, setEndPercent] = useState(String(pct(target?.end ?? .30)));
   const wallId = selection?.wallId ?? localWallId;
   const face = selection ? selection.face ?? '' : localFace;
   function chooseFace(nextWallId: string, nextFace?: 'a' | 'b') {
+    if (nextWallId!==wallId) {setStartPercent(String(pct(target?.wallId===nextWallId?target.start:.10)));setEndPercent(String(pct(target?.wallId===nextWallId?target.end:.30)));}
     if (onSelectionChange) onSelectionChange({ wallId: nextWallId, face: nextFace });
     else { setLocalWallId(nextWallId); setLocalFace(nextFace ?? ''); }
   }
@@ -248,12 +253,14 @@ function WallTargetEditor({ project, walls, target, selection, onSelectionChange
     if (partition && !face) return
     onApply({ kind: 'wall-segment', wallId, start: fraction(String(data.get('start'))), end: fraction(String(data.get('end'))), ...(partition ? { face: face as 'a' | 'b' } : {}) })
   }}>
-    <h3>벽 구간</h3>
-    <p className="muted small">도면에서 벽을 선택하거나 아래에서 바꿀 수 있습니다. 창·문과 겹치지 않는 구간에 붙여 주세요.</p>
+    <h3>벽면 위치·폭</h3>
+    <p className="muted small">폭은 선택한 벽 전체 길이에 대한 비율입니다. 도면에서 양 끝 손잡이를 끌어 조절하거나 아래 값을 적용하세요. 높이는 이 평면도에서 조절하지 않습니다.</p>
     <label className="field"><span>붙일 벽</span><select value={wallId} onChange={event => chooseFace(event.target.value, event.target.value === target?.wallId ? target.face : undefined)}>{walls.map(item => <option key={item.id} value={item.id}>{item.name}{item.role === 'partition' ? ' · 가벽' : ''}</option>)}</select></label>
     {partition && <fieldset className="wall-face-choice"><legend>가벽의 어느 면에 붙일까요?</legend><p className="muted small">도면의 A·B 표시를 누르거나 아래에서 면을 고르세요. 반대쪽에서는 이 요소가 보이지 않도록 시안 조건에 전달됩니다.</p>{(['a', 'b'] as const).map(value => <label key={value} className="wall-face-choice__option"><input type="radio" name="face" value={value} checked={face === value} onChange={() => chooseFace(wallId, value)} /><span>{wallFaceLabel(project, wallId, value)}</span></label>)}{!face && <p className="muted small" role="status">붙일 면을 선택해 주세요.</p>}</fieldset>}
-    <div className="field-grid"><label className="field"><span>시작 (%)</span><input name="start" type="number" min="0" max="99" defaultValue={pct(target?.wallId === wallId ? target.start : .10)} /></label><label className="field"><span>끝 (%)</span><input name="end" type="number" min="1" max="100" defaultValue={pct(target?.wallId === wallId ? target.end : .30)} /></label></div>
-    <Button type="submit" disabled={!wallId || Boolean(partition && !face)}>벽 구간 적용</Button>
+    <label className="field"><span>벽에서 차지하는 폭 (%)</span><input type="number" min="1" max={100-Number(startPercent)} value={Number(endPercent)-Number(startPercent)} onChange={event=>setEndPercent(String(Math.min(100,Number(startPercent)+Number(event.target.value))))} /></label>
+    <div className="field-grid"><label className="field"><span>시작점 위치 (%)</span><input name="start" type="number" min="0" max="99" value={startPercent} onChange={event=>setStartPercent(event.target.value)} /></label><label className="field"><span>끝점 위치 (%)</span><input name="end" type="number" min="1" max="100" value={endPercent} onChange={event=>setEndPercent(event.target.value)} /></label></div>
+    <p className="muted small">위치는 벽의 도면상 시작점에서 잰 비율이며 화면의 좌우 방향과 다를 수 있습니다. 창·문을 가리는 구간은 적용할 수 없습니다.</p>
+    <Button type="submit" disabled={!wallId || Boolean(partition && !face)}>위치·폭 적용</Button>
   </form>
 }
 function FilePick({ label, onFile, accept = 'image/png,image/jpeg,image/webp', tone = 'secondary', disabled = false, icon = 'image', sourceIcon }: {
@@ -778,6 +785,15 @@ export default function App() {
   }
   function renderWorkspaceToolbar(leftLabel: string) {
     return <div className="workspace-toolbar" aria-label="작업 패널 표시"><Button tone="quiet" pressed={showWorkspaceLeft} onClick={() => setShowWorkspaceLeft((value) => !value)}>{leftLabel} {showWorkspaceLeft ? '숨기기' : '보이기'}</Button><Button tone="quiet" pressed={showWorkspaceRight} onClick={() => setShowWorkspaceRight((value) => !value)}>속성 {showWorkspaceRight ? '숨기기' : '보이기'}</Button></div>
+  }
+  function chooseCatalogReference(id: string) {
+    if (busy) return false;
+    const current=projectRef.current;
+    const result=registerCatalogReference(current,id);
+    if (result.error) {setError(result.error);return false;}
+    if (result.project!==current&&!commit(result.project,'기본 레퍼런스를 등록했습니다.')) return false;
+    setReferenceFocus(result.referenceId!);setReferenceRegionDraft(null);setReferenceRegionMode('whole');
+    return true;
   }
   async function uploadImage(file: File, role: SourceImage['role'], referenceRole?: Reference['role']) {
     if(referenceRole&&countReferenceImages(projectRef.current)>=MAX_REFERENCE_IMAGES) {
@@ -1658,7 +1674,7 @@ export default function App() {
   function renderMapping() {
     const ref=project.references.find(item=>item.id===referenceFocus)??project.references[0];
     return <MappingWorkspace footer={renderWorkflowFooter()} project={project} referenceId={ref?.id??''} onReference={setReferenceFocus} region={referenceRegionDraft} onRegion={setReferenceRegionDraft} multi={mappingMulti} onMulti={setMappingMulti} selectedIds={mappingIds} scope={mappingScope} onScope={setMappingScope}
-      upload={<><details className="mapping-upload-kind"><summary>상품 사진을 등록하나요?</summary><label className="checkbox-row"><input type="checkbox" checked={mappingImageRole==='product'} onChange={event=>setMappingImageRole(event.target.checked?'product':'inspiration')} /><span>상품 자체의 사진</span></label><p className="muted small">진열할 상품의 모습이 중심인 사진이면 선택하세요. 공간·가구·조명 참고 사진은 선택하지 않아도 됩니다. 가져올 내용은 아래에서 정합니다.</p></details><FilePick label={busy?'등록 중…':'레퍼런스 추가'} disabled={busy||countReferenceImages(project)>=MAX_REFERENCE_IMAGES} onFile={file=>uploadImage(file,mappingImageRole,mappingImageRole==='product'?'product':'element')} /></>}
+      upload={<><details className="mapping-upload-kind"><summary>상품 사진을 등록하나요?</summary><label className="checkbox-row"><input type="checkbox" checked={mappingImageRole==='product'} onChange={event=>setMappingImageRole(event.target.checked?'product':'inspiration')} /><span>상품 자체의 사진</span></label><p className="muted small">진열할 상품의 모습이 중심인 사진이면 선택하세요. 공간·가구·조명 참고 사진은 선택하지 않아도 됩니다. 가져올 내용은 아래에서 정합니다.</p></details><FilePick label={busy?'등록 중…':'레퍼런스 추가'} disabled={busy||countReferenceImages(project)>=MAX_REFERENCE_IMAGES} onFile={file=>uploadImage(file,mappingImageRole,mappingImageRole==='product'?'product':'element')} /><ReferenceCatalog project={project} busy={busy} onChoose={chooseCatalogReference} /></>}
       onApply={()=>applyMapping(mappingIds,ref?.id??'')} onWholeSpace={()=>setMappingIds(['whole-space'])} onUnbind={id=>{commit(unbindReference(project,id),'연결을 해제했습니다. 레이아웃은 유지됩니다.');experiment.record('reference_binding_remove','binding',id)}} onBindingScope={(id,scope)=>{const result=changeBindingScope(projectRef.current,id,scope);if(result.error){setError(result.error);return false;}const saved=commit(result.project,'가져올 내용을 변경했습니다.');if(saved)experiment.record('reference_binding_apply','binding',id,{scope});return saved;}} onDelete={id=>{setPendingReferenceDelete(id)}}
       targetOptions={<>{mappingIds.some(id=>id.startsWith('wall:')&&project.floorPlan?.structures.some(wall=>wall.id===id.slice(5)&&wall.role==='partition'))&&<label className="field"><span>가벽의 붙일 면</span><select value={mappingFace??''} onChange={event=>setMappingFace(event.target.value as 'a'|'b')}><option value="">면을 선택하세요</option><option value="a">A면 · 벽의 A 표시 쪽</option><option value="b">B면 · 반대쪽</option></select></label>}{pendingReferenceDelete&&<div className="mapping-delete-confirm" role="group" aria-label="레퍼런스 삭제 확인"><button type="button" className="notice-dismiss" aria-label="삭제 확인 닫기" onClick={()=>setPendingReferenceDelete(null)}><NucleoIcon name="close" /></button><p>이미지를 삭제할까요? 배치와 이전 결과는 유지되고 현재 연결만 해제됩니다.</p><Button tone="danger" onClick={()=>{const id=pendingReferenceDelete;commitDeletion(removeReference(project,id),'참고 이미지를 삭제',{referenceId:id});setPendingReferenceDelete(null);setReferenceFocus('')}}>이미지 삭제</Button><Button onClick={()=>setPendingReferenceDelete(null)}>취소</Button></div>}</>}
       canvas={<PlanCanvas quietLabels project={project} mode="mapping" selectedWallFace={mappingFace} onWallFaceSelect={(_wallId,face)=>setMappingFace(face)} mappingSelectedIds={mappingIds} onMappingSelect={selectMappingTarget} onReferenceDrop={(id,refId,region)=>applyMapping(mappingIds.includes(id)&&mappingIds.length>1?mappingIds:[id],refId,region)} onDragEvent={recordCanvasDrag} onElementMove={(id,x,y)=>{if(projectRef.current.elements.find(item=>item.id===id)?.locked)return;const target=translatedElementTarget(projectRef.current,id,{x,y});if(target)applyElementTarget(id,target,true)}} onWallElementMove={(id,wallId,start,end)=>{const item=projectRef.current.elements.find(item=>item.id===id);if(item&&!item.locked&&item.target?.kind==='wall-segment')applyElementTarget(id,{...item.target,wallId,start,end,face:item.target.wallId===wallId?item.target.face:undefined},true)}} onUndo={()=>restoreEdit('undo')} onRedo={()=>restoreEdit('redo')} canUndo={!!editHistoryRef.current.get(project.id)?.past.length || !!undoAction && undoAction.projectId === project.id && undoAction.revision === project.commonRevision} canRedo={!!editHistoryRef.current.get(project.id)?.future.length} />} />;

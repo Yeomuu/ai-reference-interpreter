@@ -21,7 +21,8 @@ import { physicalFloorBounds } from '../domain/validation';
 import { translatedElementTarget, validateMovementPreview, type MovementPreview } from '../domain/movementFeedback';
 import PlanLegend from './PlanLegend';
 import TimedNotice from './TimedNotice';
-import { wallFaceLabel, wallFaceLine } from '../domain/wallFaces';
+import { wallFaceLabel, wallFaceLine, wallFaceOfPoint } from '../domain/wallFaces';
+import { placementGridSize, snapPlacementPoint } from '../domain/placementGrid';
 import './plan-canvas.css';
 
 export interface PlanCanvasProps {
@@ -80,6 +81,7 @@ type WallDrag = {
   pointerOffset: number;
   geometry: { start: Point; end: Point };
   spanPixels: number;
+  resize?: 'start' | 'end';
 };
 type StructureDrag = { pointer: Point };
 type DragState = {
@@ -191,6 +193,9 @@ export default function PlanCanvas({
   const [hoveredId, setHoveredId] = useState<string>();
   const [dropTarget, setDropTarget] = useState<string>();
   const [zoom, setZoom] = useState(1);
+  const [gridEnabled, setGridEnabled] = useState(true);
+  const gridId = `placement-grid-${useId().replace(/:/g,'')}`;
+  const snapEnabled = gridEnabled && (mode === 'place' || mode === 'mapping');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [drawDraft, setDrawDraft] = useState<DrawDraft | null>(null);
   const [outlineRedo, setOutlineRedo] = useState<Point[]>([]);
@@ -439,7 +444,8 @@ export default function PlanCanvas({
   function placeAtPointer(event: MouseEvent<SVGElement>) {
     const point = svgPosition(event);
     if (!point || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) return;
-    onPlacePoint?.(point.x, point.y);
+    const placed = snapEnabled && !event.altKey ? snapPlacementPoint(point,width,height) : point;
+    onPlacePoint?.(placed.x, placed.y);
   }
 
   function handleDrawStart(event: PointerEvent<SVGSVGElement>) {
@@ -570,7 +576,7 @@ export default function PlanCanvas({
       if (!drag.wall) return;
       const current = activePlan.structures.find(item => item.id === drag.wall!.wallId);
       const adjacent = current && adjacentWallAtPointer(point, current, activePlan.structures, width, height, contentPixelScale, drag.wall.spanPixels);
-      if (adjacent?.geometry.kind === 'segment') {
+      if (!drag.wall.resize && adjacent?.geometry.kind === 'segment') {
         const length = Math.hypot((adjacent.geometry.end.x - adjacent.geometry.start.x) * width, (adjacent.geometry.end.y - adjacent.geometry.start.y) * height);
         const span = drag.wall.spanPixels / length;
         drag.wall = { wallId: adjacent.id, start: 0, end: span, pointerOffset: 0, spanPixels: drag.wall.spanPixels, geometry: adjacent.geometry };
@@ -579,13 +585,14 @@ export default function PlanCanvas({
       const wall = drag.wall;
       const span = wall.end - wall.start;
       const midpoint = fractionOnSegment(point, wall.geometry.start, wall.geometry.end, width, height) + wall.pointerOffset;
-      const start = clamp(midpoint - span / 2, 0, 1 - span);
-      next = { kind: drag.kind, id: drag.id, wall: { wallId: wall.wallId, start, end: start + span } };
+      const edge = clamp(fractionOnSegment(point, wall.geometry.start, wall.geometry.end, width, height), 0, 1);
+      const start = wall.resize === 'start' ? clamp(edge, 0, wall.end - .01) : wall.resize === 'end' ? wall.start : clamp(midpoint - span / 2, 0, 1 - span);
+      const end = wall.resize === 'end' ? clamp(edge, wall.start + .01, 1) : wall.resize === 'start' ? wall.end : start + span;
+      next = { kind: drag.kind, id: drag.id, wall: { wallId: wall.wallId, start, end } };
     } else if (drag.kind.endsWith('move')) {
-      next = { kind: drag.kind, id: drag.id, point: {
-        x: clamp(point.x + (drag.pointerOffset?.x ?? 0), 0, 1),
-        y: clamp(point.y + (drag.pointerOffset?.y ?? 0), 0, 1),
-      } };
+      const position = {x:clamp(point.x + (drag.pointerOffset?.x ?? 0),0,1),y:clamp(point.y + (drag.pointerOffset?.y ?? 0),0,1)};
+      const item = project.elements.find(item=>item.id===drag.id);
+      next = {kind:drag.kind,id:drag.id,point:drag.kind==='element-move' && snapEnabled && !event.altKey && item?.target?.kind!=='fixture-surface' ? snapPlacementPoint(position,width,height) : position};
     } else {
       if (!drag.center) return;
       const dx = (point.x - drag.center.x) * width;
@@ -649,9 +656,13 @@ export default function PlanCanvas({
       return;
     }
     const step = event.shiftKey ? 0.05 : 0.01;
+    const item = project.elements.find(item=>item.id===id);
+    const useGrid = owner==='element' && snapEnabled && !event.altKey && item?.target?.kind!=='fixture-surface';
+    const horizontalStep = useGrid ? placementGridSize(width,height)/width*(event.shiftKey?2:1) : step;
+    const verticalStep = useGrid ? placementGridSize(width,height)/height*(event.shiftKey?2:1) : step;
     const offsets: Record<string, Point> = {
-      ArrowLeft: { x: -step, y: 0 }, ArrowRight: { x: step, y: 0 },
-      ArrowUp: { x: 0, y: -step }, ArrowDown: { x: 0, y: step },
+      ArrowLeft: { x: -horizontalStep, y: 0 }, ArrowRight: { x: horizontalStep, y: 0 },
+      ArrowUp: { x: 0, y: -verticalStep }, ArrowDown: { x: 0, y: verticalStep },
     };
     const offset = offsets[event.key];
     if (!offset) return;
@@ -659,7 +670,8 @@ export default function PlanCanvas({
     event.stopPropagation();
     const x = clamp(point.x + offset.x, 0, 1);
     const y = clamp(point.y + offset.y, 0, 1);
-    if (owner === 'element') onElementMove?.(id, x, y);
+    const next = useGrid ? snapPlacementPoint({x,y},width,height) : {x,y};
+    if (owner === 'element') onElementMove?.(id, next.x, next.y);
     else onCameraMove?.(id, x, y);
   }
 
@@ -675,6 +687,21 @@ export default function PlanCanvas({
       geometry: { start: wall.geometry.start, end: wall.geometry.end },
       spanPixels: (target.end - target.start) * Math.hypot((wall.geometry.end.x - wall.geometry.start.x) * width, (wall.geometry.end.y - wall.geometry.start.y) * height),
     });
+  }
+
+  function startWallResize(event: PointerEvent<SVGGElement>, element: DesignElement, wall: Structure, edge: 'start' | 'end') {
+    startWallElementDrag(event, element, wall);
+    if (dragRef.current?.wall) dragRef.current.wall.resize = edge;
+  }
+
+  function handleWallResizeKey(event: KeyboardEvent<SVGGElement>, element: DesignElement, wall: Structure, edge: 'start' | 'end') {
+    const target = element.target;
+    if (target?.kind !== 'wall-segment' || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+    event.preventDefault(); event.stopPropagation();
+    const delta = (['ArrowLeft','ArrowDown'].includes(event.key) ? -1 : 1) * (event.shiftKey ? .05 : .01);
+    const start = edge === 'start' ? clamp(target.start + delta, 0, target.end - .01) : target.start;
+    const end = edge === 'end' ? clamp(target.end + delta, target.start + .01, 1) : target.end;
+    onWallElementMove?.(element.id, wall.id, start, end);
   }
 
   function handleWallElementKeyDown(event: KeyboardEvent<SVGGElement>, element: DesignElement, wall: Structure) {
@@ -852,7 +879,7 @@ export default function PlanCanvas({
       const handleX = x + Math.cos(radians) * handleDistance;
       const handleY = y + Math.sin(radians) * handleDistance;
       return <g className={classes} key={element.id} data-element-id={element.id} onMouseEnter={() => setHoveredId(element.id)} onMouseLeave={() => setHoveredId(undefined)} role={editable || supportPicking || mode==='place' ? 'button' : undefined} tabIndex={editable || supportPicking || mode==='place' ? 0 : undefined}
-        aria-label={`${element.label}${supportPicking ? ', 이 진열대 위에 제품 연결' : ', 바닥 요소'}${editable ? ', 끌어서 이동, 방향키로 1% 이동' : ''}`}
+        aria-label={`${element.label}${supportPicking ? ', 이 진열대 위에 제품 연결' : ', 바닥 요소'}${editable ? ', 끌어서 이동, 격자 맞춤은 도면 도구에서 변경' : ''}`}
         aria-pressed={editable ? selected : undefined}
         onPointerDown={pointPlacementMode || supportPicking ? event => event.stopPropagation() : editable ? (event) => startDrag(event, 'element-move', element.id, position) : undefined}
         onKeyDown={pointPlacementMode ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onPlacePoint?.(target.x,target.y)}} : supportPicking ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSupportSelect?.(element.id); } } : mode==='place' && element.locked ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onElementSelect?.(element.id)}} : editable ? (event) => handleMoveKeyDown(event, 'element', element.id, { x: target.x, y: target.y }) : undefined}
@@ -901,7 +928,8 @@ export default function PlanCanvas({
       const end = pointOnSegment(wall.geometry.start, wall.geometry.end, endFraction);
       const middle = pointOnSegment(start, end, 0.5);
       const partition = wall.role === 'partition';
-      const faceLine = partition && target.face ? wallFaceLine(wall, startFraction, endFraction, target.face, width, height) : null;
+      const visualFace = partition ? target.face : wallFaceOfPoint(project, wall, {x:.5,y:.5}) ?? 'a';
+      const faceLine = visualFace ? wallFaceLine(wall, startFraction, endFraction, visualFace, width, height, 12 / contentPixelScale) : null;
       const wallEditable = mode === 'place' && Boolean(onWallElementMove) && !element.locked;
       return <g className={`${classes}${wallEditable ? ' plan-element--wall-editable' : ''}`} key={element.id} data-element-id={element.id} aria-label={`${element.label}, ${wall.name}${partition ? `, ${target.face ? wallFaceLabel(project, wall.id, target.face) : '붙일 면 미지정'}` : ''}`}>
         <title>{`${element.label} · ${wall.name}${partition ? ` · ${target.face ? wallFaceLabel(project, wall.id, target.face) : '붙일 면 미지정'}` : ''}`}</title>
@@ -913,7 +941,15 @@ export default function PlanCanvas({
           onClick={wallEditable ? (event) => event.stopPropagation() : undefined}>
           <line className="plan-element__wall" x1={faceLine?.start.x ?? start.x * width} y1={faceLine?.start.y ?? start.y * height} x2={faceLine?.end.x ?? end.x * width} y2={faceLine?.end.y ?? end.y * height} />
         </g>
-        {selected && wallEditable && <text className="plan-element__wall-hint" x={middle.x * width} y={middle.y * height + (middle.y > 0.75 ? -35 : 52)} textAnchor="middle" aria-hidden="true">벽 따라 이동</text>}
+        {selected && wallEditable && (['start','end'] as const).map(edge => {
+          const point = edge === 'start' ? faceLine?.start ?? {x:start.x*width,y:start.y*height} : faceLine?.end ?? {x:end.x*width,y:end.y*height};
+          return <g key={edge} className="plan-wall-resize-handle" transform={`translate(${point.x} ${point.y}) scale(${1/contentPixelScale})`} role="slider" tabIndex={0}
+            aria-label={`${element.label} ${edge==='start'?'시작':'끝'} 위치`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((edge==='start'?startFraction:endFraction)*100)}
+            onPointerDown={event=>startWallResize(event,element,wall,edge)} onKeyDown={event=>handleWallResizeKey(event,element,wall,edge)} onClick={event=>event.stopPropagation()}>
+            <title>끌어서 벽면 연출의 폭 조절</title><circle className="plan-wall-resize-hit" r={20}/><circle r={6}/>
+          </g>;
+        })}
+        {selected && wallEditable && <text className="plan-element__wall-hint" x={middle.x * width} y={middle.y * height + (middle.y > 0.75 ? -35 : 52)} textAnchor="middle" aria-hidden="true">폭 {Math.round((endFraction-startFraction)*100)}% · 양 끝을 끌어 조절</text>}
       </g>;
     }
     const boundsList = target.kind === 'whole-space'
@@ -1056,6 +1092,7 @@ export default function PlanCanvas({
         <span>{plan.geometryConfidence === 'schematic' ? '실측 전 개략도' : '등록된 치수 기준'}</span>
       </div>
       <div className="plan-canvas__controls" aria-label="도면 보기 도구">
+        {(mode==='place'||mode==='mapping')&&<button type="button" aria-pressed={gridEnabled} title="개략 격자에 맞춰 배치합니다. Alt를 누르면 자유롭게 이동합니다." onClick={()=>setGridEnabled(value=>!value)}>격자 맞춤 {gridEnabled?'켜짐':'꺼짐'}</button>}
         {onUndo && <button type="button" className="plan-canvas__icon-button" aria-label="실행 취소" title="실행 취소 (Ctrl+Z)" disabled={!canUndo && !outlineDraft.length} onClick={() => { if (outlineDraft.length) { setOutlineRedo(points => [...points, outlineDraft.at(-1)!]); setOutlineDraft(points => points.slice(0, -1)); } else onUndo(); }}><NucleoIcon name="undo" /></button>}
         {onRedo && <button type="button" className="plan-canvas__icon-button" aria-label="다시 실행" title="다시 실행 (Ctrl+Shift+Z)" disabled={!canRedo && !outlineRedo.length} onClick={() => { if (outlineRedo.length) { setOutlineDraft(points => [...points, outlineRedo.at(-1)!]); setOutlineRedo(points => points.slice(0, -1)); } else onRedo(); }}><NucleoIcon name="redo" /></button>}
       </div>
@@ -1090,6 +1127,7 @@ export default function PlanCanvas({
           <rect className="plan-canvas__backdrop" width={width} height={height} />
           {imageUri && <image className="plan-canvas__image" href={imageUri} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid meet" />}
           {floorAreas.filter(area => !showAreas || areaLayers.floor || area.id === selectedArea?.id).map((area) => area.outline ? <polygon key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} points={area.outline.map(p => `${p.x * width},${p.y * height}`).join(' ')} /> : <rect key={area.id} className={`plan-canvas__floor${imageUri ? ' plan-canvas__floor--uploaded' : ''}`} x={area.bounds.x * width} y={area.bounds.y * height} width={area.bounds.width * width} height={area.bounds.height * height} />)}
+          {snapEnabled && <g className="plan-placement-grid" pointerEvents="none" aria-hidden="true"><defs><pattern id={gridId} width={placementGridSize(width,height)} height={placementGridSize(width,height)} patternUnits="userSpaceOnUse"><path d={`M ${placementGridSize(width,height)} 0 H 0 V ${placementGridSize(width,height)}`} /></pattern></defs>{floorAreas.map(area=>area.outline?<polygon key={area.id} points={area.outline.map(p=>`${p.x*width},${p.y*height}`).join(' ')} fill={`url(#${gridId})`}/>:<rect key={area.id} x={area.bounds.x*width} y={area.bounds.y*height} width={area.bounds.width*width} height={area.bounds.height*height} fill={`url(#${gridId})`}/>)}</g>}
           <PlanMovementOverlay project={project} structures={movedStructures} width={width} height={height} unit={1 / contentPixelScale} patternId={movementPatternId} showCameraOccupancy={showCameraOccupancy} showStructureObstacles={!showStructureLayer} showElementOccupancy={!showElements || !layers.elements || Boolean(preview)} ignoredElementId={preview?.kind === 'element-move' || preview?.kind === 'element-rotate' ? preview.id : undefined} />
           {visibleAreas.filter(area => area.kind !== 'passage' && (area.kind !== 'floor' || area.id === selectedArea?.id)).map(area => {
             const selected = area.id === selectedArea?.id;

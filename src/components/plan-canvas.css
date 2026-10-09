@@ -747,3 +747,12 @@
 .plan-canvas__help summary { cursor: pointer; min-height: var(--control-height-32); padding: var(--space-4) 0; }
 .plan-canvas__help summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .plan-canvas__help .plan-canvas__instruction { margin: var(--space-8) 0; }
+
+/* A wall attachment occupies a directed span, separate from the preserved wall. */
+.plan-element__wall { vector-effect: non-scaling-stroke; stroke-width: 8; }
+.plan-wall-resize-handle { cursor: ew-resize; outline: none; }
+.plan-wall-resize-handle circle { fill: var(--surface-base); stroke: var(--action-selected); stroke-width: 2; }
+.plan-wall-resize-handle .plan-wall-resize-hit { fill: transparent; stroke: none; pointer-events: all; }
+.plan-wall-resize-handle:focus-visible circle:not(.plan-wall-resize-hit) { stroke-width: 4; }
+
+.plan-placement-grid path { fill: none; stroke: var(--border-subtle); stroke-width: 1; vector-effect: non-scaling-stroke; }

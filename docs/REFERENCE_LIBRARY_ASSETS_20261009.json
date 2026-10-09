@@ -1,0 +1,66 @@
+[
+  {
+    "file": "public\\sample\\library\\chair.webp",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Chair.JPG",
+    "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/5/55/Chair.JPG?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "originalSha256": "73db796087c551375d7d537ca78c81ede7b106cd8d25e1fad729a29a7b59483c",
+    "sha256": "be2d3297d0cfe9d74124e963112aed9c1594b97a0bc7a9a6197bc1b7a4c8b918",
+    "width": 960,
+    "height": 1440,
+    "bytes": 111288,
+    "license": "CC0 1.0",
+    "verified": "2026-10-09"
+  },
+  {
+    "file": "public\\sample\\library\\floor-light.webp",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Floor_lamp_near_a_wall_(Unsplash).jpg",
+    "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/c/cb/Floor_lamp_near_a_wall_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "originalSha256": "d68a9f3e936e6b181d3e6830bb0c1d916d62a5622e4ad4671cf7246d904e2de2",
+    "sha256": "c8ce3d8f0ded4d6e1abd9ef4af5231d44c8d7f88a16ce5c6f4cb0748fa263d9a",
+    "width": 1440,
+    "height": 964,
+    "bytes": 221450,
+    "license": "CC0 1.0",
+    "verified": "2026-10-09"
+  },
+  {
+    "file": "public\\sample\\library\\wall-curves-preview.webp",
+    "sourceFile": "public/sample/graphic.png",
+    "sha256": "1e11ed660db05f3ec9b39a3a5adf6715f10455e4bbf34d8dd8f8344a094abc04",
+    "width": 640,
+    "height": 427,
+    "bytes": 5884,
+    "provenance": "pre-existing generated planning reference; thumbnail conversion only",
+    "verified": "2026-10-09"
+  },
+  {
+    "file": "public\\sample\\library\\warm-light-preview.webp",
+    "sourceFile": "public/sample/atmosphere.png",
+    "sha256": "35c7d3afc6d6a6b7b1e3232e9496d2f62d237e30ceb8f3980469b0a32432a81b",
+    "width": 640,
+    "height": 427,
+    "bytes": 19578,
+    "provenance": "pre-existing generated planning reference; thumbnail conversion only",
+    "verified": "2026-10-09"
+  },
+  {
+    "file": "public\\sample\\library\\exhibition-display-preview.webp",
+    "sourceFile": "public/sample/campus/exhibition-display.png",
+    "sha256": "99231a91977acbbd9b8ed7f42adbec89433c473fa1b69711abf35eb3f2849f91",
+    "width": 640,
+    "height": 480,
+    "bytes": 9548,
+    "provenance": "pre-existing generated planning reference; thumbnail conversion only",
+    "verified": "2026-10-09"
+  },
+  {
+    "file": "public\\sample\\library\\curved-display-preview.webp",
+    "sourceFile": "public/sample/product.png",
+    "sha256": "9a8df26fa45c627c8c2bec6b3cdc54c566862da3ea9e43e2d5e29161957ff02a",
+    "width": 640,
+    "height": 427,
+    "bytes": 7004,
+    "provenance": "pre-existing generated planning reference; thumbnail conversion only",
+    "verified": "2026-10-09"
+  }
+]

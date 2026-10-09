@@ -234,3 +234,16 @@
 .plan-canvas__layer-controls>button[aria-pressed=true] { background:var(--surface-pressed); color:var(--text-primary); border-color:var(--border-strong); }
 .plan-legend-instruction { margin-top:var(--space-12); padding-top:var(--space-12); border-top:1px solid var(--border-default); font-size:var(--font-size-compact); line-height:1.6; }
 .plan-legend-instruction p { margin:var(--space-8) 0 0; }
+
+.reference-catalog-open { width: 100%; margin-top: var(--space-8); }
+.reference-catalog-dialog { inset: 0; margin: auto; width: min(var(--reference-catalog-max-width), calc(100vw - var(--space-32))); max-height: var(--reference-catalog-max-height); overflow-y: auto; }
+.reference-catalog-categories { display: flex; flex-wrap: wrap; gap: var(--space-8); margin: var(--space-16) 0; }
+.reference-catalog-categories [aria-pressed=true] { color: var(--action-selected); border-color: var(--border-selected); background: var(--surface-selected); }
+.reference-catalog-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(var(--reference-catalog-card-min-width),1fr)); gap: var(--space-24); }
+.reference-catalog-item { display: flex; flex-direction: column; min-width: 0; }
+.reference-catalog-item > img { width: 100%; height: var(--reference-catalog-image-height); object-fit: contain; background: var(--surface-workspace); border-radius: var(--radius-8); }
+.reference-catalog-item h3 { font-size: var(--font-size-panel); margin: var(--space-12) 0 var(--space-8); }
+.reference-catalog-item p { font-size: var(--font-size-compact); margin: 0 0 var(--space-8); }
+.reference-catalog-item > .button { margin-top: auto; }
+
+.reference-catalog-dialog[open] { display: block; overflow-y: auto; }

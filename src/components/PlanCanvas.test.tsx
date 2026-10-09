@@ -154,3 +154,21 @@ describe('drawing affordances', () => {
     expect(renderToStaticMarkup(createElement(PlanCanvas, props))).not.toContain('진열 가벽 · 이동 가능');
   });
 });
+
+describe('wall span feedback',()=>{
+  it('shows a resized span, endpoint controls and saved wall geometry together',()=>{
+    const project=createSampleProject();
+    const wall=project.floorPlan!.structures.find(s=>s.id==='wall-east')!;
+    const before=structuredClone(wall);
+    const element=createLayoutItem(project,'wall-resize','wall-art');
+    element.target={kind:'wall-segment',wallId:wall.id,start:.1,end:.3};project.elements=[element];
+    const narrow=renderToStaticMarkup(createElement(PlanCanvas,{project,mode:'place',selectedElementId:element.id,onWallElementMove:()=>{}}));
+    element.target={...element.target,end:.7};
+    const wide=renderToStaticMarkup(createElement(PlanCanvas,{project,mode:'place',selectedElementId:element.id,onWallElementMove:()=>{}}));
+    expect(narrow).toContain('폭 20%');expect(wide).toContain('폭 60%');
+    expect(wide.match(/class="plan-wall-resize-handle"/g)).toHaveLength(2);
+    expect(wide).toContain('wall-resize');expect(wall).toEqual(before);
+    const readonly=renderToStaticMarkup(createElement(PlanCanvas,{project,mode:'camera'}));
+    expect(readonly).not.toContain('class="plan-wall-resize-handle"');
+  });
+});

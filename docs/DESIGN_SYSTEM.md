@@ -1261,3 +1261,8 @@ PlanMovementOverlay는 기존 canvas-structure와 state-info-fg로 바닥/물체
 
 ## STEP 01 디자인 목표 최소 높이 · 2026-10-08
 사용자 주석에 따라 디자인 목표 textarea의 최소 높이는 space-goal-min-height=98px이다. 고정 공간 패널에서는 flex 축소로 이 최소 높이를 잃지 않으며 충분한 높이에서는 기존 max188px까지 채운다. 짧은 창은 설정 내용 영역만 스크롤하고 다음 버튼은 별도 footer에 유지한다. 글꼴·문구·저장 동작은 유지한다.
+
+## 벽면 폭·배치 격자·기본 자료 · 2026-10-09
+벽면 구간은 구조 선에서 화면12px 떨어진 별도8px 선으로 표시한다. 선택 시 기존 선택색과 양 끝40px 조작 영역/6px 시각 손잡이로 폭 조절을 구분한다. 이 간격은 표시 오프셋이며 저장 도면/벽 위치를 바꾸지 않는다.
+배치 격자는 기존 border-subtle의1px 선과 선택 가능한 격자 맞춤 버튼을 사용하며 실측 단위를 표시하지 않는다. 카메라와 구조 화면에는 추가하지 않는다.
+기본 자료 대화상자는 기존 native dialog·neutral surface·radius12·shadow-float·18px 제목/14px 설명/캡션과 버튼 상태를 재사용한다. max-width960px/card-min-width220px/image-height180px/max-height85dvh를 reference-catalog 의미 token으로 중앙화한다. 좁은 화면은 같은 대화상자 내부에서 스크롤하고 사진 비율은 contain으로 유지한다. 새 브랜드 색·폰트·아이콘은 없다.

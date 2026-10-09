@@ -251,6 +251,9 @@ Actual current results are recorded in QA_SPATIAL_BATCH_20260929.md; older dated
 - scripts/qa-workspace.mjs 기존 흐름도 함께 검증한다. 이 테스트 또한 mock이며 실제 모델 실행을 뜻하지 않는다.
 - 이번 수정 검증 결과: 전체 28개 파일의 자동 테스트 237개, ESLint, 앱/API TypeScript 검사, production build 통과. 격리 브라우저의 기존 workspace 시나리오와 요소 가시성/새 프로젝트/생성 입력 시나리오 통과. 이 검증의 유료 모델 호출은 0회이며 실제 이미지 품질은 재검증하지 않았다.
 
+## 교수 피드백 검증 · 2026-10-09
+벽면 숫자 폭과 끝점 드래그의 SVG/저장 span, undo/redo/reload, 문과 겹치는 구간 거부, 격자·Alt 자유 이동·토글, 기본 레퍼런스6장 분류/등록/중복/연결/삭제/복구를 격리 브라우저에서 확인했다.1440×900과938×672의 화면을 직접 캡처/확인했다. 자동 테스트33파일280개, lint·앱/API 타입 검사·build 통과. 실제 유료 호출0회. 상세 실행 증거: QA_PROFESSOR_FEEDBACK_20261009.md.
+
 ## 2단계 Backspace 삭제 검증 · 2026-10-01
 - 격리 브라우저에서 선택 배치 요소 삭제, 이름/숫자 입력 보호, 길게 누름 반복 삭제 방지, Ctrl+Z/다시 실행/새로고침, 구조·영역 보존, 1·3·4단계 비적용, 다각형 그리기 Backspace 유지와 JS 오류 없음 확인. 유료 모델 호출 0회.
 - 관련 편집/매핑/저장 테스트 32개, ESLint, 앱/API TypeScript, production build 통과. 기존 큰 JS 묶음 경고는 유지된다.

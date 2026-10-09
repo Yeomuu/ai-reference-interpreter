@@ -98,6 +98,7 @@
   --landing-grid-opacity:.6;
   --space-type-label:16px; --space-line-label:24px;
   --space-type-goal:var(--font-size-body); --space-type-help:var(--font-size-caption); --space-line-help:18px;
+  --reference-catalog-max-width:960px; --reference-catalog-card-min-width:220px; --reference-catalog-image-height:180px; --reference-catalog-max-height:85dvh;
   --space-tabs-height:46px; --space-goal-min-height:98px; --space-goal-max-height:188px;
   --space-registration-corner-offset:-2.5px;
   --space-registration-center-offset:-2.5px;

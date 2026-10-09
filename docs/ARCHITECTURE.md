@@ -168,3 +168,7 @@ API와 API에서 참조하는 도메인/서비스 모듈은 NodeNext 타입 검�
 - 표시 레이어 필터와 명시적 선택 예외를 renderElement 및 mappingTargets에 공통 적용한다. other-ceiling 등 legacy 물체도 기존 LayoutSymbol을 사용한다.
 - buildPlanGuideSvg는 천장 위치/offset과 물리 floor-area 윤곽을 포함하며 매핑 조건의 wall-segment도 유지한다. 원본 사진 첫 입력, 도면 가이드 두 번째 입력, 레퍼런스 후속 입력 계약은 유지한다.
 - buildGenerationPrompt의 공통 지침에 가구가 있는 원본 공간 사진에서 보존하지 않은 이동식 물체를 비우는 조건을 적용한다. 16,000자 한도와 단일 생성 호출·quota 계약을 유지하며 구조/데이터를 자동 변경하지 않는다.
+
+## 교수 피드백 구현 · 2026-10-09
+placementGrid의 긴 변32등분 pitch는 SVG 단위 정사각 cell을 정의하고 normalized anchor로 다시 저장한다. PlanCanvas의 wall drag에 resize edge를 추가해 기존 wall-element-move preview/validation/commit 경로를 재사용한다. 스키마와 생성 target/start/end는 유지한다.
+referenceCatalog 데이터는 준비된6개 자산과 분류/설명/출처를 정의한다. domain/registerCatalogReference는 중복 URI와 기존8장 한도를 확인하고 선택한 inspiration source/reference만 updateCommon으로 등록한다. ReferenceCatalog의 native dialog는 기존 파일 업로드와 나란히 사용한다. 고해상도 원본은 등록/모델 입력에 유지하고 gallery만 작은 WebP preview를 쓴다. 새 외부 런타임 요청·모델 호출·참가자 인증·quota 저장 변경은 없다.
