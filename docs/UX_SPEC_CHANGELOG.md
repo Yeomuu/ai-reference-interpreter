@@ -1,5 +1,9 @@
 # 제품·인터랙션·시각 사양 변경 기록 · 2026-09-24~28
 
+## 로고와 사용·실험 가이드 정합성 · 2026-10-12
+사용자 지정 Figma311:899의 원본SVG를 홈·작업 헤더·favicon·사용 가이드에 사용한다. SVG1254×1254 원본을 변형하지 않고 기존 logo slot·ReSpace wordmark·레이아웃·색 token을 유지한다. 원본 Figma는 읽기만 한다. 출처/해시는 FIGMA_LOGO_ASSET_20261012.json.
+삭제된 선택·이동 버튼·왼쪽 레퍼런스 패널 안내를 현재 조작으로 교체하고 벽면 폭·격자/Alt·기본 자료·Shift45°·패널 footer를 설명한다. 홈 자동A와 수동B·연습을 구분하고 진행자 문서의 사전 보존/추천 시점 조건을 정정한다. 실험 deep link를 #study로 맞추고 기존 #experiment를 호환한다. 수집/유료 생성/사용자 데이터 로직은 변경하지 않는다.
+
 ## 2026-10-08 · 사용자 17주석과 생성 입력 정돈
 
 사용자의 새 지시로만 기존 진행에 --motion-step=240ms 전환을 추가하고 reduced-motion에서 제거한다. 새 브랜드 색·폰트 크기 체계는 없다. STEP 01 photo-top-offset 126→96px, 공통 source marker, STEP 02 category tabs, 투명 STEP 02/03 canvas wrapper, icon-only undo/redo, 동일 toolbar 높이, footer space-between 및 Review 고정 생성 행동을 적용한다. Keep 기본접힘/빈 제외 숨김/중립 issue/STEP 01 형식 생성 tabs/compact guide/기록3면 border는 실제 사용자 주석에 대응한다.

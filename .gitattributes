@@ -1,2 +1,4 @@
 # Preserve PDF bytes and xref offsets in generated guide artifacts.
 *.pdf binary
+# Keep the user-supplied Figma logo bytes identical across checkouts.
+public/brand/respace-mark-311-899.svg -text

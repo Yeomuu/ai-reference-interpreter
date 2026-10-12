@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-08",
+  "date": "2026-10-12",
   "baseUrl": "http://127.0.0.1:5174",
-  "baseCommit": "ced86af",
-  "source": "Working correction v1.4.3; isolated Chrome profile; native transparent SVG, hover component and R8 panels. API status/mock generation only in QA; no model result pictured, no paid call.",
+  "baseCommit": "7d003a7",
+  "source": "Logo and guide working changes on the stated base; isolated Edge context; actual UI actions; no generated result or paid model call.",
   "screenshots": [
     {
       "file": "00-home.png",
@@ -11,7 +11,7 @@
         1920,
         1080
       ],
-      "sha256": "ec6af3d9cd9c02af1a55f7fb7a550906298ade41cd14aaa5b709ba545bf47aad"
+      "sha256": "dd9fd7bce5c335b44971b4e840d9982a6683e915a808a051a8e7945162872fc8"
     },
     {
       "file": "01-space.png",
@@ -20,7 +20,7 @@
         1920,
         1080
       ],
-      "sha256": "4ef11518480b037eb4f1647a23282c3966c219085882d73b24fc33e1e55e716c"
+      "sha256": "6bd3c5f5c62c330c9f11d23e9e4eb74ccc7df58300427121c0b2cb322f199b58"
     },
     {
       "file": "02-layout.png",
@@ -29,7 +29,7 @@
         1920,
         1080
       ],
-      "sha256": "eeaeb2762015cf47d76a5ec898cdf5bcd65557494b0d8865b15199b962071302"
+      "sha256": "88e6780ee5c59cfe81e99d23912162dd18223bf795bfe363e17ef598bc0d865c"
     },
     {
       "file": "03-references.png",
@@ -38,7 +38,7 @@
         1920,
         1080
       ],
-      "sha256": "bf295fe849f58a63aef05cb9d7ad1bde028ebf596ca5a3482e66ccb59feed428"
+      "sha256": "f139cde02ab754b8b354fc4d81fdcaa0238a27b1439b3035f1a84b8c7556cc26"
     },
     {
       "file": "04-generate.png",
@@ -47,7 +47,7 @@
         1920,
         1080
       ],
-      "sha256": "0330f573e39b479d86c8baf8e5a67b31084f446e4173653542a8631a686483c8"
+      "sha256": "87452f7315b0bf971b26a8c07944ac4ca538eefef829a2fe4728581ee1593657"
     }
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "sourceFileKey": "J2ZHftzWmLR7OQhpyMFJQA",
+  "sourceNodeId": "311:899",
+  "sourceUrl": "https://www.figma.com/design/J2ZHftzWmLR7OQhpyMFJQA/?node-id=311-899",
+  "retrieved": "2026-10-12",
+  "asset": "public/brand/respace-mark-311-899.svg",
+  "bytes": 6154,
+  "width": 1254,
+  "height": 1254,
+  "viewBox": "0 0 1254 1254",
+  "sha256": "c4e5cafe532b45a9fe2fe39ca92fa1bfb7e93794ab883c55e704aae035c2c244",
+  "modifications": "none; original vector asset, colors, proportions and canvas inset retained",
+  "usage": ["app header on home and project routes", "app favicon", "public guide header and favicon"],
+  "retained": ["existing ReSpace wordmarks", "existing logo slots and navigation behavior", "all other Figma nodes unchanged"]
+}
