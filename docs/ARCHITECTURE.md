@@ -172,3 +172,7 @@ API와 API에서 참조하는 도메인/서비스 모듈은 NodeNext 타입 검�
 ## 교수 피드백 구현 · 2026-10-09
 placementGrid의 긴 변32등분 pitch는 SVG 단위 정사각 cell을 정의하고 normalized anchor로 다시 저장한다. PlanCanvas의 wall drag에 resize edge를 추가해 기존 wall-element-move preview/validation/commit 경로를 재사용한다. 스키마와 생성 target/start/end는 유지한다.
 referenceCatalog 데이터는 준비된6개 자산과 분류/설명/출처를 정의한다. domain/registerCatalogReference는 중복 URI와 기존8장 한도를 확인하고 선택한 inspiration source/reference만 updateCommon으로 등록한다. ReferenceCatalog의 native dialog는 기존 파일 업로드와 나란히 사용한다. 고해상도 원본은 등록/모델 입력에 유지하고 gallery만 작은 WebP preview를 쓴다. 새 외부 런타임 요청·모델 호출·참가자 인증·quota 저장 변경은 없다.
+
+
+## 부착 표면과 테이블 접촉 · 2026-10-12
+attachmentSurfaces는 실제 저장 호스트의 벽 선/사각 기둥 면/원형 둘레를 해석한다. wall-segment에 optional pillarFace만 추가하며 schemaVersion1과 기존 좌표는 유지한다. tableWallContact는 floor-point 테이블의 회전 윤곽과 접촉 좌표를 계산한다. preview/commit은 같은 검증을 사용한다. 가이드·프롬프트·experiment pillar_face도 같은 표면을 사용한다. 새 외부 호출이나 quota 변경은 없다.

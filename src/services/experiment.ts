@@ -29,7 +29,7 @@ export interface ExperimentSession {
 }
 export interface ExperimentState { sessions: ExperimentSession[]; activeId: string | null; fault: string }
 const stepNames: Record<Step, string> = { projects: 'projects', space: 'space', keep: 'preservation', references: 'reference', placement: 'placement', camera: 'viewpoint', review: 'review', results: 'result' }
-const allowedPayload = new Set(['drag_kind', 'from_step', 'to_step', 'navigation', 'duration_ms', 'structure_type', 'mandatory', 'source', 'role', 'region_used', 'element_type', 'layout_kind', 'target_count', 'apply_state', 'target_type', 'target_id', 'wall_face', 'x_norm', 'y_norm', 'rotation', 'heading_deg', 'fov', 'invalid_reason', 'issue_count', 'common_revision', 'changed_fields', 'origin', 'edit_duration_ms', 'character_count', 'diff_length', 'request_id', 'outcome_unknown', 'approved'])
+const allowedPayload = new Set(['drag_kind', 'from_step', 'to_step', 'navigation', 'duration_ms', 'structure_type', 'mandatory', 'source', 'role', 'region_used', 'element_type', 'layout_kind', 'target_count', 'apply_state', 'target_type', 'target_id', 'wall_face', 'pillar_face', 'x_norm', 'y_norm', 'rotation', 'heading_deg', 'fov', 'invalid_reason', 'issue_count', 'common_revision', 'changed_fields', 'origin', 'edit_duration_ms', 'character_count', 'diff_length', 'request_id', 'outcome_unknown', 'approved'])
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 for(const key of ['count','limit','view_preset','height_m','pitch_deg'])allowedPayload.add(key);
 
@@ -56,7 +56,7 @@ export function targetPayload(target: PlacementTarget | null): Payload {
   if (!target) return {}
   return { target_type: target.kind,
     ...('x' in target ? { x_norm: target.x, y_norm: target.y, rotation: target.rotationDegrees ?? 0 } : {}),
-    ...('wallId' in target ? { target_id: target.wallId, wall_face: target.face ?? null } : {}),
+    ...('wallId' in target ? { target_id: target.wallId, wall_face: target.face ?? null, pillar_face: target.pillarFace ?? null } : {}),
     ...('areaId' in target ? { target_id: target.areaId } : {}),
     ...('zoneId' in target ? { target_id: target.zoneId } : {}),
     ...(target.kind === 'fixture-surface' ? { target_id: target.fixtureElementId, x_norm: target.offset.x, y_norm: target.offset.y } : {}) }

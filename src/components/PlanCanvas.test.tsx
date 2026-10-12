@@ -36,6 +36,19 @@ describe('partition face controls', () => {
 });
 
 describe('active placement tools', () => {
+  it('renders a pillar surface span and editable width without offering host movement in attachment mode',()=>{
+    const project=createSampleProject();
+    const host=project.floorPlan!.structures.find(s=>s.id==='pillar-west')!;
+    host.immutable=false;host.protected=false;project.keeps=project.keeps.filter(k=>k.structureId!==host.id);
+    const graphic=project.elements.find(e=>e.id==='element-graphic')!;
+    graphic.target={kind:'wall-segment',wallId:host.id,pillarFace:'right',start:.1,end:.7};
+    const html=renderToStaticMarkup(createElement(PlanCanvas,{project,mode:'place',wallAttachmentMode:true,selectedElementId:graphic.id,onWallSelect:()=>{},onStructureMove:()=>{},onWallElementMove:()=>{}}));
+    expect(html).toContain('polyline class="plan-element__wall"');
+    expect(html).toContain('도면 오른쪽 면');
+    expect(html).toContain('폭 60%');
+    expect(html).toContain('탈착식 포토존 그래픽 끝 위치');
+    expect(html).not.toMatch(/plan-structure--pillar[^"]*plan-structure--movable/);
+  });
   it('offers support picking for a new product even before any product is selected', () => {
     const project = createSampleProject();
     const support = createLayoutItem(project, 'support', 'display');

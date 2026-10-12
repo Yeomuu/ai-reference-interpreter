@@ -125,7 +125,7 @@ export type PlacementTarget =
   | { kind: 'fixture-surface'; fixtureElementId: string; offset: Point }
   | { kind: 'floor-point'; x: number; y: number; rotationDegrees?: number; footprint?: { width: number; height: number } }
   | { kind: 'floor-area'; areaId: string }
-  | { kind: 'wall-segment'; wallId: string; start: number; end: number; height?: string; face?: 'a' | 'b' }
+  | { kind: 'wall-segment'; wallId: string; start: number; end: number; height?: string; face?: 'a' | 'b'; pillarFace?: 'top' | 'right' | 'bottom' | 'left' | 'round' }
   | { kind: 'ceiling-zone'; zoneId: string; offset?: Point; height?: string }
   | { kind: 'whole-space' }
   | { kind: 'named-area'; areaId: string };

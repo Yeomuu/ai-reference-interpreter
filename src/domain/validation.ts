@@ -1,6 +1,8 @@
 import { areaContainsPoint, areaContainsRect, areaContainsSegment, areaIntersectsRect, areaIntersectsSegment, areaIntersectsCircle, outlineBounds, validOutline } from './geometry.js';
 import { isDisplaySupport } from './display.js';
 import { LIGHT_PLAN_FOOTPRINT } from './layoutDefaults.js';
+import { attachmentSurface, pillarFaces } from './attachmentSurfaces.js';
+import { tableFootprint, wallCrossesTable } from './tableWallContact.js';
 import type {
   Area,
   DesignElement,
@@ -263,7 +265,7 @@ function validateElementOccupancy(project: Project, element: DesignElement, targ
     if (target.kind === 'wall-segment' && other.target.kind === 'wall-segment' && target.wallId === other.target.wallId) {
       const sameLayer = wallPhysical && ['photozone', 'wall-graphic', 'wall-mounted-product', 'wall-light', 'other-wall'].includes(other.kind) || element.kind === 'wall-material' && other.kind === 'wall-material';
       const wall = structureById(project, target.wallId);
-      const differentFaces = wall?.role === 'partition' && target.face && other.target.face && target.face !== other.target.face;
+      const differentFaces = wall?.role === 'partition' && target.face && other.target.face && target.face !== other.target.face || wall?.kind==='pillar'&&target.pillarFace!==other.target.pillarFace;
       if (sameLayer && !differentFaces) overlap = spanOverlap(target, other.target);
     }
     const otherCeiling = ceilingBounds(project, other);
@@ -480,13 +482,18 @@ function validateFloorPoint(project: Project, elementId: string, target: Extract
   // Use a conservative enclosing box after rotation, including diagonal poses.
   const footprintRect = floorFootprintRect(target, project.floorPlan!.width, project.floorPlan!.height);
   const floorAreas = project.floorPlan!.areas.filter((area) => area.kind === 'floor');
-  if (!validRect(footprintRect) || !floorAreas.some((area) => areaContainsRect(area, footprintRect))) {
+  const table=project.elements.find(item=>item.id===elementId)?.layoutKind==='table';
+  const outline=table?tableFootprint(target,project.floorPlan!.width,project.floorPlan!.height).outline:undefined;
+  if (!validRect(footprintRect) || !floorAreas.some((area) => outline?outline.every((p,i)=>areaContainsSegment(area,p,outline[(i+1)%outline.length])):areaContainsRect(area, footprintRect))) {
     issues.push(error('outside-floor', '요소의 점유 영역이 사용 가능한 바닥 범위를 벗어납니다.', elementId));
   }
 
   for (const structure of project.floorPlan!.structures) {
+    if(table&&['window','door','entrance'].includes(structure.kind)&&structure.geometry.kind==='segment'&&segmentIntersectsRect(structure.geometry.start,structure.geometry.end,{x:footprintRect.x-1e-9,y:footprintRect.y-1e-9,width:footprintRect.width+2e-9,height:footprintRect.height+2e-9})){
+      issues.push(error(structure.kind==='window'?'opening-overlap':'door-clearance',`${structure.name}의 개구부를 막는 위치입니다. 벽의 다른 구간을 선택해 주세요.`,elementId,structure.id));
+    }
     if (structure.kind === 'wall' && structure.geometry.kind === 'segment' &&
-        segmentIntersectsRect(structure.geometry.start, structure.geometry.end, footprintRect)) {
+        (table?wallCrossesTable(target,structure,project.floorPlan!.width,project.floorPlan!.height):segmentIntersectsRect(structure.geometry.start, structure.geometry.end, footprintRect))) {
       issues.push(error(isPartition(structure) ? 'partition-conflict' : 'structure-overlap', `${structure.name} ${isPartition(structure) ? '가벽' : '벽'}과 겹칩니다. 다른 바닥 위치를 선택해 주세요.`, elementId, structure.id));
     }
     if (structure.kind === 'pillar') {
@@ -515,9 +522,10 @@ function validateFloorPoint(project: Project, elementId: string, target: Extract
 
 function validateWallSegment(project: Project, elementId: string, elementKind: ElementKind, target: Extract<PlacementTarget, { kind: 'wall-segment' }>): ValidationIssue[] {
   const wall = structureById(project, target.wallId);
-  if (!wall || wall.kind !== 'wall' || wall.geometry.kind !== 'segment') {
-    return [error('missing-structure', '선택한 벽을 도면에서 찾을 수 없습니다.', elementId, target.wallId)];
+  if (!wall || !attachmentSurface(project,target)) {
+    return [error('missing-structure', '붙일 벽·가벽 또는 기둥의 면을 선택해 주세요.', elementId, target.wallId)];
   }
+  if(wall.kind==='wall'&&target.pillarFace||wall.kind==='pillar'&&(!target.pillarFace||!pillarFaces(wall).includes(target.pillarFace)||target.face))return [error('invalid-target-kind','구조에 맞는 부착 면을 선택해 주세요.',elementId,wall.id)];
   if (!isFraction(target.start) || !isFraction(target.end) || target.start >= target.end) {
     return [error('invalid-coordinate', '벽 구간의 시작과 끝을 올바르게 지정해 주세요.', elementId, wall.id)];
   }
@@ -537,7 +545,7 @@ function validateWallSegment(project: Project, elementId: string, elementKind: E
     } else if (elementKind === 'wall-light' || elementKind === 'wall-mounted-product' || elementKind === 'other-wall') {
       issues.push({
         code: 'keep-conflict',
-        message: `${wall.name}은(는) 유지할 벽입니다. 조명·제품의 고정 방식이 벽을 손상하지 않는지 직접 확인해 주세요.`,
+        message: `${wall.name}은(는) 유지할 구조입니다. 조명·제품의 고정 방식이 구조를 손상하지 않는지 직접 확인해 주세요.`,
         severity: 'warning',
         elementId,
         structureId: wall.id,

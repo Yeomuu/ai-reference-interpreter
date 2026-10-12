@@ -1,6 +1,7 @@
 import type { DesignElement, PlacementTarget, Point, Project, Rect, Structure, StructureGeometry } from '../domain/types.js';
 import { elementPlanPosition, generationElementKey, type PlanGuideManifest } from './planGuide.js';
 import { wallFaceLabel, wallFaceOfPoint } from '../domain/wallFaces.js';
+import { attachmentPoint, PILLAR_FACE_LABELS } from '../domain/attachmentSurfaces.js';
 import { CAMERA_PRESETS } from '../domain/prototypeConfig.js';
 import { STUDY_START } from '../domain/studyConfig.js';
 
@@ -151,6 +152,10 @@ function targetText(project: Project, target: PlacementTarget | null): string {
       return `floor area ${boundedText(project.floorPlan?.areas.find((area) => area.id === target.areaId)?.name ?? target.areaId)}`;
     case 'wall-segment': {
       const wall = project.floorPlan?.structures.find(item => item.id === target.wallId);
+      if(wall?.kind==='pillar'&&target.pillarFace){
+        const start=attachmentPoint(project,target,target.start)!,end=attachmentPoint(project,target,target.end)!,middle=attachmentPoint(project,target)!;
+        return `pillar ${boundedText(wall.name)} (${wall.id}), ONLY on saved surface ${target.pillarFace} (${PILLAR_FACE_LABELS[target.pillarFace]}), span ${percent(target.start)} to ${percent(target.end)} ${target.pillarFace==='round'?'clockwise around the circumference, 0% is plan-top/12 oclock':'along this face, following the clockwise perimeter direction'}, endpoints x=${coordinate(start.x)}, y=${coordinate(start.y)} to x=${coordinate(end.x)}, y=${coordinate(end.y)}, midpoint x=${coordinate(middle.x)}, y=${coordinate(middle.y)}. Keep the pillar geometry unchanged; do not copy this attachment to another face or a room wall`;
+      }
       const segment = wall?.geometry.kind === 'segment' ? wall.geometry : undefined;
       const spanCoordinates = segment ? `, endpoints x=${coordinate(segment.start.x + (segment.end.x - segment.start.x) * target.start)}, y=${coordinate(segment.start.y + (segment.end.y - segment.start.y) * target.start)} to x=${coordinate(segment.start.x + (segment.end.x - segment.start.x) * target.end)}, y=${coordinate(segment.start.y + (segment.end.y - segment.start.y) * target.end)}` : '';
       return `wall ${boundedText(wall?.name ?? target.wallId)}, span ${percent(target.start)} to ${percent(target.end)} along wall${spanCoordinates}${wall?.role === 'partition' && target.face ? `, ONLY on ${wallFaceLabel(project, wall.id, target.face)} of this partition (A/B are defined by the saved wall start-to-end direction in the plan guide)` : ''}`;
@@ -200,6 +205,7 @@ function installationContext(project: Project, element: DesignElement, compact =
   }
   if (target.kind !== 'wall-segment') return '';
   const wall = plan.structures.find(item => item.id === target.wallId);
+  if(wall?.kind==='pillar')return 'Mount on the saved pillar surface only. Respect the pillar occlusion from this camera: hidden faces and the rear circumference stay hidden. Do not relocate or duplicate the attachment to make it visible. The guide is 2D placement, not a calibrated 3D projection. ';
   const faceContext = wall?.role === 'partition' && target.face ? (() => {
     const cameraFace = wallFaceOfPoint(project, wall, camera);
     if (compact) return cameraFace === target.face ? 'Camera is on the decorated face; show only when in view. '

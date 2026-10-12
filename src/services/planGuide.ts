@@ -3,6 +3,7 @@ import { displayPosition } from '../domain/display.js';
 import { arrangePlanLabels } from '../components/plan-labels.js';
 import { planSymbol } from '../domain/planSymbols.js';
 import { wallFaceLine } from '../domain/wallFaces.js';
+import { attachmentPoint, pillarSpanPoints, PILLAR_FACE_LABELS } from '../domain/attachmentSurfaces.js';
 import { isCountedLayoutItem } from '../domain/prototypeLimits.js';
 
 export interface PlanGuideManifest {
@@ -34,12 +35,7 @@ export function elementPlanPosition(project: Project, element: DesignElement): P
   if (!target || !project.floorPlan) return null;
   if (target.kind === 'floor-point') return target;
   if (target.kind === 'fixture-surface') return displayPosition(project, element);
-  if (target.kind === 'wall-segment') {
-    const wall = project.floorPlan.structures.find(item => item.id === target.wallId);
-    if (wall?.geometry.kind !== 'segment') return null;
-    const { start, end } = wall.geometry, fraction = (target.start + target.end) / 2;
-    return { x: start.x + (end.x - start.x) * fraction, y: start.y + (end.y - start.y) * fraction };
-  }
+  if (target.kind === 'wall-segment') return attachmentPoint(project,target);
   const id = target.kind === 'ceiling-zone' ? target.zoneId : target.kind === 'floor-area' || target.kind === 'named-area' ? target.areaId : undefined;
   const area = project.floorPlan.areas.find(item => item.id === id);
   return area ? { x: area.bounds.x + area.bounds.width * (target.kind === 'ceiling-zone' ? target.offset?.x ?? .5 : .5), y: area.bounds.y + area.bounds.height * (target.kind === 'ceiling-zone' ? target.offset?.y ?? .5 : .5) } : null;
@@ -99,6 +95,10 @@ export function buildPlanGuideSvg(project: Project, cameraId: string, palette: P
     }
     if (target.kind === 'wall-segment') {
       const wall = plan.structures.find(structure => structure.id === target.wallId);
+      if(wall?.kind==='pillar'&&target.pillarFace){
+        const points=pillarSpanPoints(project,target,7/scale).map(p=>`${p.x*scale},${p.y*scale}`).join(' ');
+        return `<g data-element-id="${escape(item.id)}" data-pillar-face="${target.pillarFace}"><polyline points="${points}" fill="none" stroke="${color.structure}" stroke-width="7"/><text x="${point.x*width+12}" y="${point.y*height-12}" font-size="12" fill="${color.ink}">${PILLAR_FACE_LABELS[target.pillarFace]}</text></g>`;
+      }
       if (wall?.geometry.kind !== 'segment') return '';
       const { start, end } = wall.geometry;
       const faceLine = wall.role === 'partition' && target.face ? wallFaceLine(wall, target.start, target.end, target.face, width, height) : null;
