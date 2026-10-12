@@ -14,7 +14,7 @@ export default function ReferenceCatalog({project,busy,onChoose}:{project:Projec
     <button type="button" className="button reference-catalog-open" onClick={()=>dialog.current?.showModal()}><NucleoIcon name="images"/>기본 레퍼런스에서 고르기</button>
     <dialog ref={dialog} className="reference-library reference-catalog-dialog" aria-labelledby="reference-catalog-title">
       <div className="group-heading"><h2 id="reference-catalog-title">기본 레퍼런스</h2><button type="button" className="button button-quiet" aria-label="기본 레퍼런스 닫기" onClick={()=>dialog.current?.close()}><NucleoIcon name="close"/></button></div>
-      <p className="muted">벽면·의자·조명·전시대 자료를 준비했습니다. 등록한 뒤 도면에서 적용할 요소와 가져올 내용을 선택하세요.</p>
+      <p className="muted">졸업전시용 전시대·테이블·의자·벽면 패널·조명 8종과 기존 참고 자료를 준비했습니다. 등록한 뒤 도면의 요소와 가져올 특징을 직접 연결하세요.</p>
       <div className="reference-catalog-categories" aria-label="기본 레퍼런스 분류">{Object.entries(REFERENCE_CATEGORIES).map(([id,label])=><button type="button" className="button" key={id} aria-pressed={category===id} onClick={()=>setCategory(id as typeof category)}>{label}</button>)}</div>
       <div className="reference-catalog-grid">{REFERENCE_CATALOG.filter(item=>category==='all'||item.category===category).map(entry=>{
         const registered=project.references.some(ref=>project.sourceImages.some(image=>image.id===ref.imageId&&image.uri===entry.uri));
