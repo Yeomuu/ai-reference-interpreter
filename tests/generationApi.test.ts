@@ -137,16 +137,25 @@ describe('image generation API boundary', () => {
     expect(generationQuota.reserve).toHaveBeenCalledTimes(1);
     expect(upstream).toHaveBeenCalledTimes(1);
   }, 30_000); // Full 20-object geometry/recommendation fixture; independent of provider timeouts.
-  it('reports an overlong saved input as 400 without quota reservation or a model call', async () => {
+  it('packs many saved area conditions without an arbitrary condition-count rejection', async () => {
     const input=sampleRequest();
     for(let i=0;i<80;i++) input.project.floorPlan!.areas.push({id:`area-${i}`,name:`분위기 영역 ${i} `+'상세 공간 설명 '.repeat(18),kind:'spatial',bounds:{x:.4,y:.4,width:.02,height:.02}});
-    expect(()=>buildGenerationPrompt(input.project,input.cameraId,input.images)).toThrow(GenerationInputError);
-    const upstream=vi.fn(); vi.stubGlobal('fetch',upstream);
+    const prompt=buildGenerationPrompt(input.project,input.cameraId,input.images);
+    expect(prompt.length).toBeLessThanOrEqual(MAX_GENERATION_PROMPT_LENGTH);
+    for(const area of input.project.floorPlan!.areas)expect(prompt).toContain(area.name);
+    const upstream=vi.fn(async()=>({ok:true,json:async()=>({data:[{b64_json:jpeg}]})})); vi.stubGlobal('fetch',upstream);
     const {response,values}=responseStub(); await generate(requestStub(input),response);
-    expect(values.statusCode).toBe(400);
-    expect(JSON.parse(values.body)).toMatchObject({error:expect.stringContaining('생성 조건이 너무 길어'),outcomeUnknown:false});
-    expect(values.body).not.toContain('호출 상한');
-    expect(generationQuota.reserve).not.toHaveBeenCalled(); expect(upstream).not.toHaveBeenCalled();
+    expect(values.statusCode).toBe(200);
+    expect(generationQuota.reserve).toHaveBeenCalledTimes(1); expect(upstream).toHaveBeenCalledTimes(1);
+  });
+  it('never labels a provider-capacity failure as a quota fault or spends quota for it',async()=>{
+    const input=sampleRequest();input.project.designGoal='긴 사용자 문장'.repeat(10_000);
+    for(let i=0;i<400;i++)input.project.floorPlan!.areas.push({id:`area-${i}`,name:'서로 다른 공간의 설명 '.repeat(40)+i,kind:'spatial',bounds:{x:.4,y:.4,width:.02,height:.02}});
+    expect(()=>buildGenerationPrompt(input.project,input.cameraId,input.images)).toThrow(GenerationInputError);
+    const upstream=vi.fn();vi.stubGlobal('fetch',upstream);
+    const{response,values}=responseStub();await generate(requestStub(input),response);
+    expect(values.statusCode).toBe(400);expect(JSON.parse(values.body).error).toContain('이미지 모델');
+    expect(generationQuota.reserve).not.toHaveBeenCalled();expect(upstream).not.toHaveBeenCalled();
   });
   it('distinguishes preparation faults from quota and logs only the stage and exception class', async () => {
     const log=vi.spyOn(console,'error').mockImplementation(()=>{});

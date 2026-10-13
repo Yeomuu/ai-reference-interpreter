@@ -269,3 +269,6 @@ Actual current results are recorded in QA_SPATIAL_BATCH_20260929.md; older dated
 - scripts/qa-workspace.mjs의 그리기·영역 설명·천장/상품 지지대·crop/whole-image drop·고정 적용·같은 탭 scope 변경·잘못된 위치 거부·이동 Undo/Redo/reload·결과 탭 활성화·모의 생성·stale/history·부분 수정·이미지 삭제 복구·12장 legacy 목록 회귀 통과. 실제 유료 생성은 하지 않았다.
 - 1575×884 / 1440×900 / 1280×720 / 1101×884 / 1070×671의 20개 화면에서 문서 overflow 없음, 단일 도면 안내의 메뉴 범위·가로 넘침 없음, 조작 설명 표시, Escape와 초점 복귀, 네 단계 키보드/URL/back/forward/reload 및 로고 목록 이동을 확인했다. 유료 요청 0회.
 - 화면을 기준으로 한 UI 검증이며 전체 접근성 인증이나 모델 이미지 품질/공간 일치 보장은 아니다. 상세 변경·화면 기록: QA_UI_POLISH_20261005.md.
+
+## 생성 조건과 완료 상태 검증 · 2026-10-13
+배치 물체 20개와 분위기 조건 2개의 실험 자료를 복원해 생성 입력 준비, 동일 POST, 상태 창/버튼 일치, 원본 누락/quota 차단을 검증했다. 35파일 305개 테스트, 타입/린트/build 통과. 모의 생성과 실제 모델 실행은 별도로 기록한다. 상세: QA_GENERATION_READINESS_20261013.md.

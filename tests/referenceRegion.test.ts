@@ -69,10 +69,12 @@ describe('reference source region', () => {
     expect(prompt).toContain('upper-right panel')
   })
 
-  it('rejects more than four different crops from one source before any paid request', () => {
+  it('uses the original for more than four crops and retains every selected region', () => {
     const sample = createSampleProject()
     sample.elements = Array.from({ length: 5 }, (_, index) => ({ ...sample.elements[0], id: `part-${index}`,
       sourceRegion: { x: index * 0.15, y: 0.1, width: 0.1, height: 0.2 } }))
-    expect(() => referencePreparationFor(sample, 'photo-product')).toThrow('최대 4개')
+    expect(referencePreparationFor(sample, 'photo-product')).toBeUndefined()
+    const prompt=buildGenerationPrompt(sample,'camera-entrance',images)
+    for(const element of sample.elements){expect(prompt).toContain(element.label);expect(prompt).toContain(`normalized region x ${Number((element.sourceRegion!.x*100).toFixed(2))}%`)}
   })
 })

@@ -89,8 +89,7 @@ function validateRequest(value: unknown): { body: GenerationRequest; decoded: Bu
     throw new RequestError('프로젝트나 이미지 입력 형식을 확인해 주세요.', 400);
   }
   const project = body.project;
-  if (project.results.length ||
-      (project.floorPlan?.structures.length ?? 0) > 100) {
+  if (project.results.length) {
     throw new RequestError('생성 요청에 결과 이력을 포함하지 말고 입력 조건을 간결하게 정리해 주세요.', 400);
   }
   const issues = validatePreflight(project, body.cameraId).issues.filter((issue) => issue.severity === 'error');

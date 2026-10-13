@@ -18,7 +18,9 @@ import { CAMPUS_PREFIX, CAMPUS_SOURCE, createCampusProject } from '../data/campu
 import { loadProjects, saveProject } from '../services/persistence'
 import { loadDeletionUndo, prepareDeletionUndo, type DeletionUndo } from '../services/deletionUndo'
 import { deleteImageAsset, putImageAsset, resolveImageUri, revokeImageUrl, validateImageFile } from '../services/assets'
-import { GenerationOutcomeUnknownError, OFFLINE_DEMO_NOTICE, createApiImageProvider, getGenerationStatus, offlineDemoProvider } from '../services/imageProvider'
+import { GenerationOutcomeUnknownError, OFFLINE_DEMO_NOTICE, createApiImageProvider, getGenerationStatus, offlineDemoProvider, generationPreparationKey, prepareGenerationRequests } from '../services/imageProvider'
+import type { GenerationPreparationState } from '../services/imageProvider'
+import { generationReadiness } from '../services/generationReadiness'
 import type { GenerationStatus } from '../services/imageProvider'
 import { waitForGenerationSlot } from '../services/generationQueue'
 import { referencePreparationFor } from '../services/generationContract'
@@ -315,6 +317,7 @@ export default function App() {
   const [selectedElementId, setSelectedElementId] = useState(() => project.elements.find((item) => item.status === 'apply')?.id ?? '')
   const [generationCameraIds, setGenerationCameraIds] = useState<string[] | null>(null)
   const [generationProgress, setGenerationProgress] = useState('')
+  const [generationPreparation,setGenerationPreparation]=useState<GenerationPreparationState|null>(null);
   const [selectedCameraId, setSelectedCameraId] = useState(() => project.cameras.find((item) => item.primary)?.id ?? project.cameras[0]?.id ?? '')
   const [selectedResultId, setSelectedResultId] = useState(() => project.results.at(-1)?.id ?? '')
   const [newName, setNewName] = useState('')
@@ -397,6 +400,22 @@ export default function App() {
   const selectedCamera = project.cameras.find((item) => item.id === selectedCameraId) ?? project.cameras[0]
   const selectedResult = project.results.find((item) => item.id === selectedResultId) ?? project.results.at(-1)
   const preflight = useMemo(() => validatePreflight(project, selectedCameraId || undefined), [project, selectedCameraId])
+  const inputCameraIds=generationCameraIds!==null?generationCameraIds.filter(id=>project.cameras.some(c=>c.id===id)):[project.cameras.find(c=>c.id===selectedCameraId)?.id??project.cameras.find(c=>c.primary)?.id].filter((id):id is string=>!!id);
+  const inputPhotoId=project.sourceImages.find(i=>i.role==='existing-space'&&i.id===generationExistingPhotoId)?.id??project.sourceImages.find(i=>i.role==='existing-space')?.id;
+  const preparationKey=step==='review'&&inputPhotoId&&inputCameraIds.length&&inputCameraIds.every(id=>validatePreflight(project,id).valid)?generationPreparationKey(project,inputCameraIds,inputPhotoId):'';
+  const readyState=generationReadiness({project,cameraIds:inputCameraIds,existingPhotoId:inputPhotoId,preparation:generationPreparation,key:preparationKey,status:generationStatus,statusLoading:generationStatusLoading,busy,saveFailed,outcomeUnknown:uncertainGenerationAt!==null});
+  useEffect(()=>{
+    if(!preparationKey)return;
+    let cancelled=false;
+    const input=JSON.parse(preparationKey) as {project:Project;cameraIds:string[];existingPhotoId?:string};
+    setGenerationPreparation({key:preparationKey,state:'preparing',requests:[]});
+    prepareGenerationRequests(input.project,input.cameraIds,input.existingPhotoId).then(requests=>{
+      if(!cancelled)setGenerationPreparation({key:preparationKey,state:'ready',requests});
+    }).catch(cause=>{
+      if(!cancelled)setGenerationPreparation({key:preparationKey,state:'error',requests:[],error:cause instanceof Error?cause.message:'이미지와 생성 조건을 준비하지 못했습니다.'});
+    });
+    return()=>{cancelled=true;};
+  },[preparationKey]);
   const unknownRetrySeconds = uncertainGenerationAt === null ? 0 : Math.max(0, Math.ceil((uncertainGenerationAt + UNKNOWN_GENERATION_RETRY_MS - generationClock) / 1000))
 
   useEffect(() => {
@@ -1432,10 +1451,11 @@ export default function App() {
     showNotice('재요청 잠금을 해제했습니다. 비용이 다시 발생할 수 있으니 결과 이력과 사용량을 확인한 뒤 결정해 주세요.')
   }
   async function generateImage() {
+    if(!readyState.ready){setError(readyState.message);return;}
     if (generationInFlightRef.current) return
     if (uncertainGenerationAt !== null) { setError('이전 이미지 생성 요청의 결과가 불확실합니다. 결과 이력과 사용량을 확인하고 대기 시간이 지난 뒤 재시도를 허용해 주세요.'); return }
     if (saveFailed) { setError('프로젝트 기록 저장 문제를 해결하고 저장을 다시 시도한 뒤 AI 이미지를 생성해 주세요.'); return }
-    if (!preflight.valid) { setError('먼저 아래 필수 조건을 해결해 주세요.'); return }
+    if(generationPreparation?.key!==preparationKey||generationPreparation.state!=='ready'){setError(generationPreparation?.error??'생성 자료의 준비가 끝나면 다시 생성해 주세요.');return;}
     if (!generationStatus?.available) { setError(project.id.startsWith(CAMPUS_PREFIX) ? 'AI 생성 서버가 준비되지 않았습니다. 잠시 후 다시 확인해 주세요.' : 'AI 생성 서버가 준비되지 않았습니다. 데모 샘플은 계속 사용할 수 있습니다.'); return }
     const cameraIds = generationCameraIds !== null ? generationCameraIds.filter(id => project.cameras.some(camera => camera.id === id)) : [project.cameras.find(item => item.id === selectedCameraId)?.id ?? project.cameras.find(item => item.primary)?.id].filter((id): id is string => !!id)
     if (!cameraIds.length || cameraIds.some(id => !validatePreflight(project, id).valid)) { setError('생성할 시점을 선택하고 각 시점의 조건을 확인해 주세요.'); return }
@@ -1457,7 +1477,9 @@ export default function App() {
       requestId = crypto.randomUUID(); generationStarted = Date.now()
       setGenerationProgress(`${completed + 1} / ${cameraIds.length} · ${sourceProject.cameras.find(camera => camera.id === id)?.name ?? '시점'} 생성 중`)
       experiment.record('generation_request', 'camera', cameraId, { origin: 'ai', request_id: requestId, common_revision: sourceProject.commonRevision })
-      const result = await createApiImageProvider(requestId).createResult(sourceProject, cameraId, existingPhotoId)
+      const prepared=generationPreparation.requests.find(input=>input.request.cameraId===cameraId);
+      if(!prepared)throw new Error('이 시점의 생성 자료가 준비되지 않았습니다.');
+      const result = await createApiImageProvider(requestId,prepared).createResult(sourceProject, cameraId, existingPhotoId)
       experiment.record('generation_complete', 'result', result.id, { origin: 'ai', request_id: requestId, duration_ms: Date.now() - generationStarted })
       const latest = loadProjects().find((item) => item.id === sourceProject.id) ?? sourceProject
       const latestCamera = latest.cameras.find((item) => item.id === cameraId)
@@ -1510,9 +1532,8 @@ export default function App() {
     const atmosphere = applied.find((item) => item.kind === 'ambient-light' || item.kind === 'global-palette')
     const feel = project.designGoal?.trim() || atmosphere?.appearance?.trim() || atmosphere?.label || project.concept.trim()
     const chosenCameraIds = generationCameraIds !== null ? generationCameraIds.filter(id => project.cameras.some(camera => camera.id === id)) : reviewCamera ? [reviewCamera.id] : []
-    const batchValid = chosenCameraIds.length > 0 && chosenCameraIds.every(id => validatePreflight(project, id).valid)
     const batchFits = !generationStatus?.quota || chosenCameraIds.length <= Math.min(generationStatus.quota.remaining, generationStatus.quota.dailyRemaining)
-    const firstBlockingIssue = preflight.issues.find(issue => issue.severity === 'error') ?? chosenCameraIds.flatMap(id => validatePreflight(project, id).issues).find(issue => issue.severity === 'error')
+    const firstBlockingIssue = chosenCameraIds.flatMap(id => validatePreflight(project, id).issues).find(issue => issue.severity === 'error')
     let referencePreparationError = ''
     try {
       for (const image of project.sourceImages.filter((item) => item.role !== 'existing-space')) referencePreparationFor(project, image.id)
@@ -1534,13 +1555,13 @@ export default function App() {
       <section className="review-section"><div className="section-heading"><div><p className="eyebrow">04 · 시점</p><h2>카메라 시점</h2></div><Button tone="quiet" icon="edit" onClick={() => go('camera')}>시점 편집</Button></div>{primary ? project.cameras.map((camera) => <div className="summary-row" key={camera.id}><span><strong>{camera.name}</strong><small>위치 {pct(camera.x)}%, {pct(camera.y)}% · 방향 {camera.directionDegrees}° · {camera.fovPreset === 'wide' ? '넓은' : camera.fovPreset === 'narrow' ? '좁은' : '기본'} 화각</small></span><Badge tone={camera.primary ? 'selected' : 'neutral'}>{camera.primary ? '대표' : '추가'}</Badge></div>) : <Empty>대표 카메라가 필요합니다.</Empty>}</section>
     </div></details>{!project.id.startsWith(CAMPUS_PREFIX) && <div className="review-sample"><div className="offline-note"><Badge tone="info">무료 샘플</Badge><p>{OFFLINE_DEMO_NOTICE}</p></div><Button tone={generationStatus?.available ? 'secondary' : 'primary'} loading={busy} onClick={previewSample} disabled={!preflight.valid || busy}>{busy ? '여는 중…' : '사전 제공 샘플 열기'}</Button></div>}</div><aside className="review-side"><div className="workflow-panel-content">
       <div className="panel-heading"><div><p className="eyebrow">미리보기 전</p><h2><NucleoIcon name="check" />조건 확인</h2></div></div>
-      <div className={`review-state ${preflight.valid ? 'ready' : 'blocked'}`}><strong>{preflight.valid ? '필수 조건이 준비되었습니다' : `${preflight.issues.filter((item) => item.severity === 'error').length}개 조건을 확인하세요`}</strong><p>{preflight.valid ? '선택한 시점으로 진행할 수 있습니다.' : '각 항목을 선택하면 관련 설정으로 이동합니다.'}</p></div>
+      <div className={`review-state ${readyState.ready?'ready':readyState.waiting?'':'blocked'}`} role="status" aria-live="polite"><strong>{readyState.title}</strong><p>{readyState.message}</p></div>
 
       {preflight.issues.map((issue, index) => <button key={`${issue.code}-${index}`} type="button" className="issue-row" onClick={() => { const element = project.elements.find(item => item.id === issue.elementId); const areaId = element?.target && 'areaId' in element.target ? element.target.areaId : ''; const editArea = !!areaId && ['structure-overlap', 'partition-conflict', 'area-overlap', 'pillar-collision'].includes(issue.code); const destination = editArea ? 'placement' : issueStep(issue); experiment.record('review_edit_target', 'condition', issue.elementId ?? issue.structureId ?? null, { to_step: destination, invalid_reason: issue.code }); if (destination === 'placement') { setPlanDetailTab('plan'); setLayoutTool(null); setLayoutWallDraft(null); setSelectedAreaId(editArea ? areaId : ''); } if (destination === 'space') setSpaceSourceTab('plan'); if (issue.elementId) { setSelectedElementId(issue.elementId); setPlacementSelection('element') } if (issue.structureId) { setSelectedStructureId(issue.structureId); setPlacementSelection('structure'); } if (issue.cameraId) setSelectedCameraId(issue.cameraId); go(destination) }}><span><small>확인할 항목</small>{issue.message}</span><strong>{{placement:"배치 설정",references:"요소 설정",space:"공간 설정",keep:"보존 설정",camera:"시점 설정",projects:"프로젝트",review:"조건 확인",results:"결과 확인"}[issueStep(issue)]}<NucleoIcon name="next" /></strong></button>)}
 
       <div className="generation-panel"><div className="generation-panel__heading"><h3>생성 설정</h3></div>{generationBlocker}{existingPhotos.length > 1 ? <label className="field"><span>생성 기준 기존 공간 사진</span><select value={activeExistingPhotoId} disabled={busy} onChange={(event) => setGenerationExistingPhotoId(event.target.value)}>{existingPhotos.map((image) => <option key={image.id} value={image.id}>{image.name}</option>)}</select></label> : existingPhotos[0] ? <p className="muted small">생성 기준 기존 공간 사진 · {existingPhotos[0].name}</p> : null}<p>선택한 시점마다 이미지 1장을 만듭니다. 시점 수만큼 생성 횟수가 차감됩니다.</p><fieldset className="generation-viewpoints"><legend>생성할 시점 · {chosenCameraIds.length}개</legend>{project.cameras.map(camera => <label className="checkbox-row" key={camera.id}><input type="checkbox" disabled={busy} checked={chosenCameraIds.includes(camera.id)} onChange={event => setGenerationCameraIds(event.target.checked ? [...chosenCameraIds, camera.id] : chosenCameraIds.filter(id => id !== camera.id))} /><span>{camera.name}{!validateCamera(project, camera.id).valid ? ' · 위치 확인 필요' : ''}</span></label>)}{!batchFits && <p role="status">선택한 시점 수가 남은 횟수보다 많습니다.</p>}</fieldset>{generationProgress && <p role="status">{generationProgress}</p>}<details className="generation-details"><summary>사용 자료·결과 안내</summary><p>기존 공간 사진 1장, 저장한 구조·배치·선택 시점을 표시한 도면 가이드, 적용한 모든 레퍼런스와 조건을 전달합니다. 일부 영역을 선택하면 해당 부분을 사용하고, 이미지가 많으면 묶어서 전달합니다. 업로드 도면은 배경으로 함께 사용하며, 도면이 없으면 직접 그린 개략 도면을 사용합니다. 원본 사진의 벽·창·문·기둥·천장과 보존한 구조를 유지하며, 보존하지 않은 이동식 책상·의자 등은 비운 공간을 가정해 저장한 배치를 적용합니다. 원본 사진 자체는 바뀌지 않습니다. 조명 요소는 빛의 특성만 적용하고 색·마감은 별도 요소로 구분합니다. 결과의 구조·치수는 직접 확인해 주세요.</p></details>{referencePreparationError && <p className="generation-panel__warning">{referencePreparationError} <button type="button" onClick={() => go('references')}>레퍼런스 수정</button></p>}{saveFailed && <p className="generation-panel__warning">프로젝트 기록 저장 문제를 해결해야 새 유료 요청을 할 수 있습니다. <button type="button" onClick={() => commit(project, '프로젝트 기록을 저장했습니다.')}>저장 다시 시도</button></p>}{uncertainGenerationAt !== null && <div className="generation-panel__warning"><strong>이전 요청의 결과가 불확실합니다</strong><p>비용이 발생했을 수 있습니다. 결과 이력과 OpenAI 사용량을 확인해 주세요. {unknownRetrySeconds > 0 ? `재시도 허용까지 ${unknownRetrySeconds}초` : '대기 시간이 지났습니다. 위험을 확인한 뒤 재시도를 허용할 수 있습니다.'}</p><button type="button" onClick={allowGenerationRetry} disabled={busy || unknownRetrySeconds > 0}>위험 확인 후 재시도 허용</button></div>}{generationStatusLoading ? <p className="muted">생성 서버 상태 확인 중…</p> : generationStatus?.available ? <>{generationStatus.quota && <p className="muted small">오늘 서비스 전체 남은 생성 {generationStatus.quota.remaining} / {generationStatus.quota.totalLimit}회 · 오늘 내 남은 생성 {generationStatus.quota.dailyRemaining} / {generationStatus.quota.dailyLimit}회{generationStatus.quota.busy ? ' · 서버에서 생성 요청 처리 중' : ''}</p>}{generationStatus.quota && <p className="muted small">서비스 전체 한도와 내 브라우저 한도는 한국 시간 자정에 초기화됩니다. 접수된 요청은 실패해도 차감됩니다.</p>}{generationStatus.quota?.remaining === 0 ? <p role="status">오늘 서비스 전체 생성 한도를 모두 사용했습니다. 한국 시간 자정 이후 다시 사용할 수 있습니다. 무료 샘플과 편집은 계속 사용할 수 있습니다.</p> : generationStatus.quota?.dailyRemaining === 0 ? <p role="status">오늘 생성 한도를 모두 사용했습니다. 한국 시간 자정 이후 다시 사용할 수 있습니다.</p> : generationStatus.quota?.busy ? <p role="status">다른 요청이 접수되어 있습니다. 잠시 후 생성 가능 여부를 다시 확인해 주세요.</p> : null}</> : <p className="muted">{project.id.startsWith(CAMPUS_PREFIX) ? '이미지 생성 서버에 연결할 수 없습니다. 잠시 후 생성 가능 여부를 다시 확인해 주세요.' : (generationStatus?.reason ?? '생성 서버를 확인할 수 없습니다. 무료 샘플은 계속 사용할 수 있습니다.')}</p>}<Button tone="quiet" icon="refresh" loading={generationStatusLoading} disabled={busy} onClick={async () => { setGenerationStatusLoading(true); setGenerationStatus(await getGenerationStatus()); setGenerationStatusLoading(false) }}>{generationStatusLoading ? '확인 중…' : '생성 가능 여부 확인'}</Button></div>
 
-    </div><div className="workflow-footer workflow-footer--generate"><Button tone="primary" icon="image" loading={busy} onClick={generateImage} disabled={!generationStatus?.available || generationStatusLoading || !preflight.valid || busy || !batchValid || !batchFits || !!referencePreparationError || uncertainGenerationAt !== null || saveFailed || (!!generationStatus.quota && (generationStatus.quota.remaining === 0 || generationStatus.quota.dailyRemaining === 0 || generationStatus.quota.busy))}>{busy ? '처리 중…' : 'AI 이미지 생성'}</Button></div></aside></div>
+    </div><div className="workflow-footer workflow-footer--generate"><Button tone="primary" icon="image" loading={busy} onClick={generateImage} disabled={!readyState.ready}>{busy ? '처리 중…' : 'AI 이미지 생성'}</Button></div></aside></div>
   }
 
   async function downloadResult(result: Result) {

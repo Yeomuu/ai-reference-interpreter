@@ -3,7 +3,6 @@ import { elementPlanPosition, generationElementKey, type PlanGuideManifest } fro
 import { wallFaceLabel, wallFaceOfPoint } from '../domain/wallFaces.js';
 import { attachmentPoint, PILLAR_FACE_LABELS } from '../domain/attachmentSurfaces.js';
 import { CAMERA_PRESETS } from '../domain/prototypeConfig.js';
-import { STUDY_START } from '../domain/studyConfig.js';
 
 /** One high-quality edit, with no automatic variants or hidden model calls. */
 export const GENERATION_MODEL = 'gpt-image-2' as const;
@@ -17,7 +16,10 @@ export const MAX_REFERENCE_REGIONS_PER_IMAGE = 4;
 export const MAX_GENERATION_IMAGES = 5;
 export const MAX_GENERATION_IMAGE_BYTES = 550_000;
 export const MAX_GENERATION_BODY_BYTES = 4_000_000;
-export const MAX_GENERATION_PROMPT_LENGTH = 16_000;
+// Provider capacity, not a limit on the user's number of design conditions.
+// https://developers.openai.com/api/reference/resources/images/methods/edit
+export const MAX_GENERATION_PROMPT_LENGTH = 32_000;
+const COMPACT_PROMPT_THRESHOLD = 16_000;
 export class GenerationInputError extends Error {}
 
 export type GenerationImageRole = 'existing-space' | 'floor-plan' | 'inspiration' | 'product' | 'reference-sheet';
@@ -62,8 +64,8 @@ export interface GenerationStatus {
 export const GENERATION_PRICING_NOTE =
   'GPT Image 2의 실제 비용은 입력 문장·사진과 출력 이미지 토큰에 따라 달라집니다. 고정된 장당 요금이 아니며 OpenAI 공식 요금표와 사용량에서 확인해 주세요.';
 
-function boundedText(value: string, length = 240): string {
-  return value.trim().replace(/\s+/g, ' ').slice(0, length);
+function promptText(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
 }
 
 function percent(value: number): string {
@@ -99,7 +101,9 @@ export function referencePreparationFor(project: Project, sourceId: string): Ref
   }
   if (!regions.length) return undefined;
   if (regions.length > MAX_REFERENCE_REGIONS_PER_IMAGE) {
-    throw new Error(`같은 레퍼런스 이미지에서 서로 다른 선택 영역은 한 번에 최대 ${MAX_REFERENCE_REGIONS_PER_IMAGE}개까지 생성에 사용할 수 있습니다. 적용 요소의 영역을 정리해 주세요.`);
+    // Send the original once. Every element still names its own normalized crop;
+    // the four-panel packing layout must not become a user-facing crop limit.
+    return undefined;
   }
   return { mode: regions.length === 1 ? 'crop' : 'grid', regions };
 }
@@ -145,27 +149,27 @@ function targetText(project: Project, target: PlacementTarget | null): string {
   if (!target) return 'unplaced';
   switch (target.kind) {
     case 'fixture-surface':
-      return `on top of display support ${boundedText(project.elements.find(item => item.id === target.fixtureElementId)?.label ?? target.fixtureElementId)}, relative surface position (${percent(target.offset.x)}, ${percent(target.offset.y)}); product and support overlap intentionally, never place this product directly on the floor`;
+      return `on top of display support ${promptText(project.elements.find(item => item.id === target.fixtureElementId)?.label ?? target.fixtureElementId)}, relative surface position (${percent(target.offset.x)}, ${percent(target.offset.y)}); product and support overlap intentionally, never place this product directly on the floor`;
     case 'floor-point':
       return `floor point (${percent(target.x)}, ${percent(target.y)}), rotation ${Math.round(target.rotationDegrees ?? 0)} degrees, footprint ${percent(target.footprint?.width ?? 0.06)} by ${percent(target.footprint?.height ?? 0.06)}`;
     case 'floor-area':
-      return `floor area ${boundedText(project.floorPlan?.areas.find((area) => area.id === target.areaId)?.name ?? target.areaId)}`;
+      return `floor area ${promptText(project.floorPlan?.areas.find((area) => area.id === target.areaId)?.name ?? target.areaId)}`;
     case 'wall-segment': {
       const wall = project.floorPlan?.structures.find(item => item.id === target.wallId);
       if(wall?.kind==='pillar'&&target.pillarFace){
         const start=attachmentPoint(project,target,target.start)!,end=attachmentPoint(project,target,target.end)!,middle=attachmentPoint(project,target)!;
-        return `pillar ${boundedText(wall.name)} (${wall.id}), ONLY on saved surface ${target.pillarFace} (${PILLAR_FACE_LABELS[target.pillarFace]}), span ${percent(target.start)} to ${percent(target.end)} ${target.pillarFace==='round'?'clockwise around the circumference, 0% is plan-top/12 oclock':'along this face, following the clockwise perimeter direction'}, endpoints x=${coordinate(start.x)}, y=${coordinate(start.y)} to x=${coordinate(end.x)}, y=${coordinate(end.y)}, midpoint x=${coordinate(middle.x)}, y=${coordinate(middle.y)}. Keep the pillar geometry unchanged; do not copy this attachment to another face or a room wall`;
+        return `pillar ${promptText(wall.name)} (${wall.id}), ONLY on saved surface ${target.pillarFace} (${PILLAR_FACE_LABELS[target.pillarFace]}), span ${percent(target.start)} to ${percent(target.end)} ${target.pillarFace==='round'?'clockwise around the circumference, 0% is plan-top/12 oclock':'along this face, following the clockwise perimeter direction'}, endpoints x=${coordinate(start.x)}, y=${coordinate(start.y)} to x=${coordinate(end.x)}, y=${coordinate(end.y)}, midpoint x=${coordinate(middle.x)}, y=${coordinate(middle.y)}. Keep the pillar geometry unchanged; do not copy this attachment to another face or a room wall`;
       }
       const segment = wall?.geometry.kind === 'segment' ? wall.geometry : undefined;
       const spanCoordinates = segment ? `, endpoints x=${coordinate(segment.start.x + (segment.end.x - segment.start.x) * target.start)}, y=${coordinate(segment.start.y + (segment.end.y - segment.start.y) * target.start)} to x=${coordinate(segment.start.x + (segment.end.x - segment.start.x) * target.end)}, y=${coordinate(segment.start.y + (segment.end.y - segment.start.y) * target.end)}` : '';
-      return `wall ${boundedText(wall?.name ?? target.wallId)}, span ${percent(target.start)} to ${percent(target.end)} along wall${spanCoordinates}${wall?.role === 'partition' && target.face ? `, ONLY on ${wallFaceLabel(project, wall.id, target.face)} of this partition (A/B are defined by the saved wall start-to-end direction in the plan guide)` : ''}`;
+      return `wall ${promptText(wall?.name ?? target.wallId)}, span ${percent(target.start)} to ${percent(target.end)} along wall${spanCoordinates}${wall?.role === 'partition' && target.face ? `, ONLY on ${wallFaceLabel(project, wall.id, target.face)} of this partition (A/B are defined by the saved wall start-to-end direction in the plan guide)` : ''}`;
     }
     case 'ceiling-zone':
-      return `ceiling zone ${boundedText(project.floorPlan?.areas.find((area) => area.id === target.zoneId)?.name ?? target.zoneId)}, local offset x=${coordinate(target.offset?.x ?? .5)}, y=${coordinate(target.offset?.y ?? .5)}${target.height ? `, installation height: ${boundedText(target.height)}` : ''}; attach to the ceiling, never to the floor`;
+      return `ceiling zone ${promptText(project.floorPlan?.areas.find((area) => area.id === target.zoneId)?.name ?? target.zoneId)}, local offset x=${coordinate(target.offset?.x ?? .5)}, y=${coordinate(target.offset?.y ?? .5)}${target.height ? `, installation height: ${promptText(target.height)}` : ''}; attach to the ceiling, never to the floor`;
     case 'whole-space':
       return 'whole space';
     case 'named-area':
-      return `area ${boundedText(project.floorPlan?.areas.find((area) => area.id === target.areaId)?.name ?? target.areaId)}`;
+      return `area ${promptText(project.floorPlan?.areas.find((area) => area.id === target.areaId)?.name ?? target.areaId)}`;
   }
 }
 
@@ -189,10 +193,10 @@ function elementText(project: Project, element: DesignElement, images: Generatio
     sourceScope = compact ? 'Whole: attribute. ' : 'Use the whole reference only to identify this named attribute. Do not recreate its scene, backdrop or pictured object count. For one saved fixture/furniture item, select one representative appearance, never the pictured group. ';
   }
   if (sheet && panel !== undefined) sourceScope = (compact ? `Numbered panel ${panel + 1} only. ` : `Use only numbered panel ${panel + 1} in this input image. This panel is the reference image described below, never the whole sheet. `) + sourceScope;
-  return `${generationElementKey(project, element.id)} ${boundedText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` + placementCoordinates(project, element, compact) +
+  return `${generationElementKey(project, element.id)} ${promptText(element.label)} [${element.kind}] from ${imageNumber > 0 ? `input image ${imageNumber}` : 'saved reference conditions'} at ${targetText(project, element.target)}. ` + placementCoordinates(project, element, compact) +
     (element.origin === 'layout' && !element.sourceReferenceId ? compact ? 'User-created layout; no source image. ' : 'This is a user-created layout item without an inspiration image. Preserve its saved geometry and use a neutral functional design; do not invent a source image. ' : element.origin === 'basic-support' ? compact ? 'User-added basic display support. ' : 'This is a basic display support explicitly added by the user, not an object extracted from the product photograph. ' : sourceScope) +
-    `Appearance: ${boundedText(element.appearance ?? 'not specified')}. ` +
-    `Conditions: ${boundedText(element.conditions ?? 'none')}. ` + (compact ? '' : transferIntent(element)) + relativeToCamera(project, element) + installationContext(project, element, compact);
+    `Appearance: ${promptText(element.appearance ?? 'not specified')}. ` +
+    `Conditions: ${promptText(element.conditions ?? 'none')}. ` + (compact ? '' : transferIntent(element)) + relativeToCamera(project, element) + installationContext(project, element, compact);
 }
 
 function installationContext(project: Project, element: DesignElement, compact = false): string {
@@ -229,7 +233,7 @@ function wallPlaneContext(project: Project, wallId: string, openingId?: string):
   const alongSight = Math.abs(x * Math.cos(radians) + y * Math.sin(radians)) / Math.max(1, Math.hypot(x, y));
   const orientation = alongSight < .35 ? 'This wall runs across the view, perpendicular to the sight line; do not transfer this element to a side wall.' : alongSight > .85 ? 'This is a side wall running along the sight line, not the wall across the room.' : 'Keep this element on this angled wall plane.';
   const openings = plan.structures.filter(item => item.id !== openingId && item.parentWallId === wall.id && ['window', 'door', 'entrance'].includes(item.kind));
-  return `${orientation} ${openings.length ? `It shares the SAME wall plane with ${openings.map(item => `${boundedText(item.name)}${item.wallSpan ? ` at wall span ${percent(item.wallSpan.start)}–${percent(item.wallSpan.end)}` : ''}`).join(', ')}; preserve these openings and keep the design at its own saved span. ` : ''}`;
+  return `${orientation} ${openings.length ? `It shares the SAME wall plane with ${openings.map(item => `${promptText(item.name)}${item.wallSpan ? ` at wall span ${percent(item.wallSpan.start)}–${percent(item.wallSpan.end)}` : ''}`).join(', ')}; preserve these openings and keep the design at its own saved span. ` : ''}`;
 }
 
 function transferIntent(element: DesignElement, compact = false): string {
@@ -274,12 +278,12 @@ function structureViewText(project: Project, structure: Structure, compact = fal
   } else {
     const wall = project.floorPlan?.structures.find(item => item.id === structure.parentWallId);
     if (wall) {
-      instruction = `Attached to the saved wall ${boundedText(wall.name)}${structure.wallSpan ? ` at wall span ${percent(structure.wallSpan.start)}–${percent(structure.wallSpan.end)}` : ''}. ` +
+      instruction = `Attached to the saved wall ${promptText(wall.name)}${structure.wallSpan ? ` at wall span ${percent(structure.wallSpan.start)}–${percent(structure.wallSpan.end)}` : ''}. ` +
         (compact ? '' : wallPlaneContext(project, wall.id, structure.id));
     }
     if (!compact) instruction += 'Do not relocate this opening to another wall, enlarge it, cover it or replace it with a graphic.';
   }
-  return `- ${boundedText(structure.name)} [${structure.kind}]: ${cameraRelation(project, point)}. ${instruction}`;
+  return `- ${promptText(structure.name)} [${structure.kind}]: ${cameraRelation(project, point)}. ${instruction}`;
 }
 
 function hasRectangularRoomShell(project: Project): boolean {
@@ -298,6 +302,45 @@ function hasRectangularRoomShell(project: Project): boolean {
   });
 }
 
+/** Short keys and shared rules remove prose repetition, never saved conditions. */
+function savedConditionsPrompt(project: Project,cameraId: string,images: GenerationImage[],intro: string): string {
+  const plan=project.floorPlan!,camera=project.cameras.find(c=>c.id===cameraId)!;
+  const applied=project.elements.filter(e=>e.status==='apply');
+  const structureKeys=new Map(plan.structures.map((s,i)=>[s.id,`S${i+1}`]));
+  const areaKeys=new Map(plan.areas.map((a,i)=>[a.id,`A${i+1}`]));
+  const referenceKeys=new Map(project.references.map((r,i)=>[r.id,`R${i+1}`]));
+  const elementKeys=new Map(applied.map(e=>[e.id,generationElementKey(project,e.id)]));
+  const target=(value:PlacementTarget|null)=>value&&{
+    ...value,
+    ...('wallId' in value?{wallId:structureKeys.get(value.wallId)}:{}),
+    ...('areaId' in value?{areaId:areaKeys.get(value.areaId)}:{}),
+    ...('zoneId' in value?{zoneId:areaKeys.get(value.zoneId)}:{}),
+    ...('fixtureElementId' in value?{fixtureElementId:elementKeys.get(value.fixtureElementId)}:{}),
+  };
+  const data={
+    project: {name:project.name,spaceType:project.spaceType,concept:project.concept,designGoal:project.designGoal},
+    plan:{kind:plan.kind,geometryConfidence:plan.geometryConfidence,width:plan.width,height:plan.height,units:plan.units,
+      structures:plan.structures.map(s=>({key:structureKeys.get(s.id),name:s.name,kind:s.kind,geometry:s.geometry,role:s.role,protected:s.protected,immutable:s.immutable,preservationRequired:s.preservationRequired,parentWall:s.parentWallId?structureKeys.get(s.parentWallId):undefined,wallSpan:s.wallSpan,clearance:s.clearance,doorSwing:s.doorSwing,lightTone:s.lightTone})),
+      areas:plan.areas.map(a=>({key:areaKeys.get(a.id),name:a.name,kind:a.kind,bounds:a.bounds,outline:a.outline})),
+    },
+    preservation:project.keeps.map(k=>({structure:structureKeys.get(k.structureId),description:k.description,allowedSurfaceTreatment:k.allowedSurfaceTreatment})),
+    references:project.references.map(r=>{
+      const index=images.findIndex(image=>image.sourceId===r.imageId||image.sheet?.some(s=>s.sourceId===r.imageId));
+      const image=images[index],panel=image?.sheet?.findIndex(s=>s.sourceId===r.imageId);
+      return {key:referenceKeys.get(r.id),inputImage:index>=0?index+1:undefined,sheetPanel:panel!==undefined&&panel>=0?panel+1:undefined,preparation:image?.sheet?.find(s=>s.sourceId===r.imageId)?.referencePreparation??image?.referencePreparation,note:r.note,exclusions:r.exclusions};
+    }),
+    elements:applied.map(e=>({key:elementKeys.get(e.id),label:e.label,kind:e.kind,layoutKind:e.layoutKind,origin:e.origin,target:target(e.target),reference:referenceKeys.get(e.sourceReferenceId),sourceRegion:e.sourceRegion,appearance:e.appearance,conditions:e.conditions})),
+    bindings:project.referenceBindings?.map(b=>({reference:referenceKeys.get(b.referenceId),elements:b.layoutItemIds.map(id=>elementKeys.get(id)),scope:b.scope,sourceRegion:b.sourceRegion})),
+    excluded:project.elements.filter(e=>e.status==='exclude').map(e=>({label:e.label,conditions:e.conditions})),
+    camera,
+  };
+  return [intro,
+    'Complete saved conditions follow as JSON. S/A/R are local structure/area/reference keys; E keys match the visual plan guide. All coordinates are normalized plan coordinates, origin top-left, x right/y down; footprint and area bounds use plan proportions. Camera 0° right, 90° down, 180° left, 270° up. Use only this camera. Never render labels or JSON.',
+    'Preserve every saved geometry, Keep, opening, clearance, circulation, element, source crop, binding scope and individual condition. One physical item per E; no reference object-count copying. Products remain on their saved fixtureElementId support; wall graphics/lights remain on their wallId and selected A/B or pillar face; hidden faces stay hidden. Areas cover the whole saved bounds/outline. Material or lighting references do not authorize extra objects. Unsent references supply no new objects. Original-image crops use normalized sourceRegion; prepared crops/grids use their specified crop/panel. No sources, targets or user text were removed to shorten this input.',
+    JSON.stringify(data),
+  ].join('\n');
+}
+
 /** Builds model guidance from user-saved conditions; it does not claim geometric guarantees. */
 export function buildGenerationPrompt(project: Project, cameraId: string, images: GenerationImage[]): string {
   const camera = project.cameras.find((entry) => entry.id === cameraId);
@@ -312,8 +355,8 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   }
   const imageLines = images.map((image, index) => {
     const source = project.sourceImages.find((entry) => entry.id === image.sourceId);
-    const label = image.role === 'floor-plan' ? 'saved top-down plan guide with the selected camera arrow (registered plan background included when uploaded)' : boundedText(source?.name ?? image.role);
-    const sheetDescription = image.sheet ? ` numbered panels: ${image.sheet.map((source, i) => `${i + 1} = ${boundedText(project.sourceImages.find(item => item.id === source.sourceId)?.name ?? source.sourceId)}`).join('; ')}` : '';
+    const label = image.role === 'floor-plan' ? 'saved top-down plan guide with the selected camera arrow (registered plan background included when uploaded)' : promptText(source?.name ?? image.role);
+    const sheetDescription = image.sheet ? ` numbered panels: ${image.sheet.map((source, i) => `${i + 1} = ${promptText(project.sourceImages.find(item => item.id === source.sourceId)?.name ?? source.sourceId)}`).join('; ')}` : '';
     const prepared = image.referencePreparation?.mode === 'crop' ? ' (user-selected crop)' :
       image.referencePreparation?.mode === 'grid' ? ` (${image.referencePreparation.regions.length} user-selected crops in reading-order grid panels)` : '';
     return `${index + 1}. ${image.role}: ${label}${prepared}${sheetDescription}`;
@@ -355,21 +398,21 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     'Camera-space architecture before styling (positions and cross-sections come from the saved plan, not inspiration images):',
     ...(compact ? [
       'All saved openings: do not relocate to another wall, enlarge, cover or replace with a graphic. Wall-plane relationships below apply to every opening and mounted object on that named wall.',
-      ...contextualWallIds.map(wallId => `- Wall ${boundedText(plan.structures.find(wall => wall.id === wallId)?.name ?? wallId)}: ${wallPlaneContext(viewProject, wallId)}`),
+      ...contextualWallIds.map(wallId => `- Wall ${promptText(plan.structures.find(wall => wall.id === wallId)?.name ?? wallId)}: ${wallPlaneContext(viewProject, wallId)}`),
     ] : []),
     ...plan.structures.filter(item => ['window', 'door', 'entrance', 'pillar'].includes(item.kind)).map(item => structureViewText(viewProject, item, compact)),
-    `Project: ${boundedText(project.name)}. Space type: ${boundedText(project.spaceType)}. Intended concept: ${boundedText(project.concept, 500)}.`,
-    ...(project.designGoal?.trim() ? [`User design goal (desired result, not existing geometry): ${boundedText(project.designGoal.trim(), STUDY_START.maxDesignGoalLength)}. Apply this direction within all saved preservation, placement and camera constraints.`] : []),
+    `Project: ${promptText(project.name)}. Space type: ${promptText(project.spaceType)}. Intended concept: ${promptText(project.concept)}.`,
+    ...(project.designGoal?.trim() ? [`User design goal (desired result, not existing geometry): ${promptText(project.designGoal)}. Apply this direction within all saved preservation, placement and camera constraints.`] : []),
     compact ? `Plan ${plan.kind}, confidence ${plan.geometryConfidence}: TOP-LEFT content origin, normalized x/y 0–1, x right/y down. Logical extent ${plan.width}×${plan.height}; multiply x/y by width/height. NOT meters, photo/output pixels or calibrated 3D. E keys match guide/list. Points are anchors; areas cover their saved extent, never stacked at centers. Do not invent measured dimensions.` : `Plan source: ${plan.kind}. Geometry confidence: ${plan.geometryConfidence}. Coordinate origin is the TOP-LEFT of the plan content, excluding its title and margins. Normalized x/y range from 0 to 1: x increases right, y increases down. Logical plan extent is ${plan.width} by ${plan.height}; logical x=normalized x*${plan.width}, logical y=normalized y*${plan.height}. These are saved 2D plan coordinates, NOT meters, photo pixels, image-output pixels or a calibrated 3D projection. E01, E02, etc. identify the SAME elements in the guide and list below. A point is a center/anchor; an area is its full saved coverage, not an instruction to stack everything at the area center. Do not invent precise dimensions from a schematic plan or any photograph.`,
     compact ? 'Keep/protected geometry: never demolish, move, replace or block openings. Compatible removable wall decoration is allowed. Keep circulation/windows/pillars clear. Released locks follow saved positions and do not prove construction feasibility.' : 'Preserve structures explicitly marked as protected/Keep. Do not demolish, move, occlude openings or replace protected geometry. Compatible removable decoration may be mounted on a kept wall without changing its geometry. Keep door circulation, windows and pillars clear. Follow the registered plan positions for structures whose preservation lock the user released; releasing a lock is not evidence of construction feasibility.',
     `Protected structures (${fixed.length}):`,
-    ...fixed.map((item) => `- ${boundedText(item.name)} [${item.kind}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Existing light tone: ${boundedText(item.lightTone)}.` : ''}`),
+    ...fixed.map((item) => `- ${promptText(item.name)} [${item.kind}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Existing light tone: ${promptText(item.lightTone)}.` : ''}`),
     'Saved preservation conditions:',
-    ...project.keeps.map((keep) => `- ${boundedText(plan.structures.find((item) => item.id === keep.structureId)?.name ?? keep.structureId)}: ${boundedText(keep.description)}.` + (compact ? '' : ' Keep the underlying structure intact; compatible removable wall decoration is allowed. Never demolish or replace a preserved structure.')),
+    ...project.keeps.map((keep) => `- ${promptText(plan.structures.find((item) => item.id === keep.structureId)?.name ?? keep.structureId)}: ${promptText(keep.description)}.` + (compact ? '' : ' Keep the underlying structure intact; compatible removable wall decoration is allowed. Never demolish or replace a preserved structure.')),
     'User-editable plan structures (follow these saved positions; do not add an automatic preservation lock):',
-    ...editable.map((item) => `- ${boundedText(item.name)} [${item.kind}, ${item.role ?? 'unspecified origin'}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Light tone: ${boundedText(item.lightTone)}.` : ''}`),
+    ...editable.map((item) => `- ${promptText(item.name)} [${item.kind}, ${item.role ?? 'unspecified origin'}]: ${geometryText(item.geometry)}.${item.lightTone ? ` Light tone: ${promptText(item.lightTone)}.` : ''}`),
     'Registered plan areas and circulation:',
-    ...plan.areas.map((area) => area.outline ? `- ${boundedText(area.name)} [${area.kind}] manually traced polygon: ${area.outline.map(p => `(${percent(p.x)}, ${percent(p.y)})`).join(' → ')}.` : `- ${boundedText(area.name)} [${area.kind}] rectangle (${percent(area.bounds.x)}, ${percent(area.bounds.y)}), width ${percent(area.bounds.width)}, height ${percent(area.bounds.height)}.`),
+    ...plan.areas.map((area) => area.outline ? `- ${promptText(area.name)} [${area.kind}] manually traced polygon: ${area.outline.map(p => `(${percent(p.x)}, ${percent(p.y)})`).join(' → ')}.` : `- ${promptText(area.name)} [${area.kind}] rectangle (${percent(area.bounds.x)}, ${percent(area.bounds.y)}), width ${percent(area.bounds.width)}, height ${percent(area.bounds.height)}.`),
     'Applied design elements and their compatible targets:',
     ...(compact ? [
       'Shared object rules: preserve every saved layout target and floor-relative size, aisle gaps and source crop. User-created layout items without a source image use a neutral functional design; basic display supports are user-added, not extracted from product photos.',
@@ -377,8 +420,8 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
     ] : []),
     ...applied.map((element) => `- ${elementText(viewProject, element, images, compact)}`),
     'Excluded design elements and appearance:',
-    ...(excluded.length ? excluded.map((element) => `- Do not add ${boundedText(element.label)}. ${boundedText(element.conditions ?? '')}`) : ['- None specified.']),
-    ...project.references.flatMap((reference) => reference.exclusions.map((excludedNote) => `- Do not add ${boundedText(excludedNote)} from reference ${boundedText(project.sourceImages.find((image) => image.id === reference.imageId)?.name ?? reference.imageId)}.`)),
+    ...(excluded.length ? excluded.map((element) => `- Do not add ${promptText(element.label)}. ${promptText(element.conditions ?? '')}`) : ['- None specified.']),
+    ...project.references.flatMap((reference) => reference.exclusions.map((excludedNote) => `- Do not add ${promptText(excludedNote)} from reference ${promptText(project.sourceImages.find((image) => image.id === reference.imageId)?.name ?? reference.imageId)}.`)),
     `Viewpoint: camera at (${percent(camera.x)}, ${percent(camera.y)}), normalized x=${coordinate(camera.x)}, y=${coordinate(camera.y)}, direction ${Math.round(camera.directionDegrees)} degrees, where 0 degrees points right, 90 down, 180 left and 270 up. Field of view: ${camera.fovPreset ?? 'standard'}. View preset: ${camera.viewPreset ?? 'custom'}. Intended rendering height: ${camera.heightMeters ?? CAMERA_PRESETS.custom.heightMeters} m; pitch: ${camera.pitchDegrees ?? 0} degrees (negative looks down). ` + (compact ? 'Approximate visualization only; not surveyed geometry or verified eye-height statistics.' : 'These are approximate visualization settings, not surveyed geometry or verified population eye-height statistics. Compose from this approximate viewpoint.'),
     ...(compact ? [] : [`Final composition check — ADDED floor installations: ${floorInstallations.length}. Their E keys: ${floorInstallations.map(element => generationElementKey(project, element.id)).join(', ') || 'none'}. Count saved installations, never the furniture in reference backgrounds. Ambient lighting, color and material E keys do not add display stands. Keep existing preserved fixtures; composite sets require explicit individual conditions.`]),
     compact ? `Follow camera-relative depth/left/right. Natural ${overview?'elevated oblique overview':'eye-level'} interior photo; realistic ${exhibition?'graduation exhibition':'commercial display'} scale, supports, contact shadows, restrained bounce, neutral colors unless explicitly changed. Objects ONLY on saved floor/wall/ceiling/area targets. No labels, cameras, hatching, overlays or multiple panels. Concept visualization, not a verified drawing.` : `Preserve foreground/background ordering and relative left/right positions from the camera arrow. Render a natural interior photograph with plausible ${overview?'elevated oblique overview':'eye-level'} perspective, realistic ${exhibition ? 'graduation exhibition display' : 'commercial display'} scale, appropriate display supports, contact shadows, restrained reflected light and neutral material colors unless a saved color/material element explicitly changes them. Show the proposed elements only at their specified floor, wall, ceiling or room regions. Do not render plan labels, camera markers, passage hatching, technical overlays or multiple panels. The result is a concept visualization, not a verified architectural drawing.`,
@@ -386,7 +429,8 @@ export function buildGenerationPrompt(project: Project, cameraId: string, images
   let prompt = renderPrompt(false);
   // Repeat shared style/installation guidance once when many objects are
   // placed. Never truncate saved targets, individual conditions or sources.
-  if (prompt.length > MAX_GENERATION_PROMPT_LENGTH) prompt = renderPrompt(true);
-  if (prompt.length > MAX_GENERATION_PROMPT_LENGTH) throw new GenerationInputError('생성 조건이 너무 길어 요청할 수 없습니다. 구조와 조건을 정리해 주세요.');
+  if (prompt.length > COMPACT_PROMPT_THRESHOLD) prompt = renderPrompt(true);
+  if (prompt.length > MAX_GENERATION_PROMPT_LENGTH) prompt = savedConditionsPrompt(project,cameraId,images,renderPrompt(true).split('Camera-space architecture before styling')[0]);
+  if (prompt.length > MAX_GENERATION_PROMPT_LENGTH) throw new GenerationInputError('이미지 모델이 한 번에 읽을 수 있는 입력 용량을 초과했습니다. 생성 준비를 완료하지 못했습니다.');
   return prompt;
 }

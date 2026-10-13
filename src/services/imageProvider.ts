@@ -35,6 +35,22 @@ export interface ImageProvider {
   createResult(project: Project, cameraId: string, existingPhotoId?: string): Promise<Result>;
 }
 
+export interface PreparedGenerationRequest {
+  key: string;
+  request: GenerationRequest;
+  serialized: string;
+}
+export interface GenerationPreparationState {
+  key:string;
+  state:'preparing'|'ready'|'error';
+  requests:PreparedGenerationRequest[];
+  error?:string;
+}
+/** Result history is not generation input. */
+export function generationPreparationKey(project:Project,cameraIds:string[],existingPhotoId?:string):string {
+  return JSON.stringify({project:{...project,results:[]},cameraIds,existingPhotoId});
+}
+
 /** Fixed local sample. It does not generate pixels or imply spatial consistency. */
 export const offlineDemoProvider: ImageProvider = {
   mode: 'offline-demo',
@@ -223,7 +239,9 @@ export async function compactReferenceSheet(project: Project, sheet: SheetSource
   throw new Error('참고 이미지 모음의 선명도를 유지하며 용량을 줄이지 못했습니다. 이미지 해상도를 줄여 주세요.');
 }
 
-async function requestImage(project: Project, cameraId: string, existingPhotoId: string | undefined, requestId: string): Promise<string> {
+/** Prepare every known input check before Review can display a ready state. */
+export async function prepareGenerationRequests(project:Project,cameraIds:string[],existingPhotoId?:string):Promise<PreparedGenerationRequest[]> {
+  for(const cameraId of cameraIds){const issue=validatePreflight(project,cameraId).issues.find(i=>i.severity==='error');if(issue)throw new Error(issue.message);}
   const existing = project.sourceImages.find((image) => image.role === 'existing-space' &&
     (!existingPhotoId || image.id === existingPhotoId));
   if (!existing) throw new Error(existingPhotoId
@@ -242,16 +260,26 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
       dataUrl: await compactImage(source.uri, source.referencePreparation),
       ...(source.referencePreparation ? { referencePreparation: source.referencePreparation } : {}) });
   }
-  images.splice(1, 0, { role: 'floor-plan', sourceId: 'floor-plan', planGuide: planGuideManifest(project, cameraId), dataUrl: await preparePlanGuideImage(project, cameraId) });
   for (let index = 0; index < sheets.length; index++) images.push({ role: 'reference-sheet', sourceId: `reference-sheet-${index}`, sheet: sheets[index], dataUrl: await compactReferenceSheet(project, sheets[index]) });
-  const body: GenerationRequest = { project: { ...project, results: [] }, cameraId, images };
+  return Promise.all(cameraIds.map(async cameraId=>{
+  const viewImages=[...images];
+  viewImages.splice(1,0,{role:'floor-plan',sourceId:'floor-plan',planGuide:planGuideManifest(project,cameraId),dataUrl:await preparePlanGuideImage(project,cameraId)});
+  const body: GenerationRequest = { project: { ...project, results: [] }, cameraId, images:viewImages };
   // Catch known input limits before sending a request; the server independently
   // validates the same contract before reserving any paid quota.
-  buildGenerationPrompt(body.project, cameraId, images);
+  buildGenerationPrompt(body.project, cameraId, viewImages);
   const serialized = JSON.stringify(body);
   if (new TextEncoder().encode(serialized).length > MAX_GENERATION_BODY_BYTES) {
     throw new Error('입력 이미지가 너무 커서 보낼 수 없습니다. 더 작은 사진을 등록해 주세요.');
   }
+  return {key:generationPreparationKey(project,[cameraId],existingPhotoId),request:body,serialized};
+  }));
+}
+
+async function requestImage(project: Project, cameraId: string, existingPhotoId: string | undefined, requestId: string, prepared?:PreparedGenerationRequest): Promise<string> {
+  if(prepared&&prepared.key!==generationPreparationKey(project,[cameraId],existingPhotoId))throw new Error('생성 조건이 변경되었습니다. 새 조건의 준비가 끝나면 다시 생성해 주세요.');
+  const input=prepared??(await prepareGenerationRequests(project,[cameraId],existingPhotoId))[0];
+  const serialized=input.serialized;
   let response: Response;
   try {
     response = await fetch('/api/generate', {
@@ -284,7 +312,7 @@ async function requestImage(project: Project, cameraId: string, existingPhotoId:
 }
 
 /** The server holds the API key and enforces the shared durable quota. */
-export function createApiImageProvider(requestId: string = crypto.randomUUID()): ImageProvider {
+export function createApiImageProvider(requestId: string = crypto.randomUUID(),prepared?:PreparedGenerationRequest): ImageProvider {
   return {
     mode: 'api',
     provenance: 'OpenAI 이미지 API로 생성한 시안입니다. 구조와 배치가 정확히 반영되었는지 결과를 직접 확인해 주세요.',
@@ -294,7 +322,7 @@ export function createApiImageProvider(requestId: string = crypto.randomUUID()):
       if (firstError) throw new Error(firstError.message);
       const conditionsSnapshot = createConditionsSnapshot(project, cameraId, existingPhotoId);
       if (!conditionsSnapshot) throw new Error('카메라를 찾을 수 없습니다.');
-      const dataUrl = await requestImage(project, cameraId, existingPhotoId, requestId);
+      const dataUrl = await requestImage(project, cameraId, existingPhotoId, requestId,prepared);
       let imageUri: string;
       try {
         const blob = await (await fetch(dataUrl)).blob();

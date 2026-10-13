@@ -8,6 +8,21 @@ import { buildGenerationPrompt, type GenerationImage } from '../src/services/gen
 const palette: PlanGuidePalette = { paper: 'white', ink: 'black', structure: 'gray', info: 'blue', selected: 'purple', subtle: 'white', border: 'gray' };
 
 describe('saved plan guide and scoped visual transfer', () => {
+  it('packs large saved conditions as keyed JSON without dropping targets or individual text', () => {
+    const project = createSampleProject();
+    const original = project.elements.find(e => e.id === 'element-graphic')!;
+    for(let i=0;i<90;i++)project.elements.push({...original,id:`wall-${i}`,label:`벽면 ${i}`,origin:'mapping-condition'});
+    original.conditions = '사용자가 지정한 개별 요구 사항 '.repeat(20) + '마지막 문장까지 유지';
+    const prompt = buildGenerationPrompt(project,'camera-entrance',[]);
+    expect(prompt).toContain('Complete saved conditions follow as JSON');
+    const saved = JSON.parse(prompt.split('\n').at(-1)!);
+    expect(saved.elements).toHaveLength(project.elements.filter(e=>e.status==='apply').length);
+    expect(saved.elements.find((e:{label:string})=>e.label===original.label).conditions).toBe(original.conditions);
+    expect(saved.elements.find((e:{label:string})=>e.label==='벽면 89').target).toMatchObject({kind:'wall-segment',start:original.target!.kind==='wall-segment'?original.target.start:0});
+    expect(saved.camera.id).toBe('camera-entrance');
+    expect(prompt.length).toBeLessThanOrEqual(32000);
+  });
+
   it('links precise plan anchors to the same element keys in the visual guide', () => {
     const project = createSampleProject();
     const element = project.elements.find(item => item.id === 'element-display')!;
